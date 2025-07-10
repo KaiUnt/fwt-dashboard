@@ -200,7 +200,7 @@ class LiveheatsClient:
             
             return valid_results
         
-    async def get_series_by_years(self, short_name: str = "fwtglobal", years: range = range(2024, 2030)) -> list:
+    async def get_series_by_years(self, short_name: str = "fwtglobal", years: range = range(2008, 2031)) -> list:
         """Fetch series from an organisation and filter by year."""
         async with self.client as client:
             result = await client.execute(self.queries.GET_ORGANISATION_SERIES, {"shortName": short_name})
@@ -212,18 +212,19 @@ class LiveheatsClient:
             series = result["organisationByShortName"].get("series", [])
             logger.info(f"{len(series)} Serien gefunden.")
             
-            # Filter Serien basierend auf Jahreszahlen
+            # Filter Serien basierend auf Jahreszahlen (2008-2030)
             filtered_series = []
             for s in series:
-                match = re.search(r'\b(202[4-9])\b', s["name"])
+                # Erweiterte Suche für Jahre 2008-2030
+                match = re.search(r'\b(20(?:0[8-9]|1[0-9]|2[0-9]|30))\b', s["name"])
                 if match and int(match.group(1)) in years:
                     filtered_series.append(s)
             
             logger.info(f"{len(filtered_series)} Serien in den Jahren {years} gefunden.")
             return filtered_series
 
-    async def get_events_from_series(self, series_ids: list) -> list:
-        """Fetch all events from a list of series IDs."""
+    async def get_events_from_series(self, series_ids: list, include_past: bool = False) -> list:
+        """Fetch events from a list of series IDs."""
         async with self.client as client:
             events = []
             for series_id in series_ids:
@@ -231,23 +232,44 @@ class LiveheatsClient:
                 if result and "series" in result and "events" in result["series"]:
                     events.extend(result["series"]["events"])
             
-            # Nach Datum filtern (nur zukünftige Events)
-            now = datetime.now(timezone.utc)
-            grace_period = now - timedelta(days=5)
-            future_events = [
-                event for event in events 
-                if datetime.fromisoformat(event["date"].replace("Z", "+00:00")) >= grace_period
-            ]
+            if include_past:
+                # Alle Events (keine Datum-Filterung)
+                unique_events = {event["id"]: event for event in events}.values()
+                logger.info(f"{len(unique_events)} Events (inkl. vergangene) gefunden.")
+                return list(unique_events)
+            else:
+                # Nach Datum filtern (nur zukünftige Events)
+                now = datetime.now(timezone.utc)
+                grace_period = now - timedelta(days=5)
+                future_events = [
+                    event for event in events 
+                    if datetime.fromisoformat(event["date"].replace("Z", "+00:00")) >= grace_period
+                ]
+                
+                # Deduplizieren basierend auf der Event-ID
+                unique_events = {event["id"]: event for event in future_events}.values()
+                
+                logger.info(f"{len(unique_events)} zukünftige Events gefunden.")
+                return list(unique_events)
+
+    async def get_all_events_from_series(self, series_ids: list) -> list:
+        """Fetch ALL events from a list of series IDs (including past events)."""
+        async with self.client as client:
+            events = []
+            for series_id in series_ids:
+                result = await client.execute(self.queries.GET_EVENTS_BY_SERIES, {"id": series_id})
+                if result and "series" in result and "events" in result["series"]:
+                    events.extend(result["series"]["events"])
             
-            # Deduplizieren basierend auf der Event-ID
-            unique_events = {event["id"]: event for event in future_events}.values()
+            # Deduplizieren basierend auf der Event-ID (KEINE Datum-Filterung)
+            unique_events = {event["id"]: event for event in events}.values()
             
-            logger.info(f"{len(unique_events)} zukünftige Events gefunden.")
+            logger.info(f"{len(unique_events)} Events (inkl. vergangene) gefunden.")
             return list(unique_events)
 
     async def get_future_events(self) -> list:
-        """Fetch future events for FWT series in 2024–2029."""
-        # Hole die Serien der Organisation
+        """Fetch future events for FWT series in recent years."""
+        # Hole die Serien der Organisation (nur neuere Jahre für Performance)
         series = await self.get_series_by_years("fwtglobal", range(2024, 2030))
         if not series:
             return []
@@ -256,7 +278,42 @@ class LiveheatsClient:
         series_ids = [s["id"] for s in series]
         
         # Hole Events aus den Serien
-        return await self.get_events_from_series(series_ids)
+        return await self.get_events_from_series(series_ids, include_past=False)
+
+    async def get_all_events(self) -> list:
+        """Fetch ALL events (including past) for FWT series since 2008."""
+        # Hole Serien von BEIDEN Organisationen (komplette FWT Historie)
+        series_fwtglobal = await self.get_series_by_years("fwtglobal", range(2008, 2031))
+        series_fwt = await self.get_series_by_years("fwt", range(2008, 2031))
+        
+        # Kombiniere Serien aus beiden Organisationen
+        all_series = []
+        if series_fwtglobal:
+            all_series.extend(series_fwtglobal)
+        if series_fwt:
+            all_series.extend(series_fwt)
+            
+        if not all_series:
+            return []
+        
+        # Extrahiere Serien-IDs
+        series_ids = [s["id"] for s in all_series]
+        
+        # Hole ALLE Events aus den Serien (inkl. vergangene)
+        return await self.get_events_from_series(series_ids, include_past=True)
+
+    async def get_all_events_for_years(self, years: range) -> list:
+        """Fetch ALL events (including past) for FWT series in specified years."""
+        # Hole die Serien der Organisation
+        series = await self.get_series_by_years("fwtglobal", years)
+        if not series:
+            return []
+        
+        # Extrahiere Serien-IDs
+        series_ids = [s["id"] for s in series]
+        
+        # Hole alle Events aus den Serien (ohne Datum-Filter)
+        return await self.get_all_events_from_series(series_ids)
             
     async def _process_series(self, client: GraphQLClient, series_id: str, athlete_ids: List[str]) -> Optional[Dict]:
         """Process a single series and its divisions."""
