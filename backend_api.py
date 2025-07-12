@@ -6,12 +6,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import asyncio
 from api.client import LiveheatsClient
 from datetime import datetime
 import uvicorn
 import logging
+from supabase import create_client, Client
+from pydantic import BaseModel
 
 # Add the current directory to the path so we can import our modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +21,46 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Supabase configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY", "")
+
+# Initialize Supabase client if credentials are provided
+supabase: Optional[Client] = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        logger.info("Supabase client initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase client: {e}")
+        supabase = None
+else:
+    logger.warning("Supabase credentials not provided. Commentator info features will be disabled.")
+
+# Pydantic models for commentator info
+class CommentatorInfoCreate(BaseModel):
+    athlete_id: str
+    homebase: Optional[str] = None
+    team: Optional[str] = None
+    sponsors: Optional[str] = None
+    favorite_trick: Optional[str] = None
+    achievements: Optional[str] = None
+    injuries: Optional[str] = None
+    fun_facts: Optional[str] = None
+    notes: Optional[str] = None
+    social_media: Optional[Dict[str, str]] = None
+
+class CommentatorInfoUpdate(BaseModel):
+    homebase: Optional[str] = None
+    team: Optional[str] = None
+    sponsors: Optional[str] = None
+    favorite_trick: Optional[str] = None
+    achievements: Optional[str] = None
+    injuries: Optional[str] = None
+    fun_facts: Optional[str] = None
+    notes: Optional[str] = None
+    social_media: Optional[Dict[str, str]] = None
 
 app = FastAPI(title="FWT Events API", version="1.0.0")
 
@@ -305,6 +347,273 @@ async def get_multi_event_athletes(event_id1: str, event_id2: str):
     except Exception as e:
         logger.error(f"Error fetching multi-event athletes for {event_id1} + {event_id2}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch multi-event athletes: {str(e)}")
+
+# Commentator Info API Endpoints
+
+@app.get("/api/commentator-info/{athlete_id}")
+async def get_commentator_info(athlete_id: str):
+    """Get commentator info for a specific athlete"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        result = supabase.table("commentator_info").select("*").eq("athlete_id", athlete_id).execute()
+        
+        if result.data:
+            return {
+                "success": True,
+                "data": result.data[0]
+            }
+        else:
+            return {
+                "success": True,
+                "data": None,
+                "message": "No commentator info found for this athlete"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error fetching commentator info for athlete {athlete_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
+
+@app.post("/api/commentator-info")
+async def create_commentator_info(info: CommentatorInfoCreate):
+    """Create commentator info for an athlete"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Check if info already exists
+        existing = supabase.table("commentator_info").select("*").eq("athlete_id", info.athlete_id).execute()
+        
+        if existing.data:
+            raise HTTPException(status_code=409, detail="Commentator info already exists for this athlete")
+        
+        # Create new record
+        result = supabase.table("commentator_info").insert(info.dict()).execute()
+        
+        return {
+            "success": True,
+            "data": result.data[0],
+            "message": "Commentator info created successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating commentator info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create commentator info: {str(e)}")
+
+@app.put("/api/commentator-info/{athlete_id}")
+async def update_commentator_info(athlete_id: str, info: CommentatorInfoUpdate):
+    """Update commentator info for an athlete"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Check if record exists
+        existing = supabase.table("commentator_info").select("*").eq("athlete_id", athlete_id).execute()
+        
+        if not existing.data:
+            # Create new record if it doesn't exist
+            create_data = CommentatorInfoCreate(athlete_id=athlete_id, **info.dict())
+            result = supabase.table("commentator_info").insert(create_data.dict()).execute()
+        else:
+            # Update existing record
+            update_data = {k: v for k, v in info.dict().items() if v is not None}
+            result = supabase.table("commentator_info").update(update_data).eq("athlete_id", athlete_id).execute()
+        
+        return {
+            "success": True,
+            "data": result.data[0],
+            "message": "Commentator info updated successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error updating commentator info for athlete {athlete_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update commentator info: {str(e)}")
+
+@app.delete("/api/commentator-info/{athlete_id}")
+async def soft_delete_commentator_info(athlete_id: str):
+    """Soft delete commentator info for an athlete"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Use the soft_delete function
+        result = supabase.rpc("soft_delete_commentator_info", params={"p_athlete_id": athlete_id}).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Commentator info not found")
+        
+        return {
+            "success": True,
+            "message": "Commentator info soft deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error soft deleting commentator info for athlete {athlete_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete commentator info: {str(e)}")
+
+@app.post("/api/commentator-info/{athlete_id}/restore")
+async def restore_commentator_info(athlete_id: str):
+    """Restore soft-deleted commentator info for an athlete"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Use the restore function
+        result = supabase.rpc("restore_commentator_info", params={"p_athlete_id": athlete_id}).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="No deleted commentator info found for this athlete")
+        
+        return {
+            "success": True,
+            "message": "Commentator info restored successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error restoring commentator info for athlete {athlete_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to restore commentator info: {str(e)}")
+
+@app.get("/api/commentator-info/deleted")
+async def get_deleted_commentator_info():
+    """Get all soft-deleted commentator info records"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        result = supabase.table("deleted_commentator_info").select("*").execute()
+        
+        return {
+            "success": True,
+            "data": result.data,
+            "total": len(result.data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching deleted commentator info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch deleted commentator info: {str(e)}")
+
+@app.post("/api/commentator-info/cleanup")
+async def cleanup_old_deleted_commentator_info():
+    """Clean up old deleted commentator info records (older than 30 days)"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        result = supabase.rpc("cleanup_old_deleted_commentator_info", params={}).execute()
+        
+        deleted_count = result.data if result.data else 0
+        
+        return {
+            "success": True,
+            "deleted_count": deleted_count,
+            "message": f"Cleaned up {deleted_count} old deleted records"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error cleaning up old deleted commentator info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup old deleted records: {str(e)}")
+
+@app.get("/api/commentator-info")
+async def get_all_commentator_info():
+    """Get all commentator info records"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        result = supabase.table("commentator_info").select("*").execute()
+        
+        return {
+            "success": True,
+            "data": result.data,
+            "total": len(result.data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching all commentator info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
+
+@app.get("/api/commentator-info/export")
+async def export_all_commentator_info():
+    """Export all commentator info for backup purposes"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        result = supabase.table("commentator_info").select("*").execute()
+        
+        # Add metadata to the export
+        export_data = {
+            "export_timestamp": datetime.now().isoformat(),
+            "total_records": len(result.data),
+            "version": "1.0",
+            "data": result.data
+        }
+        
+        return export_data
+        
+    except Exception as e:
+        logger.error(f"Error exporting commentator info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to export commentator info: {str(e)}")
+
+@app.post("/api/commentator-info/import")
+async def import_commentator_info(import_data: dict):
+    """Import commentator info from backup file"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Validate import data structure
+        if "data" not in import_data:
+            raise HTTPException(status_code=400, detail="Invalid import data structure")
+        
+        imported_count = 0
+        updated_count = 0
+        errors = []
+        
+        for record in import_data["data"]:
+            try:
+                athlete_id = record.get("athlete_id")
+                if not athlete_id:
+                    errors.append("Missing athlete_id in record")
+                    continue
+                
+                # Check if record already exists
+                existing = supabase.table("commentator_info").select("*").eq("athlete_id", athlete_id).execute()
+                
+                if existing.data:
+                    # Update existing record
+                    update_data = {k: v for k, v in record.items() if k not in ["id", "created_at", "updated_at"]}
+                    supabase.table("commentator_info").update(update_data).eq("athlete_id", athlete_id).execute()
+                    updated_count += 1
+                else:
+                    # Insert new record
+                    insert_data = {k: v for k, v in record.items() if k not in ["id", "created_at", "updated_at"]}
+                    supabase.table("commentator_info").insert(insert_data).execute()
+                    imported_count += 1
+                    
+            except Exception as e:
+                errors.append(f"Error processing record for athlete {athlete_id}: {str(e)}")
+        
+        return {
+            "success": True,
+            "imported_count": imported_count,
+            "updated_count": updated_count,
+            "errors": errors,
+            "total_processed": imported_count + updated_count
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing commentator info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to import commentator info: {str(e)}")
 
 def extract_location_from_name(event_name: str) -> str:
     """Extract location from event name."""
