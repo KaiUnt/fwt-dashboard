@@ -1,5 +1,10 @@
 import sys
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 # Add current directory to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -12,7 +17,7 @@ from api.client import LiveheatsClient
 from datetime import datetime
 import uvicorn
 import logging
-from supabase import create_client, Client
+import httpx
 from pydantic import BaseModel
 
 # Add the current directory to the path so we can import our modules
@@ -26,15 +31,73 @@ logger = logging.getLogger(__name__)
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY", "")
 
+# Supabase REST API helper
+class SupabaseClient:
+    def __init__(self, url: str, key: str):
+        self.url = url.rstrip('/')
+        self.key = key
+        self.headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        }
+    
+    async def select(self, table: str, columns: str = "*", filters: dict = None):
+        """Select data from table"""
+        url = f"{self.url}/rest/v1/{table}"
+        params = {"select": columns}
+        
+        if filters:
+            for key, value in filters.items():
+                params[f"{key}"] = f"eq.{value}"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.json()
+    
+    async def insert(self, table: str, data: dict):
+        """Insert data into table"""
+        url = f"{self.url}/rest/v1/{table}"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=self.headers, json=data)
+            response.raise_for_status()
+            return response.json()
+    
+    async def update(self, table: str, data: dict, filters: dict):
+        """Update data in table"""
+        url = f"{self.url}/rest/v1/{table}"
+        params = {}
+        
+        if filters:
+            for key, value in filters.items():
+                params[f"{key}"] = f"eq.{value}"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(url, headers=self.headers, params=params, json=data)
+            response.raise_for_status()
+            return response.json()
+    
+    async def rpc(self, function_name: str, params: dict = None):
+        """Call RPC function"""
+        url = f"{self.url}/rest/v1/rpc/{function_name}"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=self.headers, json=params or {})
+            response.raise_for_status()
+            return response.json()
+
 # Initialize Supabase client if credentials are provided
-supabase: Optional[Client] = None
+supabase_client: Optional[SupabaseClient] = None
 if SUPABASE_URL and SUPABASE_KEY:
     try:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-        logger.info("Supabase client initialized successfully")
+        supabase_client = SupabaseClient(SUPABASE_URL, SUPABASE_KEY)
+        logger.info("Supabase HTTP client initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize Supabase client: {e}")
-        supabase = None
+        logger.error(f"Failed to initialize Supabase HTTP client: {e}")
+        supabase_client = None
 else:
     logger.warning("Supabase credentials not provided. Commentator info features will be disabled.")
 
@@ -353,16 +416,16 @@ async def get_multi_event_athletes(event_id1: str, event_id2: str):
 @app.get("/api/commentator-info/{athlete_id}")
 async def get_commentator_info(athlete_id: str):
     """Get commentator info for a specific athlete"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        result = supabase.table("commentator_info").select("*").eq("athlete_id", athlete_id).execute()
+        result = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id})
         
-        if result.data:
+        if result:
             return {
                 "success": True,
-                "data": result.data[0]
+                "data": result[0]
             }
         else:
             return {
@@ -378,22 +441,22 @@ async def get_commentator_info(athlete_id: str):
 @app.post("/api/commentator-info")
 async def create_commentator_info(info: CommentatorInfoCreate):
     """Create commentator info for an athlete"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
         # Check if info already exists
-        existing = supabase.table("commentator_info").select("*").eq("athlete_id", info.athlete_id).execute()
+        existing = await supabase_client.select("commentator_info", "*", {"athlete_id": info.athlete_id})
         
-        if existing.data:
+        if existing:
             raise HTTPException(status_code=409, detail="Commentator info already exists for this athlete")
         
         # Create new record
-        result = supabase.table("commentator_info").insert(info.dict()).execute()
+        result = await supabase_client.insert("commentator_info", info.dict())
         
         return {
             "success": True,
-            "data": result.data[0],
+            "data": result[0] if result else None,
             "message": "Commentator info created successfully"
         }
         
@@ -406,25 +469,25 @@ async def create_commentator_info(info: CommentatorInfoCreate):
 @app.put("/api/commentator-info/{athlete_id}")
 async def update_commentator_info(athlete_id: str, info: CommentatorInfoUpdate):
     """Update commentator info for an athlete"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
         # Check if record exists
-        existing = supabase.table("commentator_info").select("*").eq("athlete_id", athlete_id).execute()
+        existing = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id})
         
-        if not existing.data:
+        if not existing:
             # Create new record if it doesn't exist
             create_data = CommentatorInfoCreate(athlete_id=athlete_id, **info.dict())
-            result = supabase.table("commentator_info").insert(create_data.dict()).execute()
+            result = await supabase_client.insert("commentator_info", create_data.dict())
         else:
             # Update existing record
             update_data = {k: v for k, v in info.dict().items() if v is not None}
-            result = supabase.table("commentator_info").update(update_data).eq("athlete_id", athlete_id).execute()
+            result = await supabase_client.update("commentator_info", update_data, {"athlete_id": athlete_id})
         
         return {
             "success": True,
-            "data": result.data[0],
+            "data": result[0] if result else None,
             "message": "Commentator info updated successfully"
         }
         
@@ -435,14 +498,14 @@ async def update_commentator_info(athlete_id: str, info: CommentatorInfoUpdate):
 @app.delete("/api/commentator-info/{athlete_id}")
 async def soft_delete_commentator_info(athlete_id: str):
     """Soft delete commentator info for an athlete"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
         # Use the soft_delete function
-        result = supabase.rpc("soft_delete_commentator_info", params={"p_athlete_id": athlete_id}).execute()
+        result = await supabase_client.rpc("soft_delete_commentator_info", {"p_athlete_id": athlete_id})
         
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=404, detail="Commentator info not found")
         
         return {
@@ -459,14 +522,14 @@ async def soft_delete_commentator_info(athlete_id: str):
 @app.post("/api/commentator-info/{athlete_id}/restore")
 async def restore_commentator_info(athlete_id: str):
     """Restore soft-deleted commentator info for an athlete"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
         # Use the restore function
-        result = supabase.rpc("restore_commentator_info", params={"p_athlete_id": athlete_id}).execute()
+        result = await supabase_client.rpc("restore_commentator_info", {"p_athlete_id": athlete_id})
         
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=404, detail="No deleted commentator info found for this athlete")
         
         return {
@@ -483,16 +546,16 @@ async def restore_commentator_info(athlete_id: str):
 @app.get("/api/commentator-info/deleted")
 async def get_deleted_commentator_info():
     """Get all soft-deleted commentator info records"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        result = supabase.table("deleted_commentator_info").select("*").execute()
+        result = await supabase_client.select("deleted_commentator_info", "*")
         
         return {
             "success": True,
-            "data": result.data,
-            "total": len(result.data)
+            "data": result,
+            "total": len(result)
         }
         
     except Exception as e:
@@ -502,13 +565,13 @@ async def get_deleted_commentator_info():
 @app.post("/api/commentator-info/cleanup")
 async def cleanup_old_deleted_commentator_info():
     """Clean up old deleted commentator info records (older than 30 days)"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        result = supabase.rpc("cleanup_old_deleted_commentator_info", params={}).execute()
+        result = await supabase_client.rpc("cleanup_old_deleted_commentator_info", {})
         
-        deleted_count = result.data if result.data else 0
+        deleted_count = result if result else 0
         
         return {
             "success": True,
@@ -523,16 +586,16 @@ async def cleanup_old_deleted_commentator_info():
 @app.get("/api/commentator-info")
 async def get_all_commentator_info():
     """Get all commentator info records"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        result = supabase.table("commentator_info").select("*").execute()
+        result = await supabase_client.select("commentator_info", "*")
         
         return {
             "success": True,
-            "data": result.data,
-            "total": len(result.data)
+            "data": result,
+            "total": len(result)
         }
         
     except Exception as e:
@@ -542,18 +605,18 @@ async def get_all_commentator_info():
 @app.get("/api/commentator-info/export")
 async def export_all_commentator_info():
     """Export all commentator info for backup purposes"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        result = supabase.table("commentator_info").select("*").execute()
+        result = await supabase_client.select("commentator_info", "*")
         
         # Add metadata to the export
         export_data = {
             "export_timestamp": datetime.now().isoformat(),
-            "total_records": len(result.data),
+            "total_records": len(result),
             "version": "1.0",
-            "data": result.data
+            "data": result
         }
         
         return export_data
@@ -565,7 +628,7 @@ async def export_all_commentator_info():
 @app.post("/api/commentator-info/import")
 async def import_commentator_info(import_data: dict):
     """Import commentator info from backup file"""
-    if not supabase:
+    if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
@@ -585,17 +648,17 @@ async def import_commentator_info(import_data: dict):
                     continue
                 
                 # Check if record already exists
-                existing = supabase.table("commentator_info").select("*").eq("athlete_id", athlete_id).execute()
+                existing = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id})
                 
-                if existing.data:
+                if existing:
                     # Update existing record
                     update_data = {k: v for k, v in record.items() if k not in ["id", "created_at", "updated_at"]}
-                    supabase.table("commentator_info").update(update_data).eq("athlete_id", athlete_id).execute()
+                    await supabase_client.update("commentator_info", update_data, {"athlete_id": athlete_id})
                     updated_count += 1
                 else:
                     # Insert new record
                     insert_data = {k: v for k, v in record.items() if k not in ["id", "created_at", "updated_at"]}
-                    supabase.table("commentator_info").insert(insert_data).execute()
+                    await supabase_client.insert("commentator_info", insert_data)
                     imported_count += 1
                     
             except Exception as e:
@@ -641,5 +704,5 @@ def extract_location_from_name(event_name: str) -> str:
     return "TBD"
 
 if __name__ == "__main__":
-    print("🚀 Starting FastAPI server on http://localhost:8000")
+    print("Starting FastAPI server on http://localhost:8000")
     uvicorn.run("backend_api:app", host="0.0.0.0", port=8000, reload=True) 
