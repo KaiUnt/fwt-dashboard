@@ -18,6 +18,7 @@ from datetime import datetime
 import uvicorn
 import logging
 import httpx
+import re
 from pydantic import BaseModel
 
 # Add the current directory to the path so we can import our modules
@@ -601,6 +602,126 @@ async def get_all_commentator_info():
     except Exception as e:
         logger.error(f"Error fetching all commentator info: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
+
+@app.get("/api/fullresults")
+async def get_all_series():
+    """Get all available FWT series with metadata"""
+    try:
+        from api.client import LiveheatsClient
+        
+        client = LiveheatsClient()
+        
+        # Get series from both organizations
+        series_fwtglobal = await client.get_series_by_years("fwtglobal", range(2008, 2031))
+        series_fwt = await client.get_series_by_years("fwt", range(2008, 2031))
+        
+        # Combine series
+        all_series = []
+        if series_fwtglobal:
+            all_series.extend(series_fwtglobal)
+        if series_fwt:
+            all_series.extend(series_fwt)
+        
+        # Enhance series data with metadata
+        enhanced_series = []
+        for series in all_series:
+            # Extract year from series name
+            year_match = re.search(r'\b(20\d{2})\b', series["name"])
+            year = int(year_match.group(1)) if year_match else None
+            
+            # Determine category based on name patterns
+            name_lower = series["name"].lower()
+            if "qualifier" in name_lower:
+                category = "Qualifier"
+            elif "challenger" in name_lower:
+                category = "Challenger"
+            elif "junior" in name_lower:
+                category = "Junior"
+            elif "pro tour" in name_lower or "world tour" in name_lower:
+                category = "Pro Tour"
+            else:
+                category = "Other"
+            
+            enhanced_series.append({
+                "id": series["id"],
+                "name": series["name"],
+                "year": year,
+                "category": category
+            })
+        
+        # Sort by year (newest first) then by category
+        enhanced_series.sort(key=lambda x: (-(x["year"] or 0), x["category"]))
+        
+        return {
+            "series": enhanced_series,
+            "total": len(enhanced_series),
+            "categories": list(set(s["category"] for s in enhanced_series)),
+            "years": sorted(list(set(s["year"] for s in enhanced_series if s["year"])), reverse=True),
+            "message": f"Found {len(enhanced_series)} series"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching all series: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch series: {str(e)}")
+
+@app.get("/api/fullresults/{series_id}")
+async def get_series_rankings(series_id: str):
+    """Get rankings for a specific series with all divisions"""
+    try:
+        from api.client import LiveheatsClient
+        
+        client = LiveheatsClient()
+        
+        # Get series info and divisions
+        async with client.client as graphql_client:
+            divisions_data = await graphql_client.execute(
+                client.queries.GET_DIVISIONS,
+                {"id": series_id}
+            )
+            
+            if not divisions_data or "series" not in divisions_data:
+                raise HTTPException(status_code=404, detail="Series not found")
+            
+            series_info = divisions_data["series"]
+            divisions = series_info.get("rankingsDivisions", [])
+            
+            if not divisions:
+                return {
+                    "series_id": series_id,
+                    "series_name": series_info.get("name", "Unknown Series"),
+                    "divisions": {},
+                    "total_athletes": 0,
+                    "message": "No divisions found for this series"
+                }
+            
+            # Get rankings for each division
+            all_rankings = {}
+            total_athletes = 0
+            
+            for division in divisions:
+                rankings = await graphql_client.execute(
+                    client.queries.GET_SERIES_RANKINGS,
+                    {"id": series_id, "divisionId": division["id"]}
+                )
+                
+                if rankings and "series" in rankings and "rankings" in rankings["series"]:
+                    division_rankings = rankings["series"]["rankings"]
+                    all_rankings[division["name"]] = division_rankings
+                    total_athletes += len(division_rankings)
+            
+            return {
+                "series_id": series_id,
+                "series_name": series_info["name"],
+                "divisions": all_rankings,
+                "total_athletes": total_athletes,
+                "message": f"Found {total_athletes} athletes across {len(all_rankings)} divisions"
+            }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching series rankings for {series_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch series rankings: {str(e)}")
 
 @app.get("/api/commentator-info/export")
 async def export_all_commentator_info():
