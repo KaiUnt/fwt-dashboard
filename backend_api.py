@@ -131,7 +131,11 @@ app = FastAPI(title="FWT Events API", version="1.0.0")
 # CORS Setup für Frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js dev server
+    allow_origins=[
+        "http://localhost:3000",  # Next.js dev server
+        "https://fwt-dashboard-1.onrender.com",  # Production frontend
+        "https://*.onrender.com",  # Allow all Render subdomains
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
