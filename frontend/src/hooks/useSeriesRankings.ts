@@ -35,7 +35,8 @@ export interface SeriesRankingsResponse {
 }
 
 async function fetchSeriesRankings(eventId: string): Promise<SeriesRankingsResponse> {
-  const response = await fetch(`http://localhost:8000/api/series/rankings/${eventId}`);
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const response = await fetch(`${API_BASE_URL}/api/series/rankings/${eventId}`);
   
   if (!response.ok) {
     throw new Error(`Failed to fetch series rankings: ${response.statusText}`);
