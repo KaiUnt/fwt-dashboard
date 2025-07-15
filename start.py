@@ -12,17 +12,17 @@ from pathlib import Path
 
 def run_backend():
     """Start the FastAPI backend server."""
-    print("🚀 Starting Backend API on http://localhost:8000")
+    print("Starting Backend API on http://localhost:8000")
     return subprocess.Popen([
         sys.executable, "backend_api.py"
     ], cwd=".")
 
 def run_frontend():
     """Start the Next.js frontend development server."""
-    print("🌐 Starting Frontend on http://localhost:3000")
+    print("Starting Frontend on http://localhost:3000")
     frontend_dir = Path("frontend")
     if not frontend_dir.exists():
-        print("❌ Frontend directory not found!")
+        print("Frontend directory not found!")
         return None
     
     return subprocess.Popen([
@@ -31,18 +31,18 @@ def run_frontend():
 
 def install_backend_deps():
     """Install Python backend dependencies."""
-    print("📦 Installing Python dependencies...")
+    print("Installing Python dependencies...")
     subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
 def install_frontend_deps():
     """Install Node.js frontend dependencies."""
-    print("📦 Installing Node.js dependencies...")
+    print("Installing Node.js dependencies...")
     frontend_dir = Path("frontend")
     if frontend_dir.exists():
         subprocess.run(["npm", "install"], cwd=frontend_dir, shell=True)
 
 def main():
-    print("🏔️  FWT Dashboard - Development Setup")
+    print("FWT Dashboard - Development Setup")
     print("=" * 50)
     
     # Install dependencies

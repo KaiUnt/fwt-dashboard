@@ -7,7 +7,7 @@ Das FWT Dashboard ist ein Event-Auswahl- und Athleten-Dashboard für Freeride Wo
 ## 📁 Projekt Struktur
 
 ```
-Reportv2cursortest/
+fwt-dashboard/
 ├── api/                    # LiveHeats API Integration
 │   ├── client.py          # GraphQL Client
 │   └── queries.py         # GraphQL Queries
