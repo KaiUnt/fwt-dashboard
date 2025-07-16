@@ -12,6 +12,7 @@ import {
   isMainSeasonRanking
 } from '@/hooks/useSeriesRankings';
 import { SeriesData } from '@/hooks/useSeriesRankings';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface AthleteSeriesRankingsProps {
   athleteId: string;
@@ -29,6 +30,7 @@ export function AthleteSeriesRankings({
   seriesData, 
   className = "" 
 }: AthleteSeriesRankingsProps) {
+  const { t } = useTranslation();
   const [activeYear, setActiveYear] = useState<number | 'all'>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [selectedSeries, setSelectedSeries] = useState<string | null>(null);
@@ -153,7 +155,7 @@ export function AthleteSeriesRankings({
           <Users className="h-5 w-5 text-blue-600" />
           <h3 className="font-semibold text-gray-900">New FWT Athlete</h3>
         </div>
-        <p className="text-sm text-gray-700">🌟 Erstes FWT Event - Exciting debut!</p>
+        <p className="text-sm text-gray-700">{t('seriesRankings.firstEvent')}</p>
       </div>
     );
   }
@@ -273,7 +275,7 @@ export function AthleteSeriesRankings({
               title="Open FWT Series Rankings in new tab"
             >
               <TrendingUp className="h-4 w-4" />
-              <span>FWT Series Rankings</span>
+              <span>{t('seriesRankings.fwtSeriesRankings')}</span>
               <ExternalLink className="h-3 w-3" />
             </button>
             
@@ -282,7 +284,7 @@ export function AthleteSeriesRankings({
                 onClick={handleBackToOverview}
                 className="px-4 py-2 text-sm bg-blue-600 text-white border border-blue-600 rounded-md hover:bg-blue-700 hover:border-blue-700 transition-colors font-medium shadow-sm"
               >
-                ← Back to Overview
+                ← {t('seriesRankings.backToOverview')}
               </button>
             )}
           </div>
@@ -299,14 +301,14 @@ export function AthleteSeriesRankings({
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center space-x-3 shadow-lg"
               >
                 <Trophy className="h-5 w-5" />
-                <span>All Events - Complete Career Timeline</span>
+                <span>{t('seriesRankings.allEventsTitle')}</span>
                 <span className="bg-white/20 px-2 py-1 rounded text-sm">
-                  {allEventsChronological.length} Events
+                  {t('seriesRankings.eventsCount', { count: allEventsChronological.length })}
                 </span>
               </button>
             </div>
             <p className="text-center text-sm text-gray-600 mt-2">
-              📖 View complete chronological career overview across all series
+              📖 {t('seriesRankings.allEventsDescription')}
             </p>
           </div>
 
@@ -314,7 +316,7 @@ export function AthleteSeriesRankings({
           <div className="border-b bg-gray-50 px-4 py-3">
             <div className="flex items-center space-x-2 mb-3">
               <Calendar className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Year:</span>
+              <span className="text-sm font-medium text-gray-700">{t('seriesRankings.year')}:</span>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -351,7 +353,7 @@ export function AthleteSeriesRankings({
           <div className="border-b bg-gray-50 px-4 py-3">
             <div className="flex items-center space-x-2 mb-3">
               <Filter className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Main Series:</span>
+              <span className="text-sm font-medium text-gray-700">{t('seriesRankings.mainSeries')}:</span>
             </div>
             
             <div className="space-y-3">
@@ -440,7 +442,7 @@ export function AthleteSeriesRankings({
                   className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
                 >
                   <ChevronDown className={`h-4 w-4 transition-transform ${showAdminDropdown ? 'rotate-180' : ''}`} />
-                  <span>More Series (National Rankings, Qualifying Lists)</span>
+                  <span>{t('seriesRankings.moreSeries')}</span>
                   <span className="text-xs bg-gray-200 px-2 py-1 rounded">{adminSeries.length}</span>
                 </button>
                 
@@ -464,8 +466,8 @@ export function AthleteSeriesRankings({
           {/* Overview Message */}
           <div className="p-4 text-center text-gray-500">
             <Trophy className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-            <p className="text-sm">Select a series above to view detailed results</p>
-            <p className="text-xs mt-1">Choose from {mainSeries.length} main series or {adminSeries.length} additional rankings</p>
+            <p className="text-sm">{t('seriesRankings.selectSeriesToView')}</p>
+            <p className="text-xs mt-1">{t('seriesRankings.chooseFromSeries', { mainCount: mainSeries.length, adminCount: adminSeries.length })}</p>
           </div>
         </>
       ) : viewMode === 'all-events' ? (
@@ -475,7 +477,7 @@ export function AthleteSeriesRankings({
           <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
             <div className="flex items-center space-x-2 mb-2">
               <Filter className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-gray-700">Sort by:</span>
+              <span className="text-sm font-medium text-gray-700">{t('seriesRankings.sortBy')}:</span>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -486,7 +488,7 @@ export function AthleteSeriesRankings({
                     : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                 }`}
               >
-                📅 Chronological
+                📅 {t('seriesRankings.chronological')}
               </button>
               <button
                 onClick={() => setSortMode('points')}
@@ -496,7 +498,7 @@ export function AthleteSeriesRankings({
                     : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                 }`}
               >
-                🏆 Highest Points
+                🏆 {t('seriesRankings.highestPoints')}
               </button>
               <button
                 onClick={() => setSortMode('ranking')}
@@ -506,7 +508,7 @@ export function AthleteSeriesRankings({
                     : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                 }`}
               >
-                🥇 Best Ranking
+                🥇 {t('seriesRankings.bestRanking')}
               </button>
             </div>
           </div>
@@ -516,7 +518,7 @@ export function AthleteSeriesRankings({
             {sortedEvents.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
                 <Trophy className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                <p>No events found</p>
+                <p>{t('seriesRankings.noEventsFound')}</p>
               </div>
             ) : (
               <div className="space-y-3 p-4">
@@ -567,7 +569,7 @@ export function AthleteSeriesRankings({
                           {/* Show all series this event is in */}
                           {allSeriesInfo.length > 0 && (
                             <div className="mt-2 text-xs">
-                              <div className="text-gray-500 mb-1">Found in:</div>
+                              <div className="text-gray-500 mb-1">{t('seriesRankings.foundIn')}:</div>
                               <div className="flex flex-wrap gap-1">
                                 {allSeriesInfo
                                   .sort((a: any, b: any) => {
@@ -601,12 +603,12 @@ export function AthleteSeriesRankings({
                             </div>
                           ) : (
                             <div className="text-sm text-gray-500">
-                              No Result
+                              {t('seriesRankings.noResult')}
                             </div>
                           )}
                           {result.points && (
                             <div className="text-xs text-gray-600">
-                              {result.points} pts
+                              {t('seriesRankings.pointsShort', { points: result.points })}
                             </div>
                           )}
                         </div>
@@ -636,12 +638,12 @@ export function AthleteSeriesRankings({
                         {seriesDetail.seriesInfo.category.toUpperCase()}
                       </span>
                       <span className="text-gray-600">{seriesDetail.overallRanking.division}</span>
-                      <span className="text-gray-600">{seriesDetail.eventResults.length} Events</span>
-                      <span className="text-gray-600">
-                        {seriesSortMode === 'chronological' && 'Chronological'}
-                        {seriesSortMode === 'points' && 'By Points'}
-                        {seriesSortMode === 'ranking' && 'By Ranking'}
-                      </span>
+                      <span className="text-gray-600">{t('seriesRankings.eventsCount', { count: seriesDetail.eventResults.length })}</span>
+                                              <span className="text-gray-600">
+                          {seriesSortMode === 'chronological' && t('seriesRankings.chronological')}
+                          {seriesSortMode === 'points' && t('seriesRankings.byPoints')}
+                          {seriesSortMode === 'ranking' && t('seriesRankings.byRanking')}
+                        </span>
                       {seriesDetail.seriesInfo.isMainSeries && (
                         <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
                           MAIN SERIES
@@ -660,7 +662,7 @@ export function AthleteSeriesRankings({
                   )}
                   {seriesDetail.overallRanking.points && (
                     <div className="text-sm text-gray-600">
-                      {seriesDetail.overallRanking.points} points
+                      {t('seriesRankings.points', { points: seriesDetail.overallRanking.points })}
                     </div>
                   )}
                 </div>
@@ -670,7 +672,7 @@ export function AthleteSeriesRankings({
               <div className="mt-4 pt-3 border-t border-gray-200">
                 <div className="flex items-center space-x-2 mb-2">
                   <Filter className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">Sort events by:</span>
+                                        <span className="text-sm font-medium text-gray-700">{t('seriesRankings.sortEventsBy')}:</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -681,7 +683,7 @@ export function AthleteSeriesRankings({
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                     }`}
                   >
-                    🥇 Best Ranking
+                    🥇 {t('seriesRankings.bestRanking')}
                   </button>
                   <button
                     onClick={() => setSeriesSortMode('points')}
@@ -691,7 +693,7 @@ export function AthleteSeriesRankings({
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                     }`}
                   >
-                    🏆 Highest Points
+                    🏆 {t('seriesRankings.highestPoints')}
                   </button>
                   <button
                     onClick={() => setSeriesSortMode('chronological')}
@@ -701,7 +703,7 @@ export function AthleteSeriesRankings({
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
                     }`}
                   >
-                    📅 Chronological
+                    📅 {t('seriesRankings.chronological')}
                   </button>
                 </div>
               </div>
@@ -712,7 +714,7 @@ export function AthleteSeriesRankings({
               {sortedSeriesEvents.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
                   <Trophy className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                  <p>No event results found in this series</p>
+                  <p>{t('seriesRankings.noEventResultsFound')}</p>
                 </div>
               ) : (
                 <div className="space-y-3 p-4">
@@ -753,12 +755,12 @@ export function AthleteSeriesRankings({
                             </div>
                           ) : (
                             <div className="text-sm text-gray-500">
-                              No Result
+                              {t('seriesRankings.noResult')}
                             </div>
                           )}
                           {result.points && (
                             <div className="text-xs text-gray-600">
-                              {result.points} pts
+                              {t('seriesRankings.pointsShort', { points: result.points })}
                             </div>
                           )}
                         </div>
@@ -775,11 +777,11 @@ export function AthleteSeriesRankings({
       {/* Footer */}
       <div className="border-t bg-gray-50 px-4 py-2 text-xs text-gray-500">
         {viewMode === 'overview' ? (
-          <span>📖 Overview: {mainSeries.length} main series, {adminSeries.length} additional rankings</span>
+          <span>{t('seriesRankings.overviewFooter', { mainCount: mainSeries.length, adminCount: adminSeries.length })}</span>
         ) : viewMode === 'all-events' ? (
-          <span>📅 Complete Career Timeline: {allEventsChronological.length} events across all series</span>
+          <span>{t('seriesRankings.careerTimelineFooter', { count: allEventsChronological.length })}</span>
         ) : (
-          <span>🔍 Detailed view: {seriesDetail?.seriesInfo.name}</span>
+          <span>{t('seriesRankings.detailedViewFooter', { name: seriesDetail?.seriesInfo.name })}</span>
         )}
       </div>
     </div>

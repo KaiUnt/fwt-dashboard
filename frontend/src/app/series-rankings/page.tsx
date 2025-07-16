@@ -4,8 +4,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Trophy, Users, Calendar, Star, Medal, Award, ArrowLeft, Loader2, TrendingUp, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { SeriesInfo, SeriesListResponse, SeriesRankingsResponse, SeriesRanking } from '@/types/series';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function SeriesRankingsPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [series, setSeries] = useState<SeriesInfo[]>([]);
   const [selectedSeries, setSelectedSeries] = useState<string | null>(null);
@@ -233,7 +235,7 @@ export default function SeriesRankingsPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 text-lg">Lade Series...</p>
+          <p className="text-gray-600 text-lg">{t('seriesRankingsPage.loadingSeries')}</p>
         </div>
       </div>
     );
@@ -255,20 +257,20 @@ export default function SeriesRankingsPage() {
               <button
                 onClick={() => router.back()}
                 className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-                title="Zurück"
+                title={t('buttons.back')}
               >
                 <ArrowLeft className="h-6 w-6" />
               </button>
               <div>
-                <h1 className="text-3xl font-bold">FWT Series Rankings</h1>
+                <h1 className="text-3xl font-bold">{t('seriesRankingsPage.title')}</h1>
                 <p className="text-blue-100 mt-1">
-                  Durchsuche alle Series und Rankings der Freeride World Tour
+                  {t('seriesRankingsPage.description')}
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-2 text-blue-100">
               <TrendingUp className="h-5 w-5" />
-              <span className="font-medium">{series.length} Series verfügbar</span>
+              <span className="font-medium">{t('seriesRankingsPage.seriesAvailable', { count: series.length })}</span>
             </div>
           </div>
         </div>
@@ -285,7 +287,7 @@ export default function SeriesRankingsPage() {
         }`}>
           <div className="bg-blue-600 text-white px-2 py-1 rounded-b-md shadow-md flex items-center space-x-1 text-xs">
             <ArrowLeft className="h-3 w-3 rotate-90" />
-            <span>FWT Rankings</span>
+            <span>{t('seriesRankingsPage.fwtRankings')}</span>
           </div>
         </div>
       </div>
@@ -302,7 +304,7 @@ export default function SeriesRankingsPage() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <input
                       type="text"
-                      placeholder="Suche Series..."
+                      placeholder={t('seriesRankingsPage.searchSeries')}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
@@ -316,7 +318,7 @@ export default function SeriesRankingsPage() {
                       onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 text-gray-900"
                     >
-                      <option value="all">Alle Jahre</option>
+                      <option value="all">{t('seriesRankingsPage.allYears')}</option>
                       {availableYears.map(year => (
                         <option key={year} value={year}>{year}</option>
                       ))}
@@ -327,7 +329,7 @@ export default function SeriesRankingsPage() {
                       onChange={(e) => setSelectedCategory(e.target.value)}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 text-gray-900"
                     >
-                      <option value="all">Alle Kategorien</option>
+                      <option value="all">{t('seriesRankingsPage.allCategories')}</option>
                       {availableCategories.map(category => (
                         <option key={category} value={category}>{category}</option>
                       ))}
@@ -347,7 +349,7 @@ export default function SeriesRankingsPage() {
                 {filteredSeries.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">
                     <Filter className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                    <p>Keine Series gefunden</p>
+                    <p>{t('seriesRankingsPage.noSeriesFound')}</p>
                   </div>
                 ) : (
                   <div className="p-2">
@@ -401,8 +403,8 @@ export default function SeriesRankingsPage() {
                 <div className="flex-1 flex items-center justify-center text-gray-500">
                   <div className="text-center">
                     <Trophy className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-xl font-medium text-gray-900 mb-2">Wähle eine Series</h3>
-                    <p>Wähle eine Series aus der Liste, um die Rankings zu sehen.</p>
+                    <h3 className="text-xl font-medium text-gray-900 mb-2">{t('seriesRankingsPage.selectSeries')}</h3>
+                    <p>{t('seriesRankingsPage.selectSeriesDescription')}</p>
                   </div>
                 </div>
               ) : (
@@ -416,7 +418,10 @@ export default function SeriesRankingsPage() {
                         </h3>
                         {rankings && (
                           <p className="text-gray-600 mt-1">
-                            {rankings.total_athletes} Athleten in {Object.keys(rankings.divisions).length} Divisionen
+                            {t('seriesRankingsPage.athletesInDivisions', { 
+                              athletes: rankings.total_athletes, 
+                              divisions: Object.keys(rankings.divisions).length 
+                            })}
                           </p>
                         )}
                       </div>
@@ -432,7 +437,7 @@ export default function SeriesRankingsPage() {
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                           <input
                             type="text"
-                            placeholder="Athlet suchen..."
+                            placeholder={t('seriesRankingsPage.searchAthlete')}
                             value={athleteSearch}
                             onChange={(e) => setAthleteSearch(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
@@ -444,7 +449,7 @@ export default function SeriesRankingsPage() {
                           onChange={(e) => setSelectedDivision(e.target.value)}
                           className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                         >
-                          <option value="all">Alle Divisionen</option>
+                          <option value="all">{t('seriesRankingsPage.allDivisions')}</option>
                           {availableDivisions.map(division => (
                             <option key={division} value={division}>{division}</option>
                           ))}
@@ -459,7 +464,7 @@ export default function SeriesRankingsPage() {
                       <div className="flex items-center justify-center h-64">
                         <div className="text-center">
                           <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-                          <p className="text-gray-600">Lade Rankings...</p>
+                          <p className="text-gray-600">{t('seriesRankingsPage.loadingRankings')}</p>
                         </div>
                       </div>
                     ) : filteredRankings && Object.keys(filteredRankings.divisions).length > 0 ? (
@@ -480,17 +485,17 @@ export default function SeriesRankingsPage() {
                               <Users className="h-5 w-5 mr-2 text-blue-600" />
                               {divisionName}
                               <span className="ml-2 text-sm font-normal text-gray-500">
-                                ({divisionRankings.length} Athleten)
+                                ({t('seriesRankingsPage.athletesCount', { count: divisionRankings.length })})
                               </span>
                             </h4>
 
                             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                               <div className="grid grid-cols-12 gap-4 p-3 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-700">
-                                <div className="col-span-1">Platz</div>
-                                <div className="col-span-4">Athlet</div>
-                                <div className="col-span-2">Nationalität</div>
-                                <div className="col-span-2">Punkte</div>
-                                <div className="col-span-3">Events</div>
+                                <div className="col-span-1">{t('seriesRankingsPage.place')}</div>
+                                <div className="col-span-4">{t('seriesRankingsPage.athlete')}</div>
+                                <div className="col-span-2">{t('seriesRankingsPage.nationality')}</div>
+                                <div className="col-span-2">{t('seriesRankingsPage.points')}</div>
+                                <div className="col-span-3">{t('seriesRankingsPage.events')}</div>
                               </div>
 
                               {divisionRankings.map((ranking, index) => (
@@ -520,7 +525,7 @@ export default function SeriesRankingsPage() {
                                       <p className="font-medium text-gray-900">{ranking.athlete.name}</p>
                                       {ranking.athlete.dob && (
                                         <p className="text-xs text-gray-500">
-                                          {new Date().getFullYear() - new Date(ranking.athlete.dob).getFullYear()} Jahre
+                                          {t('seriesRankingsPage.age', { age: new Date().getFullYear() - new Date(ranking.athlete.dob).getFullYear() })}
                                         </p>
                                       )}
                                     </div>
@@ -552,7 +557,7 @@ export default function SeriesRankingsPage() {
 
                                   <div className="col-span-3 flex items-center">
                                     <span className="text-sm text-gray-600">
-                                      {ranking.results.length} Events
+                                      {t('seriesRankingsPage.eventsCount', { count: ranking.results.length })}
                                     </span>
                                   </div>
                                 </div>
@@ -565,8 +570,8 @@ export default function SeriesRankingsPage() {
                       <div className="flex items-center justify-center h-64 text-gray-500">
                         <div className="text-center">
                           <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Rankings gefunden</h3>
-                          <p>Keine Athleten gefunden für die aktuellen Filter.</p>
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">{t('seriesRankingsPage.noRankingsFound')}</h3>
+                          <p>{t('seriesRankingsPage.noAthletesFound')}</p>
                         </div>
                       </div>
                     )}

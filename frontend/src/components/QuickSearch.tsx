@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Search, Users } from 'lucide-react';
 import { Athlete } from '@/types/athletes';
 import { getCountryFlag, getNationalityDisplay, matchesNationalitySearch } from '@/utils/nationality';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface QuickSearchProps {
   athletes: Athlete[];
@@ -12,6 +13,7 @@ interface QuickSearchProps {
 }
 
 export function QuickSearch({ athletes, onSearch, onClose }: QuickSearchProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -142,7 +144,7 @@ export function QuickSearch({ athletes, onSearch, onClose }: QuickSearchProps) {
               ) : (
                 <div className="text-center text-gray-500 py-8">
                   <Search className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                  <p className="text-sm">Keine Athleten gefunden für "{query}"</p>
+                  <p className="text-sm">{t('search.noResults', { query })}</p>
                   <p className="text-xs text-gray-400 mt-1">
                     Versuche einen anderen Suchbegriff
                   </p>

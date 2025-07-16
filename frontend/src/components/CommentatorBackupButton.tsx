@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Shield } from 'lucide-react';
 import { CommentatorBackup } from './CommentatorBackup';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface CommentatorBackupButtonProps {
   className?: string;
@@ -13,6 +14,7 @@ export function CommentatorBackupButton({
   className = '', 
   variant = 'secondary' 
 }: CommentatorBackupButtonProps) {
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false);
 
   const baseClasses = "flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition-colors";
@@ -26,10 +28,10 @@ export function CommentatorBackupButton({
       <button
         onClick={() => setShowModal(true)}
         className={`${baseClasses} ${variantClasses[variant]} ${className}`}
-        title="Kommentatoren-Daten Backup"
+        title={t('backup.title')}
       >
         <Shield className="h-4 w-4" />
-        <span className="text-sm">Backup</span>
+        <span className="text-sm">{t('backup.buttonText')}</span>
       </button>
 
       {/* Modal */}
@@ -38,7 +40,7 @@ export function CommentatorBackupButton({
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Kommentatoren-Daten Backup</h2>
+                <h2 className="text-xl font-bold text-gray-900">{t('backup.title')}</h2>
                 <button
                   onClick={() => setShowModal(false)}
                   className="text-gray-400 hover:text-gray-600 text-2xl"

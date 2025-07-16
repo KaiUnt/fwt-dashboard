@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { TrendingUp, Calendar, Medal, Star, Trophy, Target, Zap, ChevronDown, Eye, EyeOff, Award, Crown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { SeriesData, isMainSeasonRanking, categorizeSeriesType, getAllEventsChronologically } from '@/hooks/useSeriesRankings';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface PerformanceCurveProps {
   athleteId: string;
@@ -34,6 +35,7 @@ export function PerformanceCurve({
   seriesData, 
   className = "" 
 }: PerformanceCurveProps) {
+  const { t } = useTranslation();
   const [seriesVisibility, setSeriesVisibility] = useState<SeriesVisibility>({
     pro: true,
     challenger: true,
@@ -126,7 +128,7 @@ export function PerformanceCurve({
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-          <p className="font-semibold text-gray-900">{`Jahr: ${label}`}</p>
+          <p className="font-semibold text-gray-900">{t('performance.year', { year: label })}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
               <span className="font-medium capitalize">{entry.dataKey}:</span> #{entry.value}
@@ -184,7 +186,7 @@ export function PerformanceCurve({
           <TrendingUp className="h-5 w-5 text-blue-600" />
           <h3 className="font-semibold text-gray-900">Performance Curve</h3>
         </div>
-        <p className="text-sm text-gray-700">🌟 Keine MAIN Series Daten verfügbar</p>
+        <p className="text-sm text-gray-700">{t('performance.noMainSeriesData')}</p>
       </div>
     );
   }
@@ -196,7 +198,7 @@ export function PerformanceCurve({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <TrendingUp className="h-5 w-5 text-gray-600" />
-            <h3 className="font-semibold text-gray-900">Performance Curve</h3>
+            <h3 className="font-semibold text-gray-900">{t('performance.title')}</h3>
             <span className="text-sm text-gray-500">({chartData.length} Jahre)</span>
           </div>
           
@@ -205,7 +207,7 @@ export function PerformanceCurve({
             className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
           >
             <ChevronDown className={`h-4 w-4 transition-transform ${showControls ? 'rotate-180' : ''}`} />
-            <span>Serien</span>
+            <span>{t('performance.series')}</span>
           </button>
         </div>
       </div>
@@ -214,7 +216,7 @@ export function PerformanceCurve({
       {showControls && (
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center space-x-2 mb-2">
-            <span className="text-sm font-medium text-gray-700">Sichtbare Serien:</span>
+            <span className="text-sm font-medium text-gray-700">{t('performance.visibleSeries')}:</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {availableSeries.map((series) => (
@@ -255,7 +257,7 @@ export function PerformanceCurve({
                 reversed={true} // Lower ranking is better
                 tick={{ fontSize: 12 }}
                 tickLine={{ stroke: '#d1d5db' }}
-                label={{ value: 'Platzierung', angle: -90, position: 'insideLeft' }}
+                label={{ value: t('performance.ranking'), angle: -90, position: 'insideLeft' }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend 
@@ -301,8 +303,8 @@ export function PerformanceCurve({
                  <div className="flex-1 min-w-0">
                    <div className="text-sm font-medium text-gray-900 capitalize">{series}</div>
                    <div className="text-xs text-gray-500">
-                     {bestPlace && bestYear && `Beste: #${bestPlace} (${bestYear})`}
-                     {latestPlace && latestYear && ` • Aktuell: #${latestPlace}`}
+                     {bestPlace && bestYear && t('performance.bestPlace', { place: bestPlace, year: bestYear })}
+                     {latestPlace && latestYear && ` • ${t('performance.currentPlace', { place: latestPlace })}`}
                    </div>
                  </div>
                </div>
@@ -316,7 +318,7 @@ export function PerformanceCurve({
              <div className="flex items-center justify-between mb-4">
                <div className="flex items-center space-x-2">
                  <Crown className="h-5 w-5 text-amber-600" />
-                 <h4 className="font-semibold text-gray-900">Top 3 Event-Resultate</h4>
+                 <h4 className="font-semibold text-gray-900">{t('performance.top3Results')}</h4>
                </div>
                
                {/* Toggle Switch */}
@@ -339,7 +341,7 @@ export function PerformanceCurve({
                      !showEventsByPoints ? 'text-white' : 'text-gray-600'
                    }`}>
                      <Award className="h-3 w-3 mr-1" />
-                     <span>Platz</span>
+                     <span>{t('performance.place')}</span>
                    </div>
                    
                    {/* Right label (Punkte) */}
@@ -347,7 +349,7 @@ export function PerformanceCurve({
                      showEventsByPoints ? 'text-white' : 'text-gray-600'
                    }`}>
                      <Star className="h-3 w-3 mr-1" />
-                     <span>Punkte</span>
+                     <span>{t('performance.points')}</span>
                    </div>
                  </button>
                </div>
@@ -374,7 +376,7 @@ export function PerformanceCurve({
                          {getCleanEventName(event.eventName)}
                        </div>
                        <div className="text-xs opacity-75 capitalize">
-                         {seriesCategory}{event.points && ` • ${event.points} Punkte`}
+                         {seriesCategory}{event.points && ` • ${t('performance.pointsCount', { points: event.points })}`}
                        </div>
                      </div>
                      <div className="text-right">
@@ -410,7 +412,7 @@ export function PerformanceCurve({
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-bold">
-                          {event.points} pts
+                          {t('performance.pointsShort', { points: event.points })}
                         </div>
                       </div>
                     </div>

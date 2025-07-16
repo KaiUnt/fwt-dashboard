@@ -239,7 +239,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                 variant="secondary"
               />
               
-              <CommentatorBackupButton />
+              {/* <CommentatorBackupButton /> */}
             </div>
           </div>
         </div>

@@ -11,8 +11,10 @@ import { useEvents } from '@/hooks/useEvents';
 import { FWTEvent } from '@/types/events';
 import { useQueryClient } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from '@/hooks/useOfflineStorage';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export function EventsPage() {
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [includePastEvents, setIncludePastEvents] = useState(false);
@@ -119,7 +121,7 @@ export function EventsPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 text-lg">Lade FWT Events...</p>
+          <p className="text-gray-600 text-lg">{t('events.loading')}</p>
         </div>
       </div>
     );
@@ -130,9 +132,9 @@ export function EventsPage() {
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center">
         <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Fehler beim Laden</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('errors.errorTitle')}</h2>
           <p className="text-gray-600">
-            Konnte Events nicht laden. Bitte versuche es später erneut.
+            {t('errors.errorMessage')}
           </p>
           <button 
             onClick={handleRefresh}
@@ -142,10 +144,10 @@ export function EventsPage() {
             {isRefreshing ? (
               <div className="flex items-center space-x-2">
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Lädt...</span>
+                <span>{t('search.searching')}</span>
               </div>
             ) : (
-              'Neu laden'
+              t('buttons.reload')
             )}
           </button>
         </div>
@@ -161,12 +163,12 @@ export function EventsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                FWT Event Auswahl
+                {t('events.title')}
               </h1>
               <p className="text-gray-600 mt-1">
                 {isMultiEventMode 
-                  ? 'Wähle 2 Events für simultane Kommentierung'
-                  : 'Wähle ein Event für das Kommentatoren-Dashboard'
+                  ? t('events.multiEventDescription')
+                  : t('events.subtitle')
                 }
               </p>
             </div>
@@ -174,10 +176,10 @@ export function EventsPage() {
               <div className="flex items-center space-x-2 text-sm text-gray-500">
                 <Calendar className="h-4 w-4" />
                 <span>
-                  {events.length} Events
+                  {t('events.eventsCount', { count: events.length })}
                   {includePastEvents && (
                     <span className="ml-1 text-xs">
-                      ({events.filter(e => !e.is_past).length} kommend, {events.filter(e => e.is_past).length} vergangen)
+                      ({events.filter(e => !e.is_past).length} {t('events.upcoming')}, {events.filter(e => e.is_past).length} {t('events.past')})
                     </span>
                   )}
                 </span>
@@ -188,11 +190,11 @@ export function EventsPage() {
                 onClick={handleRefresh}
                 disabled={isRefreshing || isLoading}
                 className="flex items-center space-x-2 px-4 py-2 rounded-lg border-2 border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-200 disabled:opacity-50"
-                title="Events aktualisieren (24h Cache)"
+                title={t('events.refreshTitle')}
               >
                 <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
                 <span className="font-medium">
-                  {isRefreshing ? 'Aktualisiere...' : 'Aktualisieren'}
+                  {isRefreshing ? t('buttons.updating') : t('buttons.update')}
                 </span>
               </button>
               
@@ -204,7 +206,7 @@ export function EventsPage() {
                     ? 'bg-orange-50 border-orange-200 text-orange-700'
                     : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
                 }`}
-                title="Vergangene Events anzeigen"
+                title={t('events.showPastEvents')}
               >
                 {includePastEvents ? (
                   <History className="h-5 w-5 text-orange-600" />
@@ -212,7 +214,7 @@ export function EventsPage() {
                   <Clock className="h-5 w-5" />
                 )}
                 <span className="font-medium">
-                  {includePastEvents ? 'Alle Events' : 'Alle Events anzeigen'}
+                  {includePastEvents ? t('buttons.allEvents') : t('buttons.showAllEvents')}
                 </span>
               </button>
               
@@ -230,7 +232,7 @@ export function EventsPage() {
                 ) : (
                   <ToggleLeft className="h-5 w-5" />
                 )}
-                <span className="font-medium">Multi-Event Modus</span>
+                <span className="font-medium">{t('buttons.multiEventMode')}</span>
               </button>
             </div>
           </div>
@@ -240,7 +242,7 @@ export function EventsPage() {
             <div className="mt-4 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center space-x-3">
                 <div className="text-blue-700 font-medium">
-                  Ausgewählte Events: {selectedEventIds.length}/2
+                  {t('events.selectedEvents', { count: selectedEventIds.length })}
                 </div>
                 {selectedEventIds.length > 0 && (
                   <div className="text-sm text-blue-600">
@@ -262,7 +264,7 @@ export function EventsPage() {
                   className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Eye className="h-4 w-4" />
-                  <span>Multi-Event Dashboard</span>
+                  <span>{t('buttons.multiEventDashboard')}</span>
                 </button>
               )}
             </div>
@@ -284,19 +286,22 @@ export function EventsPage() {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">
-                      {isOffline ? '📱 OFFLINE MODUS' : '⚡ OFFLINE VERFÜGBAR'}
+                      {isOffline ? t('offline.offlineMode') : t('offline.offlineAvailable')}
                     </h2>
                     <p className="text-sm text-gray-600">
                       {isOffline 
-                        ? 'Keine Internetverbindung - Nur offline Events verfügbar'
-                        : `${offlineEvents.length} Event${offlineEvents.length > 1 ? 's' : ''} für Offline-Nutzung gespeichert`
+                        ? t('offline.noConnection')
+                        : t('offline.savedEvents', { 
+                            count: offlineEvents.length, 
+                            plural: offlineEvents.length > 1 ? 's' : '' 
+                          })
                       }
                     </p>
                   </div>
                 </div>
                 {!isOffline && (
                   <div className="text-xs text-gray-500">
-                    Automatische Löschung nach 48h
+                    {t('offline.autoDelete')}
                   </div>
                 )}
               </div>
@@ -317,12 +322,12 @@ export function EventsPage() {
                              <h3 className="font-semibold text-gray-900">
                                {offlineEvent.eventData.events.length === 1 
                                  ? offlineEvent.eventData.events[0].name
-                                 : `Multi-Event: ${offlineEvent.eventData.events.map(e => e.name).join(' + ')}`
+                                 : t('offline.multiEvent', { names: offlineEvent.eventData.events.map(e => e.name).join(' + ') })
                                }
                              </h3>
                              {isStale && (
                                <span className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">
-                                 Veraltet
+                                 {t('offline.stale')}
                                </span>
                              )}
                            </div>
@@ -338,14 +343,14 @@ export function EventsPage() {
                              })()}
                            </p>
                           <p className="text-xs text-gray-500">
-                            {offlineEvent.totalAthletes} Athleten • {formatFileSize(offlineEvent.estimatedSize)}
+                            {t('offline.athletesCount', { count: offlineEvent.totalAthletes })} • {formatFileSize(offlineEvent.estimatedSize)}
                           </p>
                         </div>
                         
                         <button
                           onClick={() => deleteOfflineEvent(offlineEvent.id)}
                           className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                          title="Offline-Daten löschen"
+                          title={t('buttons.deleteOfflineData')}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -353,7 +358,7 @@ export function EventsPage() {
                       
                       <div className="flex items-center justify-between">
                         <div className="text-xs text-gray-500">
-                          Gespeichert: {formatTimestamp(offlineEvent.timestamp)}
+                          {t('offline.saved', { timestamp: formatTimestamp(offlineEvent.timestamp) })}
                         </div>
                         <button
                           onClick={() => {
@@ -365,7 +370,7 @@ export function EventsPage() {
                           }}
                           className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                         >
-                          Dashboard öffnen
+                          {t('buttons.openDashboard')}
                         </button>
                       </div>
                     </div>
@@ -384,7 +389,7 @@ export function EventsPage() {
               <SearchInput 
                 value={searchQuery}
                 onChange={setSearchQuery}
-                placeholder="Suche nach Event-Name oder Location..."
+                placeholder={t('search.eventsPlaceholder')}
               />
               
               <FilterTabs
@@ -403,12 +408,12 @@ export function EventsPage() {
           <div className="text-center py-12">
             <Search className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-medium text-gray-900 mb-2">
-              Keine Events gefunden
+              {t('events.noEventsFoundTitle')}
             </h3>
             <p className="text-gray-500 max-w-md mx-auto">
               {searchQuery || selectedYear !== 'all' 
-                ? 'Versuche andere Suchbegriffe oder Filter.'
-                : 'Momentan sind keine zukünftigen Events verfügbar.'
+                ? t('events.noEventsFoundDescription')
+                : t('events.noUpcomingEvents')
               }
             </p>
           </div>

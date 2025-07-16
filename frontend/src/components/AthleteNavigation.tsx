@@ -4,6 +4,7 @@ import { Users, Search } from 'lucide-react';
 import { Athlete } from '@/types/athletes';
 import { useState } from 'react';
 import { getCountryFlag, getNationalityDisplay, countUniqueNationalities, matchesNationalitySearch } from '@/utils/nationality';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface AthleteNavigationProps {
   athletes: Athlete[];
@@ -12,6 +13,7 @@ interface AthleteNavigationProps {
 }
 
 export function AthleteNavigation({ athletes, currentIndex, onNavigate }: AthleteNavigationProps) {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Check if any athlete has a BIB number - if yes, hide waitlisted athletes
@@ -38,11 +40,11 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
       <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
         <div className="flex items-center space-x-2">
           <Users className="h-5 w-5 text-gray-600" />
-          <h3 className="font-semibold text-gray-900">Athleten</h3>
+          <h3 className="font-semibold text-gray-900">{t('navigation.athletes')}</h3>
           <span className="text-sm text-gray-500">({relevantAthletes.length})</span>
           {hasBibNumbers && (
             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-              Live Event
+              {t('navigation.liveEvent')}
             </span>
           )}
         </div>
@@ -56,7 +58,7 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Name, BIB oder Land..."
+            placeholder={t('search.athleteSearchPlaceholder')}
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
@@ -67,7 +69,7 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
         {filteredAthletes.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
             <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-            <p className="text-sm">Keine Athleten gefunden</p>
+            <p className="text-sm">{t('search.noAthletesFound')}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
@@ -138,12 +140,20 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
       <div className="bg-gray-50 px-4 py-2 border-t border-gray-200">
         <p className="text-xs text-gray-500 text-center">
           {filteredAthletes.length !== relevantAthletes.length 
-            ? `${filteredAthletes.length} von ${relevantAthletes.length} Athleten aus ${filteredNationalities} von ${totalNationalities} Nationen`
-            : `${relevantAthletes.length} Athleten aus ${totalNationalities} Nationen`
+            ? t('navigation.athletesFiltered', { 
+                filtered: filteredAthletes.length, 
+                total: relevantAthletes.length, 
+                filteredNationalities, 
+                totalNationalities 
+              })
+            : t('navigation.athletesTotal', { 
+                count: relevantAthletes.length, 
+                nationalities: totalNationalities 
+              })
           }
           {hasBibNumbers && (
             <span className="block text-xs text-green-600 mt-1">
-              Waitlist ausgeblendet (BIB-Nummern vergeben)
+              {t('navigation.waitlistHidden')}
             </span>
           )}
         </p>

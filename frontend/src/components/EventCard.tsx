@@ -2,6 +2,7 @@
 
 import { Calendar, MapPin, ArrowRight, Check, CheckCircle, Archive } from 'lucide-react';
 import { FWTEvent } from '@/types/events';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface EventCardProps {
   event: FWTEvent;
@@ -18,6 +19,8 @@ export function EventCard({
   isSelected = false, 
   isSelectable = true 
 }: EventCardProps) {
+  const { t } = useTranslation();
+  
   // Extract event type from name (Pro, Challenger, Junior)
   const getEventType = (name: string): string => {
     if (name.toLowerCase().includes('pro')) return 'Pro';
@@ -105,7 +108,7 @@ export function EventCard({
               {isPastEvent && (
                 <div className="inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                   <CheckCircle className="h-3 w-3" />
-                  <span>Abgeschlossen</span>
+                  <span>{t('events.completed')}</span>
                 </div>
               )}
             </div>
@@ -146,10 +149,10 @@ export function EventCard({
         <div className="mt-4 pt-3 border-t border-gray-100">
           <p className="text-xs text-gray-500 text-center group-hover:text-gray-700 transition-colors">
             {isPastEvent 
-              ? 'Vergangenes Event - Archiv-Zugriff'
+              ? t('events.pastEventArchive')
               : isMultiMode 
-                ? (isSelected ? 'Event ausgewählt ✓' : 'Klicken zum Auswählen')
-                : 'Klicken zum Öffnen des Dashboards'
+                ? (isSelected ? t('events.eventSelected') : t('events.clickToSelect'))
+                : t('events.clickToOpenDashboard')
             }
           </p>
         </div>

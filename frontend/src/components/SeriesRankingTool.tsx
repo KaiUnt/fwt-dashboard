@@ -3,12 +3,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, Trophy, Users, Calendar, Star, Medal, Award, X, Loader2, TrendingUp } from 'lucide-react';
 import { SeriesInfo, SeriesListResponse, SeriesRankingsResponse, SeriesRanking } from '@/types/series';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SeriesRankingToolProps {
   onClose: () => void;
 }
 
 export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
+  const { t } = useTranslation();
   const [series, setSeries] = useState<SeriesInfo[]>([]);
   const [selectedSeries, setSelectedSeries] = useState<string | null>(null);
   const [rankings, setRankings] = useState<SeriesRankingsResponse | null>(null);
@@ -163,7 +165,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
         <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
           <div className="text-center">
             <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600 text-lg">Lade Series...</p>
+            <p className="text-gray-600 text-lg">{t('seriesRankingTool.loadingSeries')}</p>
           </div>
         </div>
       </div>
@@ -177,9 +179,9 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-xl">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">FWT Series Rankings</h2>
+              <h2 className="text-2xl font-bold">{t('seriesRankingTool.title')}</h2>
               <p className="text-blue-100 mt-1">
-                Durchsuche alle Series und Rankings der Freeride World Tour
+                {t('seriesRankingTool.description')}
               </p>
             </div>
             <button
@@ -201,7 +203,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <input
                     type="text"
-                    placeholder="Suche Series..."
+                    placeholder={t('seriesRankingTool.searchSeries')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -215,7 +217,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                     onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="all">Alle Jahre</option>
+                    <option value="all">{t('seriesRankingTool.allYears')}</option>
                     {availableYears.map(year => (
                       <option key={year} value={year}>{year}</option>
                     ))}
@@ -226,7 +228,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                     onChange={(e) => setSelectedCategory(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="all">Alle Kategorien</option>
+                    <option value="all">{t('seriesRankingTool.allCategories')}</option>
                     {availableCategories.map(category => (
                       <option key={category} value={category}>{category}</option>
                     ))}
@@ -246,7 +248,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
               {filteredSeries.length === 0 ? (
                 <div className="p-4 text-center text-gray-500">
                   <Filter className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  <p>Keine Series gefunden</p>
+                  <p>{t('seriesRankingTool.noSeriesFound')}</p>
                 </div>
               ) : (
                 <div className="p-2">
@@ -300,8 +302,8 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
               <div className="flex-1 flex items-center justify-center text-gray-500">
                 <div className="text-center">
                   <Trophy className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-xl font-medium text-gray-900 mb-2">Wähle eine Series</h3>
-                  <p>Wähle eine Series aus der Liste, um die Rankings zu sehen.</p>
+                  <h3 className="text-xl font-medium text-gray-900 mb-2">{t('seriesRankingTool.selectSeries')}</h3>
+                  <p>{t('seriesRankingTool.selectSeriesDescription')}</p>
                 </div>
               </div>
             ) : (
@@ -315,7 +317,10 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                       </h3>
                       {rankings && (
                         <p className="text-gray-600 mt-1">
-                          {rankings.total_athletes} Athleten in {Object.keys(rankings.divisions).length} Divisionen
+                          {t('seriesRankingTool.athletesInDivisions', { 
+                            athletes: rankings.total_athletes, 
+                            divisions: Object.keys(rankings.divisions).length 
+                          })}
                         </p>
                       )}
                     </div>
@@ -331,7 +336,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                         <input
                           type="text"
-                          placeholder="Athlet suchen..."
+                          placeholder={t('seriesRankingTool.searchAthlete')}
                           value={athleteSearch}
                           onChange={(e) => setAthleteSearch(e.target.value)}
                           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -343,7 +348,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                         onChange={(e) => setSelectedDivision(e.target.value)}
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="all">Alle Divisionen</option>
+                        <option value="all">{t('seriesRankingTool.allDivisions')}</option>
                         {availableDivisions.map(division => (
                           <option key={division} value={division}>{division}</option>
                         ))}
@@ -358,7 +363,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                     <div className="flex items-center justify-center h-64">
                       <div className="text-center">
                         <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-                        <p className="text-gray-600">Lade Rankings...</p>
+                        <p className="text-gray-600">{t('seriesRankingTool.loadingRankings')}</p>
                       </div>
                     </div>
                   ) : filteredRankings && Object.keys(filteredRankings.divisions).length > 0 ? (
@@ -369,17 +374,17 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                             <Users className="h-5 w-5 mr-2 text-blue-600" />
                             {divisionName}
                             <span className="ml-2 text-sm font-normal text-gray-500">
-                              ({divisionRankings.length} Athleten)
+                              ({t('seriesRankingTool.athletesCount', { count: divisionRankings.length })})
                             </span>
                           </h4>
 
                           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                             <div className="grid grid-cols-12 gap-4 p-3 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-700">
-                              <div className="col-span-1">Platz</div>
-                              <div className="col-span-4">Athlet</div>
-                              <div className="col-span-2">Nationalität</div>
-                              <div className="col-span-2">Punkte</div>
-                              <div className="col-span-3">Events</div>
+                              <div className="col-span-1">{t('seriesRankingTool.place')}</div>
+                              <div className="col-span-4">{t('seriesRankingTool.athlete')}</div>
+                              <div className="col-span-2">{t('seriesRankingTool.nationality')}</div>
+                              <div className="col-span-2">{t('seriesRankingTool.points')}</div>
+                              <div className="col-span-3">{t('seriesRankingTool.events')}</div>
                             </div>
 
                             {divisionRankings.map((ranking, index) => (
@@ -408,9 +413,9 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                                   <div>
                                     <p className="font-medium text-gray-900">{ranking.athlete.name}</p>
                                     {ranking.athlete.dob && (
-                                      <p className="text-xs text-gray-500">
-                                        {new Date().getFullYear() - new Date(ranking.athlete.dob).getFullYear()} Jahre
-                                      </p>
+                                                                          <p className="text-xs text-gray-500">
+                                      {t('seriesRankingTool.age', { age: new Date().getFullYear() - new Date(ranking.athlete.dob).getFullYear() })}
+                                    </p>
                                     )}
                                   </div>
                                 </div>
@@ -441,7 +446,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
 
                                 <div className="col-span-3 flex items-center">
                                   <span className="text-sm text-gray-600">
-                                    {ranking.results.length} Events
+                                    {t('seriesRankingTool.eventsCount', { count: ranking.results.length })}
                                   </span>
                                 </div>
                               </div>
@@ -454,8 +459,8 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
                     <div className="flex items-center justify-center h-64 text-gray-500">
                       <div className="text-center">
                         <Search className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Rankings gefunden</h3>
-                        <p>Keine Athleten gefunden für die aktuellen Filter.</p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('seriesRankingTool.noRankingsFound')}</h3>
+                        <p>{t('seriesRankingTool.noAthletesFound')}</p>
                       </div>
                     </div>
                   )}

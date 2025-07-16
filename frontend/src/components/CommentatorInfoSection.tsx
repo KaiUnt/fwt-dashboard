@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Edit, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe } from 'lucide-react';
 import { CommentatorInfo } from '@/types/athletes';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface CommentatorInfoSectionProps {
   athleteId: string;
@@ -17,6 +18,7 @@ export function CommentatorInfoSection({
   commentatorInfo,
   onEdit,
 }: CommentatorInfoSectionProps) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Check if we have any commentator info to display
@@ -53,23 +55,25 @@ export function CommentatorInfoSection({
               <ChevronRight className="h-5 w-5" />
             )}
             <span className="font-semibold text-sm">
-              {hasInfo ? 'Kommentatoren-Infos' : 'Kommentatoren-Infos hinzufügen'}
+              {hasInfo ? t('commentatorInfo.title') : t('commentatorInfo.addInfo')}
             </span>
             {hasInfo && (
               <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full">
-                {[
-                  commentatorInfo.homebase,
-                  commentatorInfo.team,
-                  commentatorInfo.sponsors,
-                  commentatorInfo.favorite_trick,
-                  commentatorInfo.achievements,
-                  commentatorInfo.injuries,
-                  commentatorInfo.fun_facts,
-                  commentatorInfo.notes,
-                  commentatorInfo.social_media?.instagram,
-                  commentatorInfo.social_media?.youtube,
-                  commentatorInfo.social_media?.website
-                ].filter(Boolean).length} Felder
+                {t('commentatorInfo.fieldsCount', { 
+                  count: [
+                    commentatorInfo.homebase,
+                    commentatorInfo.team,
+                    commentatorInfo.sponsors,
+                    commentatorInfo.favorite_trick,
+                    commentatorInfo.achievements,
+                    commentatorInfo.injuries,
+                    commentatorInfo.fun_facts,
+                    commentatorInfo.notes,
+                    commentatorInfo.social_media?.instagram,
+                    commentatorInfo.social_media?.youtube,
+                    commentatorInfo.social_media?.website
+                  ].filter(Boolean).length 
+                })}
               </span>
             )}
           </button>
@@ -78,7 +82,7 @@ export function CommentatorInfoSection({
             className="flex items-center space-x-1 px-3 py-1 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm"
           >
             <Edit className="h-4 w-4" />
-            <span>Edit</span>
+            <span>{t('buttons.edit')}</span>
           </button>
         </div>
       </div>
@@ -89,9 +93,9 @@ export function CommentatorInfoSection({
           {!hasInfo ? (
             <div className="text-center py-8 text-amber-700">
               <FileText className="h-12 w-12 mx-auto mb-3 text-amber-400" />
-              <p className="text-sm font-medium mb-2">Noch keine Kommentatoren-Infos vorhanden</p>
+              <p className="text-sm font-medium mb-2">{t('commentatorInfo.noInfoYet')}</p>
               <p className="text-xs text-amber-600">
-                Klicke auf "Edit" um Informationen hinzuzufügen
+                {t('commentatorInfo.clickEditToAdd')}
               </p>
             </div>
           ) : (
@@ -102,7 +106,7 @@ export function CommentatorInfoSection({
                   <div className="flex items-center space-x-2">
                     <Home className="h-4 w-4 text-amber-600 flex-shrink-0" />
                     <div>
-                      <p className="text-xs font-medium text-amber-800">Homebase</p>
+                      <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.homebase')}</p>
                       <p className="text-sm text-amber-700">{commentatorInfo.homebase}</p>
                     </div>
                   </div>
@@ -112,7 +116,7 @@ export function CommentatorInfoSection({
                   <div className="flex items-center space-x-2">
                     <Users className="h-4 w-4 text-amber-600 flex-shrink-0" />
                     <div>
-                      <p className="text-xs font-medium text-amber-800">Team</p>
+                      <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.team')}</p>
                       <p className="text-sm text-amber-700">{commentatorInfo.team}</p>
                     </div>
                   </div>
@@ -122,7 +126,7 @@ export function CommentatorInfoSection({
                   <div className="flex items-center space-x-2">
                     <Heart className="h-4 w-4 text-amber-600 flex-shrink-0" />
                     <div>
-                      <p className="text-xs font-medium text-amber-800">Lieblingstrick</p>
+                      <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.favoriteTrick')}</p>
                       <p className="text-sm text-amber-700">{commentatorInfo.favorite_trick}</p>
                     </div>
                   </div>
@@ -132,7 +136,7 @@ export function CommentatorInfoSection({
                   <div className="flex items-center space-x-2">
                     <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
                     <div>
-                      <p className="text-xs font-medium text-amber-800">Verletzungen</p>
+                      <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.injuries')}</p>
                       <p className="text-sm text-amber-700 line-clamp-2">{commentatorInfo.injuries}</p>
                     </div>
                   </div>
@@ -144,7 +148,7 @@ export function CommentatorInfoSection({
                 <div className="flex items-start space-x-2">
                   <Award className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-medium text-amber-800">Sponsoren</p>
+                    <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.sponsors')}</p>
                     <p className="text-sm text-amber-700">{commentatorInfo.sponsors}</p>
                   </div>
                 </div>
@@ -155,7 +159,7 @@ export function CommentatorInfoSection({
                 <div className="flex items-start space-x-2">
                   <Award className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-medium text-amber-800">Achievements</p>
+                    <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.achievements')}</p>
                     <p className="text-sm text-amber-700">{commentatorInfo.achievements}</p>
                   </div>
                 </div>
@@ -166,7 +170,7 @@ export function CommentatorInfoSection({
                 <div className="flex items-start space-x-2">
                   <Lightbulb className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-medium text-amber-800">Fun Facts</p>
+                    <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.funFacts')}</p>
                     <p className="text-sm text-amber-700">{commentatorInfo.fun_facts}</p>
                   </div>
                 </div>
@@ -177,7 +181,7 @@ export function CommentatorInfoSection({
                 <div className="flex items-start space-x-2">
                   <FileText className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-medium text-amber-800">Notizen</p>
+                    <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.notes')}</p>
                     <p className="text-sm text-amber-700">{commentatorInfo.notes}</p>
                   </div>
                 </div>
@@ -188,7 +192,7 @@ export function CommentatorInfoSection({
                 commentatorInfo?.social_media?.youtube || 
                 commentatorInfo?.social_media?.website) && (
                 <div className="pt-3 border-t border-amber-200">
-                  <p className="text-xs font-medium text-amber-800 mb-3">Social Media</p>
+                  <p className="text-xs font-medium text-amber-800 mb-3">{t('commentatorInfo.socialMedia')}</p>
                   <div className="flex items-center space-x-4">
                     {commentatorInfo.social_media?.instagram && (
                       <a

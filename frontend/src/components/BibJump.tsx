@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Hash, Users } from 'lucide-react';
 import { Athlete } from '@/types/athletes';
 import { getCountryFlag, getNationalityDisplay, matchesNationalitySearch } from '@/utils/nationality';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface BibJumpProps {
   athletes: Athlete[];
@@ -12,6 +13,7 @@ interface BibJumpProps {
 }
 
 export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -82,7 +84,7 @@ export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-2">
             <Hash className="h-5 w-5 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Athleten suchen</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t('search.searchAthletes')}</h3>
           </div>
           <button
             onClick={onClose}
@@ -97,7 +99,7 @@ export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label htmlFor="search-input" className="block text-sm font-medium text-gray-700 mb-2">
-                Name, BIB oder Land eingeben:
+                {t('search.enterNameBibOrCountry')}:
               </label>
               <input
                 id="search-input"
@@ -105,7 +107,7 @@ export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="z.B. Schmidt, 15 oder Germany"
+                placeholder={t('search.examplePlaceholder')}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -115,7 +117,7 @@ export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
               disabled={!query.trim() || filteredAthletes.length === 0}
               className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
-              Zum ersten Ergebnis springen
+              {t('search.jumpToFirstResult')}
             </button>
           </form>
 
@@ -125,7 +127,7 @@ export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
               <>
                 <div className="text-sm font-medium text-gray-700 mb-3 flex items-center space-x-2">
                   <Users className="h-4 w-4" />
-                  <span>Suchergebnisse ({filteredAthletes.length})</span>
+                  <span>{t('search.searchResults', { count: filteredAthletes.length })}</span>
                 </div>
                 
                 {filteredAthletes.length > 0 ? (
@@ -172,18 +174,18 @@ export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
                 ) : (
                   <div className="text-center text-gray-500 py-8">
                     <Hash className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm">Keine Athleten gefunden für "{query}"</p>
+                    <p className="text-sm">{t('search.noResults', { query })}</p>
                     <p className="text-xs text-gray-400 mt-1">
-                      Versuche einen anderen Suchbegriff
+                      {t('search.tryDifferentSearchTerm')}
                     </p>
                   </div>
                 )}
               </>
             ) : (
               <>
-                <div className="text-sm font-medium text-gray-700 mb-3">
-                  Verfügbare BIB-Nummern:
-                </div>
+                                  <div className="text-sm font-medium text-gray-700 mb-3">
+                    {t('search.availableBibNumbers')}:
+                  </div>
                 
                 <div className="max-h-32 overflow-y-auto">
                   <div className="grid grid-cols-6 gap-2">
@@ -211,7 +213,7 @@ export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
         {/* Footer */}
         <div className="bg-gray-50 px-6 py-3 rounded-b-xl border-t border-gray-200">
           <p className="text-xs text-gray-500 text-center">
-            Drücke <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Enter</kbd> um zum ersten Ergebnis zu springen
+            {t('search.pressEnterToJump')}
           </p>
         </div>
       </div>

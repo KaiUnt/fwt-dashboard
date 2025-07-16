@@ -8,7 +8,7 @@ interface SearchInputProps {
   placeholder?: string;
 }
 
-export function SearchInput({ value, onChange, placeholder = "Suchen..." }: SearchInputProps) {
+export function SearchInput({ value, onChange, placeholder }: SearchInputProps) {
   return (
     <div className="relative max-w-md mx-auto">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

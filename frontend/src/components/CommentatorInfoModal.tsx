@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe } from 'lucide-react';
 import { CommentatorInfo } from '@/types/athletes';
 import { useUpdateCommentatorInfo } from '@/hooks/useCommentatorInfo';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface CommentatorInfoModalProps {
   athleteId: string;
@@ -20,6 +21,7 @@ export function CommentatorInfoModal({
   isOpen,
   onClose,
 }: CommentatorInfoModalProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<Partial<CommentatorInfo>>({
     homebase: '',
     team: '',
@@ -181,7 +183,7 @@ export function CommentatorInfoModal({
                 <User className="h-6 w-6 text-white" />
                 <div>
                   <h3 className="text-xl font-bold text-white">
-                    Kommentatoren-Infos bearbeiten
+                    {t('commentatorInfo.editTitle')}
                   </h3>
                   <p className="text-blue-100 text-sm">{athleteName}</p>
                 </div>
@@ -204,14 +206,14 @@ export function CommentatorInfoModal({
                 <div>
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-900 mb-2">
                     <Home className="h-4 w-4" />
-                    <span>Homebase</span>
+                    <span>{t('commentatorInfo.homebase')}</span>
                   </label>
                   <input
                     type="text"
                     value={formData.homebase || ''}
                     onChange={(e) => handleInputChange('homebase', e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="z.B. Chamonix, France"
+                    placeholder={t('commentatorInfo.homebasePlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                   />
                 </div>
@@ -220,14 +222,14 @@ export function CommentatorInfoModal({
                 <div>
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-900 mb-2">
                     <Users className="h-4 w-4" />
-                    <span>Team</span>
+                    <span>{t('commentatorInfo.team')}</span>
                   </label>
                   <input
                     type="text"
                     value={formData.team || ''}
                     onChange={(e) => handleInputChange('team', e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="z.B. Team Salomon"
+                    placeholder={t('commentatorInfo.teamPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                   />
                 </div>
@@ -236,12 +238,12 @@ export function CommentatorInfoModal({
                 <div>
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-900 mb-2">
                     <Award className="h-4 w-4" />
-                    <span>Sponsoren</span>
+                    <span>{t('commentatorInfo.sponsors')}</span>
                   </label>
                   <textarea
                     value={formData.sponsors || ''}
                     onChange={(e) => handleInputChange('sponsors', e.target.value)}
-                    placeholder="z.B. Salomon, Red Bull, Oakley"
+                    placeholder={t('commentatorInfo.sponsorsPlaceholder')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 resize-none"
                   />
@@ -251,14 +253,14 @@ export function CommentatorInfoModal({
                 <div>
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-900 mb-2">
                     <Heart className="h-4 w-4" />
-                    <span>Lieblingstrick</span>
+                    <span>{t('commentatorInfo.favoriteTrick')}</span>
                   </label>
                   <input
                     type="text"
                     value={formData.favorite_trick || ''}
                     onChange={(e) => handleInputChange('favorite_trick', e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="z.B. Backflip to Superman"
+                    placeholder={t('commentatorInfo.favoriteTrickPlaceholder')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                   />
                 </div>
@@ -266,7 +268,7 @@ export function CommentatorInfoModal({
                 {/* Social Media */}
                 <div>
                   <label className="text-sm font-medium text-gray-900 mb-3 block">
-                    Social Media
+                    {t('commentatorInfo.socialMedia')}
                   </label>
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
@@ -276,7 +278,7 @@ export function CommentatorInfoModal({
                         value={formData.social_media?.instagram || ''}
                         onChange={(e) => handleSocialMediaChange('instagram', e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Instagram Handle (ohne @)"
+                        placeholder={t('commentatorInfo.instagramPlaceholder')}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                       />
                     </div>
@@ -287,7 +289,7 @@ export function CommentatorInfoModal({
                         value={formData.social_media?.youtube || ''}
                         onChange={(e) => handleSocialMediaChange('youtube', e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="YouTube Channel URL"
+                        placeholder={t('commentatorInfo.youtubePlaceholder')}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                       />
                     </div>
@@ -298,7 +300,7 @@ export function CommentatorInfoModal({
                         value={formData.social_media?.website || ''}
                         onChange={(e) => handleSocialMediaChange('website', e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Website URL"
+                        placeholder={t('commentatorInfo.websitePlaceholder')}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                       />
                     </div>
@@ -312,12 +314,12 @@ export function CommentatorInfoModal({
                 <div>
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-900 mb-2">
                     <Award className="h-4 w-4" />
-                    <span>Achievements</span>
+                    <span>{t('commentatorInfo.achievements')}</span>
                   </label>
                   <textarea
                     value={formData.achievements || ''}
                     onChange={(e) => handleInputChange('achievements', e.target.value)}
-                    placeholder="z.B. X-Games Gold 2023, FWT Champion 2022"
+                    placeholder={t('commentatorInfo.achievementsPlaceholder')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 resize-none"
                   />
@@ -327,12 +329,12 @@ export function CommentatorInfoModal({
                 <div>
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-900 mb-2">
                     <AlertTriangle className="h-4 w-4" />
-                    <span>Verletzungen</span>
+                    <span>{t('commentatorInfo.injuries')}</span>
                   </label>
                   <textarea
                     value={formData.injuries || ''}
                     onChange={(e) => handleInputChange('injuries', e.target.value)}
-                    placeholder="z.B. Knie-OP 2024 (vollständig erholt)"
+                    placeholder={t('commentatorInfo.injuryPlaceholder')}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 resize-none"
                   />
@@ -342,12 +344,12 @@ export function CommentatorInfoModal({
                 <div>
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-900 mb-2">
                     <Lightbulb className="h-4 w-4" />
-                    <span>Fun Facts</span>
+                    <span>{t('commentatorInfo.funFacts')}</span>
                   </label>
                   <textarea
                     value={formData.fun_facts || ''}
                     onChange={(e) => handleInputChange('fun_facts', e.target.value)}
-                    placeholder="z.B. Liebt Sushi, spielt Gitarre, sammelt Vintage-Skier"
+                    placeholder={t('commentatorInfo.funFactsPlaceholder')}
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 resize-none"
                   />
@@ -357,12 +359,12 @@ export function CommentatorInfoModal({
                 <div>
                   <label className="flex items-center space-x-2 text-sm font-medium text-gray-900 mb-2">
                     <FileText className="h-4 w-4" />
-                    <span>Notizen</span>
+                    <span>{t('commentatorInfo.notes')}</span>
                   </label>
                   <textarea
                     value={formData.notes || ''}
                     onChange={(e) => handleInputChange('notes', e.target.value)}
-                    placeholder="Allgemeine Notizen und Beobachtungen für die Kommentierung"
+                    placeholder={t('commentatorInfo.notesPlaceholder')}
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 resize-none"
                   />
@@ -375,16 +377,16 @@ export function CommentatorInfoModal({
           <div className="bg-gray-50 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Ctrl+Enter</kbd> zum Speichern
+                <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Ctrl+Enter</kbd> {t('commentatorInfo.toSave')}
                 <span className="mx-2">•</span>
-                <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Esc</kbd> zum Schließen
+                <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Esc</kbd> {t('commentatorInfo.toClose')}
               </div>
               <div className="flex items-center space-x-3">
                 <button
                   onClick={onClose}
                   className="px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Abbrechen
+                  {t('buttons.cancel')}
                 </button>
                 <button
                   onClick={handleSave}
@@ -392,7 +394,7 @@ export function CommentatorInfoModal({
                   className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
                   <Save className="h-4 w-4" />
-                  <span>{isSaving ? 'Speichern...' : 'Speichern'}</span>
+                  <span>{isSaving ? t('buttons.saving') : t('buttons.save')}</span>
                 </button>
               </div>
             </div>

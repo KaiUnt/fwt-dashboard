@@ -12,6 +12,7 @@ import { PerformanceCurve } from './PerformanceCurve';
 import { useOfflineEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
 import { CommentatorBackupButton } from './CommentatorBackupButton';
+import { useTranslation } from '@/hooks/useTranslation';
 
 
 interface DashboardPageProps {
@@ -19,6 +20,7 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ eventId }: DashboardPageProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { data: athletesData, isLoading, error } = useOfflineEventAthletes(eventId);
   const { data: seriesData, isLoading: seriesLoading, error: seriesError } = useOfflineSeriesRankings(eventId);
@@ -106,7 +108,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Lade Athleten...</p>
+          <p className="text-gray-600 text-lg">{t('dashboard.loadingAthletes')}</p>
         </div>
       </div>
     );
@@ -117,15 +119,15 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center">
         <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Event nicht gefunden</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('dashboard.eventNotFound')}</h2>
           <p className="text-gray-600 mb-4">
-            Das Event konnte nicht geladen werden.
+            {t('dashboard.eventLoadError')}
           </p>
           <button 
             onClick={() => router.push('/')}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Zurück zur Event-Auswahl
+            {t('dashboard.backToEventSelection')}
           </button>
         </div>
       </div>
@@ -144,7 +146,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
-                <span>Zurück</span>
+                <span>{t('buttons.back')}</span>
               </button>
               
               <div className="h-6 w-px bg-gray-300" />
@@ -154,7 +156,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                   {athletesData.event.name}
                 </h1>
                 <p className="text-gray-600">
-                  {athletesData.event.date} • {athletes.length} Athleten
+                  {athletesData.event.date} • {t('dashboard.athletesCount', { count: athletes.length })}
                 </p>
               </div>
             </div>
@@ -168,7 +170,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
               <button
                 onClick={() => setShowBibJump(true)}
                 className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Athleten suchen (j)"
+                title={t('dashboard.searchAthletes')}
               >
                 <Keyboard className="h-5 w-5" />
               </button>
@@ -182,7 +184,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 variant="secondary"
               />
               
-              <CommentatorBackupButton />
+              {/* <CommentatorBackupButton /> */}
             </div>
           </div>
         </div>
@@ -288,7 +290,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
             <button
               onClick={navigateToNext}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-              title="Nächster Athlet (→)"
+              title={t('buttons.next')}
             >
               <ChevronRight className="h-5 w-5" />
             </button>

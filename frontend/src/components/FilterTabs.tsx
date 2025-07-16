@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslation } from '@/hooks/useTranslation';
+
 interface FilterTabsProps {
   availableYears: number[];
   selectedYear: number | 'all';
@@ -15,8 +17,10 @@ export function FilterTabs({
   totalEvents, 
   filteredCount 
 }: FilterTabsProps) {
+  const { t } = useTranslation();
+  
   const tabs = [
-    { key: 'all' as const, label: 'Alle Jahre', count: totalEvents },
+    { key: 'all' as const, label: t('filters.allYears'), count: totalEvents },
     ...availableYears.map(year => ({ 
       key: year, 
       label: year.toString(), 
@@ -53,10 +57,10 @@ export function FilterTabs({
       {/* Results Counter */}
       <div className="text-sm text-gray-600">
         {filteredCount === totalEvents ? (
-          <span>{totalEvents} Events</span>
+          <span>{t('events.eventsCount', { count: totalEvents })}</span>
         ) : (
           <span>
-            {filteredCount} von {totalEvents} Events
+            {t('events.resultsCount', { filtered: filteredCount, total: totalEvents })}
           </span>
         )}
       </div>

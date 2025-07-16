@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface BackupData {
   export_timestamp: string;
@@ -29,6 +30,7 @@ interface ImportResult {
 }
 
 export function CommentatorBackup() {
+  const { t } = useTranslation();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -113,10 +115,10 @@ export function CommentatorBackup() {
           <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 2.676-.732 5.016-2.297 6.824-4.397.294-.34.565-.704.799-1.087A12.02 12.02 0 0021 9a12.02 12.02 0 00-.382-3.016z" />
           </svg>
-          <h2 className="text-xl font-bold text-gray-900">Kommentatoren-Daten Backup</h2>
+          <h2 className="text-xl font-bold text-gray-900">{t('backup.title')}</h2>
         </div>
         <p className="text-gray-600 mb-6">
-          Exportiere und importiere Kommentatoren-Infos für Backup-Zwecke
+          {t('backup.description')}
         </p>
         
         <div className="space-y-6">
@@ -126,17 +128,17 @@ export function CommentatorBackup() {
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Backup erstellen
+              {t('backup.createBackup')}
             </h3>
             <p className="text-sm text-gray-600">
-              Exportiert alle Kommentatoren-Infos als JSON-Datei
+              {t('backup.createBackupDescription')}
             </p>
             <button 
               onClick={handleExport}
               disabled={isExporting}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
             >
-              {isExporting ? 'Exportiere...' : 'Backup herunterladen'}
+              {isExporting ? t('backup.exporting') : t('backup.downloadBackup')}
             </button>
           </div>
 
@@ -146,10 +148,10 @@ export function CommentatorBackup() {
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              Backup wiederherstellen
+              {t('backup.restoreBackup')}
             </h3>
             <p className="text-sm text-gray-600">
-              Importiert Kommentatoren-Infos aus einer Backup-Datei
+              {t('backup.restoreBackupDescription')}
             </p>
             
             <div className="flex items-center gap-2">
@@ -166,7 +168,7 @@ export function CommentatorBackup() {
                 disabled={isImporting}
                 className="w-full bg-gray-100 hover:bg-gray-200 disabled:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md border border-gray-300 transition-colors"
               >
-                {isImporting ? 'Importiere...' : 'Backup-Datei auswählen'}
+                {isImporting ? t('backup.importing') : t('backup.selectBackupFile')}
               </button>
             </div>
           </div>
@@ -186,16 +188,16 @@ export function CommentatorBackup() {
           {importResult && (
             <div className="border border-green-200 bg-green-50 p-4 rounded-md">
               <div className="text-green-800 space-y-1">
-                <div className="font-medium">Import erfolgreich!</div>
+                <div className="font-medium">{t('backup.importSuccessful')}</div>
                 <div className="text-sm">
-                  • {importResult.imported_count} neue Einträge hinzugefügt
+                  • {t('backup.newEntriesAdded', { count: importResult.imported_count })}
                 </div>
                 <div className="text-sm">
-                  • {importResult.updated_count} Einträge aktualisiert
+                  • {t('backup.entriesUpdated', { count: importResult.updated_count })}
                 </div>
                 {importResult.errors.length > 0 && (
                   <div className="text-sm text-orange-600 mt-2">
-                    <div className="font-medium">Warnungen:</div>
+                    <div className="font-medium">{t('backup.warnings')}:</div>
                     {importResult.errors.map((error, idx) => (
                       <div key={idx} className="ml-2">• {error}</div>
                     ))}
@@ -211,13 +213,13 @@ export function CommentatorBackup() {
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Backup-Empfehlungen
+              {t('backup.recommendations')}
             </h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Erstelle regelmäßig Backups vor wichtigen Events</li>
-              <li>• Speichere Backup-Dateien an einem sicheren Ort</li>
-              <li>• Teste Imports gelegentlich um sicherzustellen, dass sie funktionieren</li>
-              <li>• Backup-Dateien enthalten keine persönlichen Kennwörter</li>
+              <li>• {t('backup.recommendation1')}</li>
+              <li>• {t('backup.recommendation2')}</li>
+              <li>• {t('backup.recommendation3')}</li>
+              <li>• {t('backup.recommendation4')}</li>
             </ul>
           </div>
           
@@ -227,18 +229,18 @@ export function CommentatorBackup() {
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Mehrstufiger Schutz
+              {t('backup.multiLevelProtection')}
             </h4>
             <div className="text-sm text-green-800 space-y-1">
-              <div className="font-medium">🛡️ Ebene 1: Offline-Speicherung (bereits aktiv)</div>
-              <div className="ml-4">• Automatische lokale Speicherung in der App</div>
-              <div className="ml-4">• Schutz vor Internetausfall während Events</div>
-              <div className="font-medium">🔒 Ebene 2: Manueller Export (diese Funktion)</div>
-              <div className="ml-4">• Langfristige Sicherung außerhalb der App</div>
-              <div className="ml-4">• Backup vor kritischen Events</div>
-              <div className="font-medium">☁️ Ebene 3: Supabase Backups (automatisch)</div>
-              <div className="ml-4">• Tägliche Datenbank-Backups</div>
-              <div className="ml-4">• Schutz vor Datenverlust</div>
+              <div className="font-medium">🛡️ {t('backup.level1')}</div>
+              <div className="ml-4">• {t('backup.level1Desc1')}</div>
+              <div className="ml-4">• {t('backup.level1Desc2')}</div>
+              <div className="font-medium">🔒 {t('backup.level2')}</div>
+              <div className="ml-4">• {t('backup.level2Desc1')}</div>
+              <div className="ml-4">• {t('backup.level2Desc2')}</div>
+              <div className="font-medium">☁️ {t('backup.level3')}</div>
+              <div className="ml-4">• {t('backup.level3Desc1')}</div>
+              <div className="ml-4">• {t('backup.level3Desc2')}</div>
             </div>
           </div>
         </div>

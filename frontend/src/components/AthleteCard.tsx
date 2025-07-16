@@ -7,6 +7,7 @@ import { useCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { CommentatorInfoSection } from './CommentatorInfoSection';
 import { CommentatorInfoModal } from './CommentatorInfoModal';
 import { getCountryFlag, getNationalityDisplay } from '@/utils/nationality';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface AthleteCardProps {
   athlete: Athlete;
@@ -14,6 +15,7 @@ interface AthleteCardProps {
 }
 
 export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
+  const { t } = useTranslation();
   const [showCommentatorModal, setShowCommentatorModal] = useState(false);
   
   // Fetch commentator info for this athlete
@@ -27,13 +29,13 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
       case 'confirmed':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            Bestätigt
+            {t('athlete.status.confirmed')}
           </span>
         );
       case 'waitlisted':
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-            Warteliste
+            {t('athlete.status.waitlisted')}
           </span>
         );
       default:
@@ -84,7 +86,7 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
                 {age && (
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-4 w-4" />
-                    <span className="text-sm">{age} Jahre</span>
+                    <span className="text-sm">{t('athlete.age', { age })}</span>
                   </div>
                 )}
               </div>
@@ -119,7 +121,7 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
               <div className="w-48 h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-md flex items-center justify-center">
                 <div className="text-center text-gray-500">
                   <div className="text-6xl mb-2">👤</div>
-                  <div className="text-sm">Kein Foto</div>
+                  <div className="text-sm">{t('athlete.noPhoto')}</div>
                 </div>
               </div>
             )}
@@ -131,16 +133,16 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
               {/* Basic Info */}
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Athleten-Info</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('athlete.info.title')}</h3>
                   
                   <div className="space-y-2">
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-700">Name:</span>
+                      <span className="text-sm text-gray-700">{t('athlete.info.name')}:</span>
                       <span className="font-semibold text-gray-900">{athlete.name}</span>
                     </div>
                     
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-700">Nationalität:</span>
+                      <span className="text-sm text-gray-700">{t('athlete.info.nationality')}:</span>
                       <span className="font-semibold text-gray-900">
                         {getCountryFlag(athlete.nationality)} {getNationalityDisplay(athlete.nationality)}
                       </span>
@@ -148,16 +150,16 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
                     
                     {athlete.dob && (
                       <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm text-gray-700">Geburtsdatum:</span>
+                        <span className="text-sm text-gray-700">{t('athlete.info.birthDate')}:</span>
                         <span className="font-semibold text-gray-900">
                           {new Date(athlete.dob).toLocaleDateString('de-DE')}
-                          {age && ` (${age} Jahre)`}
+                          {age && ` (${t('athlete.age', { age })})`}
                         </span>
                       </div>
                     )}
                     
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-700">Status:</span>
+                      <span className="text-sm text-gray-700">{t('athlete.info.status')}:</span>
                       <span className="font-medium">{getStatusBadge(athlete.status)}</span>
                     </div>
                   </div>
@@ -167,16 +169,16 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
               {/* Event Info */}
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Event-Info</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('athlete.eventInfo.title')}</h3>
                   
                   <div className="space-y-2">
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-700">Aktuelles Event:</span>
+                      <span className="text-sm text-gray-700">{t('athlete.eventInfo.currentEvent')}:</span>
                       <span className="font-semibold text-gray-900">{eventInfo.name}</span>
                     </div>
                     
                     <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                      <span className="text-sm text-gray-700">Datum:</span>
+                      <span className="text-sm text-gray-700">{t('athlete.eventInfo.date')}:</span>
                       <span className="font-semibold text-gray-900">
                         {new Date(eventInfo.date).toLocaleDateString('de-DE')}
                       </span>
@@ -184,14 +186,14 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
                     
                     {athlete.division && (
                       <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm text-gray-700">Division:</span>
+                        <span className="text-sm text-gray-700">{t('athlete.eventInfo.division')}:</span>
                         <span className="font-semibold text-gray-900">{athlete.division}</span>
                       </div>
                     )}
                     
                     {athlete.bib && (
                       <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                        <span className="text-sm text-gray-700">BIB-Nummer:</span>
+                        <span className="text-sm text-gray-700">{t('athlete.eventInfo.bibNumber')}:</span>
                         <span className="font-bold text-xl text-blue-600">#{athlete.bib}</span>
                       </div>
                     )}

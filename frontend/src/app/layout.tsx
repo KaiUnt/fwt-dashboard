@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/QueryProvider";
+import { TranslationProvider } from "@/providers/TranslationProvider";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,7 +31,12 @@ export default function RootLayout({
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased font-sans`}
       >
         <QueryProvider>
-          {children}
+          <TranslationProvider>
+            <div className="fixed top-4 right-4 z-50">
+              <LanguageSwitcher />
+            </div>
+            {children}
+          </TranslationProvider>
         </QueryProvider>
       </body>
     </html>
