@@ -18,6 +18,14 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "FWT Dashboard",
   description: "Freeride World Tour Event Dashboard für Moderatoren",
+  manifest: "/manifest.json",
+  themeColor: "#2563eb",
+  viewport: "width=device-width, initial-scale=1",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FWT Dashboard",
+  },
 };
 
 export default function RootLayout({
@@ -27,6 +35,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de">
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="FWT Dashboard" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+      </head>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased font-sans`}
       >

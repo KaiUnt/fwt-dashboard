@@ -1,0 +1,33 @@
+{
+  "name": "FWT Dashboard",
+  "short_name": "FWT Dashboard",
+  "description": "Freeride World Tour Event Management Dashboard",
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "features": [
+    "offline-support",
+    "event-management",
+    "athlete-dashboard"
+  ],
+  "categories": [
+    "sports",
+    "productivity",
+    "utilities"
+  ]
+}
