@@ -19,13 +19,17 @@ export const metadata: Metadata = {
   title: "FWT Dashboard",
   description: "Freeride World Tour Event Dashboard für Moderatoren",
   manifest: "/manifest.json",
-  themeColor: "#2563eb",
-  viewport: "width=device-width, initial-scale=1",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "FWT Dashboard",
   },
+};
+
+export const viewport = {
+  themeColor: "#2563eb",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
