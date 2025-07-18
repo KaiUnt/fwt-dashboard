@@ -201,7 +201,7 @@
     "offlineMode": "📱 OFFLINE MODUS",
     "offlineAvailable": "⚡ OFFLINE VERFÜGBAR",
     "noConnection": "Keine Internetverbindung - Nur offline Events verfügbar",
-    "savedEvents": "{count} Event{plural} für Offline-Nutzung gespeichert",
+    "savedEvents": "{count} {count, plural, one {Event} other {Events}} für Offline-Nutzung gespeichert",
     "autoDelete": "Automatische Löschung nach 48h",
     "stale": "Veraltet",
     "saved": "Gespeichert: {timestamp}",
