@@ -50,6 +50,16 @@ export default withPWA({
           },
         },
       },
+      {
+        urlPattern: /\.(json)$/,
+        handler: "StaleWhileRevalidate",
+        options: {
+          cacheName: "static-resources",
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
     ],
   },
 })(nextConfig);
