@@ -259,6 +259,15 @@
       "date": "Datum",
       "division": "Division",
       "bibNumber": "BIB-Nummer"
+    },
+    "eventHistory": {
+      "title": "Event-Historie",
+      "results": "Ergebnisse",
+      "points": "Punkte",
+      "error": "Fehler beim Laden der Event-Historie",
+      "noResults": "Keine historischen Ergebnisse für diesen Event-Ort gefunden",
+      "bestResult": "Bestes Ergebnis",
+      "avgPlace": "Ø Platz"
     }
   },
   "commentatorInfo": {

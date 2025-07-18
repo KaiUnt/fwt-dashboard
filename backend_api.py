@@ -340,6 +340,144 @@ async def get_athlete_results(athlete_id: str):
         logger.error(f"Error fetching results for athlete {athlete_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch athlete results: {str(e)}")
 
+@app.get("/api/athlete/{athlete_id}/event-history/{event_id}")
+async def get_athlete_event_history(athlete_id: str, event_id: str):
+    """Get historical results for a specific athlete at the same event location across years"""
+    try:
+        from api.client import LiveheatsClient
+        
+        client = LiveheatsClient()
+        
+        # First get current event details
+        current_event = await client.get_event_athletes(event_id)
+        if not current_event:
+            raise HTTPException(status_code=404, detail="Event not found")
+        
+        current_event_name = current_event['event']['name']
+        
+        # Extract location from event name (e.g., "Obertauern" from "FWT - Obertauern 2025")
+        location = extract_event_location(current_event_name)
+        
+        # Get athlete's complete FWT history
+        series_fwtglobal = await client.get_series_by_years("fwtglobal", range(2008, 2031))
+        series_fwt = await client.get_series_by_years("fwt", range(2008, 2031))
+        
+        # Combine both organizations
+        series_data = []
+        if series_fwtglobal:
+            series_data.extend(series_fwtglobal)
+        if series_fwt:
+            series_data.extend(series_fwt)
+        
+        if not series_data:
+            return {
+                "athlete_id": athlete_id,
+                "event_id": event_id,
+                "location": location,
+                "historical_results": [],
+                "message": "No FWT series found"
+            }
+        
+        # Filter to main series only (Pro Tour, World Tour) to avoid duplicates
+        main_series = [s for s in series_data if is_main_series(s["name"])]
+        series_ids = [s["id"] for s in main_series]
+        
+        # Get rankings which include results
+        rankings = await client.fetch_multiple_series(series_ids, [athlete_id])
+        
+        # Extract results from rankings and match by location
+        historical_results = []
+        for series in rankings:
+            for division_name, division_rankings in series["divisions"].items():
+                for ranking in division_rankings:
+                    if ranking["athlete"]["id"] == athlete_id:
+                        for result in ranking.get("results", []):
+                            event_name = result.get("event", {}).get("name", "")
+                            result_location = extract_event_location(event_name)
+                            
+                            # Match by location and exclude current event
+                            if (result_location.lower() == location.lower() and 
+                                event_name != current_event_name):
+                                historical_results.append({
+                                    "series_name": series["series_name"],
+                                    "division": division_name,
+                                    "event_name": event_name,
+                                    "place": result.get("place"),
+                                    "points": result.get("points"),
+                                    "date": result.get("event", {}).get("date"),
+                                    "year": extract_year_from_name(event_name)
+                                })
+        
+        # Sort by year (most recent first)
+        historical_results.sort(key=lambda x: x.get("year", 0), reverse=True)
+        
+        # Remove duplicates (keep the best result per year)
+        unique_results = []
+        seen_years = set()
+        for result in historical_results:
+            year = result.get("year")
+            if year and year not in seen_years:
+                seen_years.add(year)
+                unique_results.append(result)
+        
+        response = {
+            "athlete_id": athlete_id,
+            "event_id": event_id,
+            "current_event": current_event_name,
+            "location": location,
+            "historical_results": unique_results,
+            "total_results": len(unique_results),
+            "message": f"Found {len(unique_results)} historical results for {location}"
+        }
+        
+        logger.info(f"Found {len(unique_results)} historical results for athlete {athlete_id} at {location}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error fetching event history for athlete {athlete_id} at event {event_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch event history: {str(e)}")
+
+def extract_event_location(event_name: str) -> str:
+    """Extract location from event name (e.g., 'Obertauern' from 'FWT - Obertauern 2025')"""
+    # Remove common prefixes and suffixes
+    clean_name = event_name.replace("FWT - ", "").replace("FWT ", "")
+    
+    # Extract location patterns
+    import re
+    
+    # Try to match location patterns
+    location_patterns = [
+        r'([A-Za-z\s]+?)\s+\d{4}',  # Location followed by year
+        r'([A-Za-z\s]+?)\s+-\s+',   # Location followed by dash
+        r'^([A-Za-z\s]+?)(?:\s|$)'  # Location at start
+    ]
+    
+    for pattern in location_patterns:
+        match = re.match(pattern, clean_name)
+        if match:
+            location = match.group(1).strip()
+            if location:
+                return location
+    
+    # Fallback to first word
+    words = clean_name.split()
+    return words[0] if words else "Unknown"
+
+def extract_year_from_name(event_name: str) -> int:
+    """Extract year from event name"""
+    import re
+    match = re.search(r'\b(20\d{2})\b', event_name)
+    return int(match.group(1)) if match else 0
+
+def is_main_series(series_name: str) -> bool:
+    """Check if series is a main series (Pro Tour, World Tour) to avoid duplicates"""
+    name_lower = series_name.lower()
+    return any(keyword in name_lower for keyword in [
+        "pro tour", "world tour", "freeride world tour"
+    ]) and not any(keyword in name_lower for keyword in [
+        "qualifier", "challenger", "junior"
+    ])
+
 @app.get("/api/events/multi/{event_id1}/{event_id2}/athletes")
 async def get_multi_event_athletes(event_id1: str, event_id2: str):
     """Get combined athletes from two events, sorted by BIB numbers for live commentary"""
