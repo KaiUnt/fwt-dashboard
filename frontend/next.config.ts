@@ -51,6 +51,26 @@ export default withPWA({
         },
       },
       {
+        urlPattern: ({ url }) => {
+          const currentYear = new Date().getFullYear();
+          const lastYear = currentYear - 1;
+          return url.pathname.includes('/api/series-rankings') && 
+                 (url.searchParams.get('year') === currentYear.toString() || 
+                  url.searchParams.get('year') === lastYear.toString());
+        },
+        handler: "StaleWhileRevalidate",
+        options: {
+          cacheName: "series-rankings-current",
+          expiration: {
+            maxEntries: 50,
+            maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
         urlPattern: /\.(json)$/,
         handler: "StaleWhileRevalidate",
         options: {
