@@ -76,6 +76,10 @@ export function AthleteEventHistory({ athleteId, eventId }: AthleteEventHistoryP
   }
 
   if (error) {
+    // Gracefully handle 404 errors (feature not yet deployed)
+    if (error.includes('404')) {
+      return null; // Don't show anything if API endpoint not available yet
+    }
     return (
       <div className="bg-red-50 rounded-lg p-4">
         <div className="flex items-center space-x-2 mb-2">
