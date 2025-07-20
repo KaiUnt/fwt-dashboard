@@ -20,22 +20,42 @@ interface TranslationContextType {
 
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
 
+// Prevent multiple simultaneous requests for the same locale
+const translationCache = new Map<string, Promise<Translations>>();
+
 // Fetch function for translations (following the same pattern as event data)
 async function fetchTranslations(locale: string): Promise<Translations> {
-  const response = await fetch(`/locales/${locale}/common.json`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch translations: ${response.status}`);
+  // Check if we're already fetching this locale
+  const cachedPromise = translationCache.get(locale);
+  if (cachedPromise) {
+    return cachedPromise;
   }
   
-  const data = await response.json();
+  // Create new fetch promise and cache it
+  const fetchPromise = (async () => {
+    try {
+      const response = await fetch(`/locales/${locale}/common.json`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch translations: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Cache in localStorage for offline fallback
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`translations-${locale}`, JSON.stringify(data));
+      }
+      
+      return data;
+    } finally {
+      // Remove from cache when done (success or failure)
+      translationCache.delete(locale);
+    }
+  })();
   
-  // Cache in localStorage for offline fallback
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(`translations-${locale}`, JSON.stringify(data));
-  }
-  
-  return data;
+  translationCache.set(locale, fetchPromise);
+  return fetchPromise;
 }
 
 // Get translations from localStorage (offline fallback)
@@ -63,11 +83,18 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     setLocaleState(savedLocale);
   }, []);
 
-  // Use the same offline-first pattern as event data
+  // Use the same offline-first pattern as event data, but with optimizations to prevent IDB race conditions
   const { data: translations = {}, isLoading } = useQuery({
     queryKey: ['translations', locale],
     queryFn: async (): Promise<Translations> => {
-      // Try online first if we have internet (same pattern as useOfflineEventAthletes)
+      // Try offline fallback first to avoid unnecessary network requests
+      const offlineData = getOfflineTranslations(locale);
+      if (offlineData && isOffline) {
+        console.log('Loaded translations from offline storage (offline mode)');
+        return offlineData;
+      }
+      
+      // Try online if we have internet and no cached data, or if online and data is stale
       if (!isOffline) {
         try {
           return await fetchTranslations(locale);
@@ -77,19 +104,21 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         }
       }
       
-      // Try offline fallback (localStorage)
-      const offlineData = getOfflineTranslations(locale);
+      // Final fallback to cached data
       if (offlineData) {
-        console.log('Loaded translations from offline storage');
+        console.log('Loaded translations from offline storage (fallback)');
         return offlineData;
       }
       
       // No offline data available
       throw new Error('No offline translations available');
     },
-    retry: isOffline ? 0 : 2, // Don't retry in offline mode
+    retry: isOffline ? 0 : 1, // Reduce retries to minimize race conditions
     refetchOnWindowFocus: false,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnMount: false, // Don't refetch on mount if we have cached data
+    refetchOnReconnect: false, // Don't refetch immediately on reconnect
+    staleTime: 30 * 60 * 1000, // 30 minutes - longer stale time to reduce requests
+    gcTime: 60 * 60 * 1000, // 1 hour garbage collection
   });
 
   const setLocale = (newLocale: string) => {
