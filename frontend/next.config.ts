@@ -71,7 +71,10 @@ export default withPWA({
         },
       },
       {
-        urlPattern: /\.(json)$/,
+        urlPattern: ({ url }) => {
+          // Cache JSON files but exclude translation files to prevent IDB race conditions
+          return url.pathname.endsWith('.json') && !url.pathname.includes('/locales/');
+        },
         handler: "StaleWhileRevalidate",
         options: {
           cacheName: "static-resources",
