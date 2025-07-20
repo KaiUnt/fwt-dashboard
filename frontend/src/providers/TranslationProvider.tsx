@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useIsOffline } from '@/hooks/useOfflineStorage';
 
 type TranslationKey = string;
@@ -19,82 +20,89 @@ interface TranslationContextType {
 
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
 
+// Fetch function for translations (following the same pattern as event data)
+async function fetchTranslations(locale: string): Promise<Translations> {
+  const response = await fetch(`/locales/${locale}/common.json`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch translations: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  // Cache in localStorage for offline fallback
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(`translations-${locale}`, JSON.stringify(data));
+  }
+  
+  return data;
+}
+
+// Get translations from localStorage (offline fallback)
+function getOfflineTranslations(locale: string): Translations | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const cached = localStorage.getItem(`translations-${locale}`);
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    console.warn('Failed to parse cached translations:', error);
+    return null;
+  }
+}
+
 export function TranslationProvider({ children }: { children: React.ReactNode }) {
-  const [translations, setTranslations] = useState<Translations>({});
-  const [loading, setLoading] = useState(true);
   const [locale, setLocaleState] = useState('de');
   const isOffline = useIsOffline();
 
+  // Initialize locale from localStorage
   useEffect(() => {
-    // Get locale from localStorage or default to 'de'
     const savedLocale = typeof window !== 'undefined' 
       ? localStorage.getItem('locale') || 'de'
       : 'de';
     setLocaleState(savedLocale);
-    
-    const loadTranslations = async () => {
-      try {
-        // In offline mode, try to use cached response via fetch (service worker)
-        // The service worker should return cached translations if available
-        const response = await fetch(`/locales/${savedLocale}/common.json`);
-        if (response.ok) {
-          const data = await response.json();
-          setTranslations(data);
-        } else {
-          console.error('Failed to fetch translations, status:', response.status);
-          // In offline mode, provide better fallback behavior
-          if (isOffline) {
-            console.warn('Operating in offline mode - translations may not be available');
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load translations:', error);
-        // In offline mode, provide more context about the error
-        if (isOffline) {
-          console.warn('Network error in offline mode - check if translations are cached');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+  }, []);
 
-    loadTranslations();
-  }, [isOffline]);
+  // Use the same offline-first pattern as event data
+  const { data: translations = {}, isLoading } = useQuery({
+    queryKey: ['translations', locale],
+    queryFn: async (): Promise<Translations> => {
+      // Try online first if we have internet (same pattern as useOfflineEventAthletes)
+      if (!isOffline) {
+        try {
+          return await fetchTranslations(locale);
+        } catch (error) {
+          console.warn('Online translation fetch failed, trying offline fallback:', error);
+          // Fall through to offline fallback
+        }
+      }
+      
+      // Try offline fallback (localStorage)
+      const offlineData = getOfflineTranslations(locale);
+      if (offlineData) {
+        console.log('Loaded translations from offline storage');
+        return offlineData;
+      }
+      
+      // No offline data available
+      throw new Error('No offline translations available');
+    },
+    retry: isOffline ? 0 : 2, // Don't retry in offline mode
+    refetchOnWindowFocus: false,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
 
   const setLocale = (newLocale: string) => {
     setLocaleState(newLocale);
     if (typeof window !== 'undefined') {
       localStorage.setItem('locale', newLocale);
     }
-    // Reload translations
-    const loadTranslations = async () => {
-      try {
-        // In offline mode, try to use cached response via fetch (service worker)
-        const response = await fetch(`/locales/${newLocale}/common.json`);
-        if (response.ok) {
-          const data = await response.json();
-          setTranslations(data);
-        } else {
-          console.error('Failed to fetch translations, status:', response.status);
-          // In offline mode, provide better fallback behavior
-          if (isOffline) {
-            console.warn('Operating in offline mode - language switch may not work if translations not cached');
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load translations:', error);
-        // In offline mode, provide more context about the error
-        if (isOffline) {
-          console.warn('Network error in offline mode during language switch - check if translations are cached');
-        }
-      }
-    };
-    loadTranslations();
+    // React Query will automatically refetch when locale changes due to queryKey dependency
   };
 
   const t = (key: TranslationKey, params?: TranslationParams): string => {
     // If translations are not loaded yet, return a fallback
-    if (loading || Object.keys(translations).length === 0) {
+    if (isLoading || Object.keys(translations).length === 0) {
       return key;
     }
     
@@ -124,7 +132,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   };
 
   return (
-    <TranslationContext.Provider value={{ t, locale, setLocale, loading }}>
+    <TranslationContext.Provider value={{ t, locale, setLocale, loading: isLoading }}>
       {children}
     </TranslationContext.Provider>
   );
