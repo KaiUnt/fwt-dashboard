@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useIsOffline } from '@/hooks/useOfflineStorage';
 
 type TranslationKey = string;
 type TranslationParams = Record<string, string | number>;
@@ -22,6 +23,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   const [translations, setTranslations] = useState<Translations>({});
   const [loading, setLoading] = useState(true);
   const [locale, setLocaleState] = useState('de');
+  const isOffline = useIsOffline();
 
   useEffect(() => {
     // Get locale from localStorage or default to 'de'
@@ -32,22 +34,32 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     
     const loadTranslations = async () => {
       try {
+        // In offline mode, try to use cached response via fetch (service worker)
+        // The service worker should return cached translations if available
         const response = await fetch(`/locales/${savedLocale}/common.json`);
         if (response.ok) {
           const data = await response.json();
           setTranslations(data);
         } else {
           console.error('Failed to fetch translations, status:', response.status);
+          // In offline mode, provide better fallback behavior
+          if (isOffline) {
+            console.warn('Operating in offline mode - translations may not be available');
+          }
         }
       } catch (error) {
         console.error('Failed to load translations:', error);
+        // In offline mode, provide more context about the error
+        if (isOffline) {
+          console.warn('Network error in offline mode - check if translations are cached');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     loadTranslations();
-  }, []);
+  }, [isOffline]);
 
   const setLocale = (newLocale: string) => {
     setLocaleState(newLocale);
@@ -57,15 +69,24 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     // Reload translations
     const loadTranslations = async () => {
       try {
+        // In offline mode, try to use cached response via fetch (service worker)
         const response = await fetch(`/locales/${newLocale}/common.json`);
         if (response.ok) {
           const data = await response.json();
           setTranslations(data);
         } else {
           console.error('Failed to fetch translations, status:', response.status);
+          // In offline mode, provide better fallback behavior
+          if (isOffline) {
+            console.warn('Operating in offline mode - language switch may not work if translations not cached');
+          }
         }
       } catch (error) {
         console.error('Failed to load translations:', error);
+        // In offline mode, provide more context about the error
+        if (isOffline) {
+          console.warn('Network error in offline mode during language switch - check if translations are cached');
+        }
       }
     };
     loadTranslations();
