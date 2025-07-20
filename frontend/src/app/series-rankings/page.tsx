@@ -363,12 +363,12 @@ export default function SeriesRankingsPage() {
                             : 'hover:bg-gray-50 border-2 border-transparent'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0 pr-2">
+                            <p className="font-medium text-gray-900 leading-tight break-words">
                               {seriesItem.name}
                             </p>
-                            <div className="flex items-center space-x-2 mt-1">
+                            <div className="flex items-center flex-wrap gap-2 mt-2">
                               {seriesItem.year && (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                   <Calendar className="h-3 w-3 mr-1" />
@@ -387,7 +387,7 @@ export default function SeriesRankingsPage() {
                             </div>
                           </div>
                           {selectedSeries === seriesItem.id && (
-                            <TrendingUp className="h-4 w-4 text-blue-600 ml-2" />
+                            <TrendingUp className="h-4 w-4 text-blue-600 ml-2 flex-shrink-0" />
                           )}
                         </div>
                       </button>
