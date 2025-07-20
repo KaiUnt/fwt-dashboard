@@ -1,28 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Trophy, Calendar, MapPin, TrendingUp } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
-
-interface EventHistoryResult {
-  series_name: string;
-  division: string;
-  event_name: string;
-  place: number;
-  points: number;
-  date: string;
-  year: number;
-}
-
-interface EventHistoryResponse {
-  athlete_id: string;
-  event_id: string;
-  current_event: string;
-  location: string;
-  historical_results: EventHistoryResult[];
-  total_results: number;
-  message: string;
-}
+import { useAthleteEventHistory } from '@/hooks/useAthleteEventHistory';
 
 interface AthleteEventHistoryProps {
   athleteId: string;
@@ -31,36 +11,8 @@ interface AthleteEventHistoryProps {
 
 export function AthleteEventHistory({ athleteId, eventId }: AthleteEventHistoryProps) {
   const { t } = useTranslation();
-  const [eventHistory, setEventHistory] = useState<EventHistoryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: eventHistory, isLoading: loading, error } = useAthleteEventHistory(athleteId, eventId);
 
-  useEffect(() => {
-    const fetchEventHistory = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${API_BASE_URL}/api/athlete/${athleteId}/event-history/${eventId}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setEventHistory(data);
-      } catch (err) {
-        console.error('Error fetching event history:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch event history');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (athleteId && eventId) {
-      fetchEventHistory();
-    }
-  }, [athleteId, eventId]);
 
   if (loading) {
     return (
@@ -78,7 +30,7 @@ export function AthleteEventHistory({ athleteId, eventId }: AthleteEventHistoryP
 
   if (error) {
     // Gracefully handle 404 errors (feature not yet deployed)
-    if (error.includes('404')) {
+    if (error.message?.includes('404')) {
       return null; // Don't show anything if API endpoint not available yet
     }
     return (

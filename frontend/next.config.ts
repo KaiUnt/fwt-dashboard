@@ -72,6 +72,22 @@ export default withPWA({
       },
       {
         urlPattern: ({ url }) => {
+          return url.pathname.includes('/api/athlete/') && url.pathname.includes('/event-history/');
+        },
+        handler: "StaleWhileRevalidate",
+        options: {
+          cacheName: "athlete-event-history",
+          expiration: {
+            maxEntries: 200,
+            maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days - Event history is very stable
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
+        urlPattern: ({ url }) => {
           // Cache JSON files but exclude translation files to prevent IDB race conditions
           return url.pathname.endsWith('.json') && !url.pathname.includes('/locales/');
         },
