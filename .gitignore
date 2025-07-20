@@ -181,4 +181,7 @@ Thumbs.db
 # API keys and secrets
 secrets/
 .secrets
-api_keys.json 
+api_keys.json
+
+# Windows artifacts
+nul 
