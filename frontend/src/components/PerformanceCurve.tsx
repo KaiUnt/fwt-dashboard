@@ -156,10 +156,15 @@ export function PerformanceCurve({
   // Get all events for Top 3 display
   const allEvents = getAllEventsChronologically(seriesData, athleteId);
   
-  // Filter out bonus points series
+  // Filter out non-main series and bonus points series
   const filteredEvents = allEvents.filter(event => {
     const seriesName = event.rawResult?.seriesInfo?.seriesName || '';
     const eventName = event.eventName || '';
+    
+    // Only include MAIN series
+    if (!isMainSeasonRanking(seriesName)) {
+      return false;
+    }
     
     // Exclude bonus points by series name or event name
     return !seriesName.includes('FWT Pro 2026 Qualified Riders - Bonus points') && 

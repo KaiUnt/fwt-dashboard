@@ -932,8 +932,12 @@ export function getAllEventsChronologically(
   // Use a Map to deduplicate events by event key
   const eventMap = new Map<string, EventResultDetail>();
   
-  // Go through all series and collect all event results
+  // Go through all series and collect all event results (only MAIN series)
   for (const series of seriesData) {
+    // Only process MAIN series to avoid duplicates and admin lists
+    if (!isMainSeasonRanking(series.series_name)) {
+      continue;
+    }
     for (const [divisionName, rankings] of Object.entries(series.divisions)) {
       const ranking = rankings.find(r => r.athlete.id === athleteId);
       if (ranking && ranking.results) {
