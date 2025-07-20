@@ -248,8 +248,62 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        <div className="flex flex-col lg:flex-row gap-8">
-                     {/* Athlete Card */}
+        {/* Mobile Layout with specific order */}
+        <div className="block lg:hidden space-y-6">
+          {/* 1. Athlete Directory - Always show first */}
+          <AthleteNavigation
+            athletes={combinedAthletes}
+            currentIndex={currentAthleteIndex}
+            onNavigate={jumpToAthlete}
+          />
+          
+          {currentAthlete && (
+            <>
+              {/* 2. Athlete Info with Event Indicator */}
+              <div className="relative">
+                {/* Event Source Indicator */}
+                <div className="absolute -top-3 left-4 z-10">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    currentAthlete.eventSource === eventId1 
+                      ? 'bg-red-100 text-red-800 border border-red-200'
+                      : 'bg-blue-100 text-blue-800 border border-blue-200'
+                  }`}>
+                    {currentAthlete.eventName}
+                  </span>
+                </div>
+                <AthleteCard 
+                  athlete={currentAthlete} 
+                  eventInfo={{
+                    name: currentAthlete.eventName,
+                    date: currentAthlete.eventSource === eventId1 ? event1Data.event.date : event2Data.event.date,
+                    id: currentAthlete.eventSource,
+                    status: 'active'
+                  }}
+                />
+              </div>
+              
+              {/* 3. Performance Curve and Series Rankings */}
+              {getAthleteSeriesData() && (
+                <div className="space-y-4">
+                  <PerformanceCurve
+                    athleteId={currentAthlete.id}
+                    athleteName={currentAthlete.name}
+                    seriesData={getAthleteSeriesData()!}
+                  />
+                  <AthleteSeriesRankings
+                    athleteId={currentAthlete.id}
+                    athleteName={currentAthlete.name}
+                    seriesData={getAthleteSeriesData()!}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden lg:flex lg:flex-row gap-8">
+          {/* Athlete Card */}
            <div className="flex-1">
              {currentAthlete && (
                <div className="relative">
@@ -286,8 +340,8 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
              )}
            </div>
 
-           {/* Navigation */}
-           <div className="lg:w-80 space-y-4">
+           {/* Navigation Sidebar */}
+           <div className="w-80 space-y-4">
              <AthleteNavigation
                athletes={combinedAthletes}
                currentIndex={currentAthleteIndex}
