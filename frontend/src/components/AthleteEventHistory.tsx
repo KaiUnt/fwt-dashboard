@@ -41,7 +41,8 @@ export function AthleteEventHistory({ athleteId, eventId }: AthleteEventHistoryP
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`/api/athlete/${athleteId}/event-history/${eventId}`);
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(`${API_BASE_URL}/api/athlete/${athleteId}/event-history/${eventId}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
