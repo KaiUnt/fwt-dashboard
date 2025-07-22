@@ -1,10 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useEventAthletes } from './useEventAthletes';
+import { useSeriesRankings } from './useSeriesRankings';
+import { eventMatcher } from '@/utils/eventMatching';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-interface EventHistoryResult {
+export interface EventHistoryResult {
   series_name: string;
   division: string;
   event_name: string;
@@ -24,31 +25,100 @@ export interface EventHistoryResponse {
   message: string;
 }
 
-async function fetchAthleteEventHistory(
-  athleteId: string, 
-  eventId: string
-): Promise<EventHistoryResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/athlete/${athleteId}/event-history/${eventId}`
-  );
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch event history: ${response.status}`);
-  }
-  
-  return response.json();
-}
-
 export function useAthleteEventHistory(athleteId: string, eventId: string) {
-  return useQuery({
-    queryKey: ['athlete-event-history', athleteId, eventId],
-    queryFn: () => fetchAthleteEventHistory(athleteId, eventId),
-    enabled: !!(athleteId && eventId),
-    refetchOnWindowFocus: false,
-    staleTime: 30 * 60 * 1000, // 30 Minuten - Event History ist sehr stabil
-    retry: (failureCount, error: any) => {
-      if (error?.message?.includes('404')) return false;
-      return failureCount < 2;
-    },
-  });
+  const { data: eventData, isLoading: eventLoading, error: eventError } = useEventAthletes(eventId);
+  const { data: seriesData, isLoading: seriesLoading, error: seriesError } = useSeriesRankings(eventId);
+
+  const eventHistory = useMemo((): EventHistoryResponse | null => {
+    // Wait for both data sources to be available
+    if (!eventData || !seriesData || !athleteId || !eventId) {
+      return null;
+    }
+
+    const currentEvent = eventData.event;
+    if (!currentEvent) {
+      return null;
+    }
+
+    // Extract location from current event name
+    const locationInfo = eventMatcher.extractLocationInfo(currentEvent.name);
+    const location = locationInfo.location || 'Unknown';
+
+    // Find all historical results for this athlete
+    const historicalResults: EventHistoryResult[] = [];
+
+    // Process all series rankings to find historical events
+    for (const series of seriesData.series_rankings) {
+      // Only process main series to avoid duplicates
+      if (!eventMatcher.isMainSeries(series.series_name)) {
+        continue;
+      }
+
+      for (const [divisionName, rankings] of Object.entries(series.divisions)) {
+        const athleteRanking = rankings.find(r => r.athlete.id === athleteId);
+        
+        if (athleteRanking && athleteRanking.results) {
+          for (const result of athleteRanking.results) {
+            const eventDiv = result.eventDivision;
+            const event = eventDiv?.event;
+            const eventName = event?.name || '';
+
+            // Skip if this is the current event
+            if (eventName === currentEvent.name) {
+              continue;
+            }
+
+            // Check if this event matches historically with the current event
+            if (eventMatcher.eventsMatchHistorically(currentEvent.name, eventName)) {
+              const year = eventMatcher.extractYearFromName(eventName);
+              
+              historicalResults.push({
+                series_name: series.series_name,
+                division: divisionName,
+                event_name: eventName,
+                place: result.place || 0,
+                points: result.points || 0,
+                date: event?.date || '',
+                year: year
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Sort by year (most recent first)
+    historicalResults.sort((a, b) => b.year - a.year);
+
+    // Remove duplicates (keep the best result per year)
+    const uniqueResults: EventHistoryResult[] = [];
+    const seenYears = new Set<number>();
+
+    for (const result of historicalResults) {
+      if (result.year && !seenYears.has(result.year)) {
+        seenYears.add(result.year);
+        uniqueResults.push(result);
+      }
+    }
+
+    return {
+      athlete_id: athleteId,
+      event_id: eventId,
+      current_event: currentEvent.name,
+      location: location,
+      historical_results: uniqueResults,
+      total_results: uniqueResults.length,
+      message: `Found ${uniqueResults.length} historical results for ${location}`
+    };
+  }, [eventData, seriesData, athleteId, eventId]);
+
+  // Calculate loading and error states
+  const isLoading = eventLoading || seriesLoading;
+  const error = eventError || seriesError;
+
+  return {
+    data: eventHistory,
+    isLoading,
+    error
+  };
 }

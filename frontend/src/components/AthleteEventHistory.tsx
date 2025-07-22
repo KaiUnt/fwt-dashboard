@@ -1,6 +1,6 @@
 'use client';
 
-import { Trophy, Calendar, MapPin, TrendingUp } from 'lucide-react';
+import { Trophy, MapPin, TrendingUp } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAthleteEventHistory } from '@/hooks/useAthleteEventHistory';
 
