@@ -12,6 +12,7 @@ import { PerformanceCurve } from './PerformanceCurve';
 import { useOfflineEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
 import { CommentatorBackupButton } from './CommentatorBackupButton';
+import { AthleteEventHistory } from './AthleteEventHistory';
 import { useTranslation } from '@/hooks/useTranslation';
 
 
@@ -210,7 +211,13 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 eventInfo={athletesData.event}
               />
               
-              {/* 3. Performance Curve, Best Series, Best Events */}
+              {/* 3. Event History */}
+              <AthleteEventHistory 
+                athleteId={currentAthlete.id} 
+                eventId={eventId}
+              />
+              
+              {/* 4. Performance Curve, Best Series, Best Events */}
               {seriesData?.series_rankings && (
                 <div className="space-y-4">
                   <PerformanceCurve
@@ -239,6 +246,14 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                   athlete={currentAthlete}
                   eventInfo={athletesData.event}
                 />
+                
+                {/* Event History Section */}
+                <div className="mt-6">
+                  <AthleteEventHistory 
+                    athleteId={currentAthlete.id} 
+                    eventId={eventId}
+                  />
+                </div>
                 
                 {/* Enhanced Multi-Series Rankings */}
                 {seriesData?.series_rankings && currentAthlete && (

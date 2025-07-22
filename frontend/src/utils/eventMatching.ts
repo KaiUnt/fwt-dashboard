@@ -188,6 +188,7 @@ class FWTEventMatcher {
     return normalized.toLowerCase();
   }
 
+
   eventsMatchHistorically(currentEvent: string, historicalEvent: string): boolean {
     // Quick check: if events are identical, they're not historical matches
     if (currentEvent === historicalEvent) {

@@ -6,7 +6,6 @@ import { Athlete, EventInfo } from '@/types/athletes';
 import { useCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { CommentatorInfoSection } from './CommentatorInfoSection';
 import { CommentatorInfoModal } from './CommentatorInfoModal';
-import { AthleteEventHistory } from './AthleteEventHistory';
 import { getCountryFlag, getNationalityDisplay } from '@/utils/nationality';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -201,13 +200,6 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
                   </div>
                 </div>
                 
-                {/* Event History Section */}
-                <div className="mt-6">
-                  <AthleteEventHistory 
-                    athleteId={athlete.id} 
-                    eventId={eventInfo.id}
-                  />
-                </div>
               </div>
             </div>
           </div>
