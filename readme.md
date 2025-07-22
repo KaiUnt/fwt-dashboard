@@ -1,203 +1,188 @@
-FWT Dashboard - Development Roadmap v2.0 (Optimiert)
-🎯 Prioritäten-basierte Entwicklung
+# FWT Dashboard 🏔️
 
-Motto: Schnell zum MVP, dann schrittweise erweitern
+A professional event management tool for Freeride World Tour commentators, built with Next.js and FastAPI.
 
-✅ Bereits erledigt: Liveheats Integration & Data Models
+## Features ✨
 
-🥇 PHASE 1: MVP CORE (Wochen 1-3) ⚡ verkürzt
-Ziel: Funktionsfähiges Single-Event Dashboard mit flüssiger Navigation
-Woche 1: Dashboard Basis
-Setup & Core Components:
+### Event Management
+- **Single Event Dashboard**: View athletes for individual FWT events
+- **Multi-Event Support**: Compare athletes across multiple events (e.g., Challenger + Junior)
+- **Real-time Data**: Live integration with LiveHeats API
+- **Fast Navigation**: Keyboard shortcuts and BIB jumping
 
- Supabase Setup: Auth, Database, Storage (1 Tag)
- Next.js Routing: /dashboard/[eventId]/[bib]
- Athlete Card Component: Alle Liveheats-Daten anzeigen
- Results Panel: Übersichtliche Ergebnis-Darstellung
+### Athlete Information
+- **Comprehensive Profiles**: Complete athlete data from LiveHeats
+- **Event History**: Location-based historical performance tracking
+- **Commentator Annotations**: Add custom notes and information (optional Supabase integration)
+- **Series Rankings**: Complete FWT/FWQ series standings and results
 
-Woche 2: Navigation & Interaktion
-Schnelle User Experience:
+### Location Intelligence
+- **Smart Event Matching**: 169+ location database for accurate event history
+- **Career Progression**: Track athletes from Junior → FWQ → Challenger → Pro
+- **Location-Based History**: See all athlete performances at specific venues
 
- Keyboard Navigation: Arrow Keys (←/→) zwischen Athleten
- BIB Quick Jump: Zahlen-Eingabe für direkte Navigation
- Client-Side Caching: React Query/SWR für schnelle Interaktion
- Loading States: Skeleton Screens während Daten laden
+## Quick Start 🚀
 
-Woche 3: Polish & Deploy
-Production Ready:
+### Prerequisites
+- Python 3.8+
+- Node.js 18+
+- Git
 
- Error Handling: Graceful Fallbacks
- Vercel Deployment: Production Setup
- Quick Search: Instant BIB/Name Suche
- LocalStorage: Letzter Athlet merken
+### Installation
 
-🚀 MVP RELEASE: Test bei erstem Event
+1. **Clone the repository**
+```bash
+git clone https://github.com/KaiUnt/fwt-dashboard.git
+cd fwt-dashboard
+```
 
-🥈 PHASE 2: MULTI-EVENT (Wochen 4-5) ⚡ verkürzt
-Ziel: Challenger + Juniors in einem Dashboard
-Woche 4: Multi-Event Core
-Business Logic:
+2. **Install dependencies**
+```bash
+# Python backend
+pip install -r requirements.txt
 
- Event Selector: Checkbox UI für Event-Auswahl
- Combined Athlete List: Mehrere Events mergen
- Smart BIB Sorting: Gerade/Ungerade korrekt sortieren
- Event Badges: Visual Indicators (Junior/Challenger)
+# Frontend
+cd frontend
+npm install
+cd ..
+```
 
-Woche 5: Performance & UX
-Optimierung für große Datensätze:
+3. **Start the application**
+```bash
+# Start both frontend and backend
+python start.py
+```
 
- Virtualized List: Nur sichtbare Athleten rendern
- Preload Adjacent: Next/Previous Athleten vorbereiten
- Batch Loading: Effizientes Daten-Management
- Testing: Mit 100+ Athleten
+4. **Access the application**
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/docs
 
-✅ MULTI-EVENT RELEASE: Alle Events eines Stops
+## Usage 📖
 
-🥉 PHASE 3: BASIC ANNOTATIONS (Wochen 6-7)
-Ziel: Einfaches Wissensmanagement
-Woche 6: Annotations Foundation
-Minimal Viable Schema:
-sqlCREATE TABLE annotations (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  athlete_id TEXT NOT NULL,
-  data JSONB NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-Core Features:
+### Basic Navigation
+- Browse upcoming FWT events on the home page
+- Click on an event to view the athlete dashboard
+- Use keyboard shortcuts: `←/→` to navigate between athletes
+- Press numbers to jump to specific BIB numbers
+- Use `/` to search for athletes by name
 
- CRUD API: Create, Read, Update via Supabase
- Edit Modal: Simple Form (Bio, Instagram, YouTube)
- Auto-Save: Änderungen sofort speichern
+### Multi-Event Dashboard
+- Select multiple events for combined viewing
+- Perfect for events with both Challenger and Junior competitions
+- Athletes are automatically merged and sorted
 
-Woche 7: Integration & Display
-Nahtlose Dashboard-Integration:
+### Event History
+The dashboard shows historical performance for each athlete at the same location:
+- **Junior Championships** (early career)
+- **FWQ Qualifiers** (qualification events) 
+- **FWT Challengers** (challenger series)
+- **FWT Pro Events** (main tour)
 
- Annotation Indicators: Icons zeigen vorhandene Infos
- Inline Display: Annotations im Athlete Card
- Merge Logic: Liveheats + Annotations kombinieren
- Quick Edit: Keyboard Shortcut (e.g. "E" zum editieren)
+This gives commentators complete context about athlete progression and venue experience.
 
-✅ ANNOTATIONS RELEASE: Kommentatoren können mitarbeiten
+## Architecture 🏗️
 
-🏅 PHASE 4: PRODUCTION POLISH (Wochen 8-9)
-Ziel: Vollständiges, professionelles Tool
-Woche 8: Extended Features
-Erweiterte Annotations & Features:
+### Frontend (Next.js 15)
+- **App Router** with TypeScript
+- **Tailwind CSS** for styling
+- **React Query** for data caching
+- **Responsive design** optimized for tablets and desktops
 
- Extended Fields:
+### Backend (FastAPI)
+- **GraphQL client** for LiveHeats API integration
+- **CORS enabled** for frontend communication
+- **Automatic caching** for improved performance
+- **RESTful endpoints** for all data access
 
-freeride_team
-home_resort
-favourite_trick
-achievements
-fun_facts
+### Optional Features
+- **Supabase integration** for commentator annotations
+- **Offline support** with local storage
+- **PWA capabilities** for mobile use
 
+## API Endpoints 🔌
 
- Rich Text Editor: Für Bio/Notes
- Image Upload: Athlete Photos in Supabase Storage
- Export Function: PDF/Print für Kommentatoren
+### Events
+- `GET /api/events` - List upcoming FWT events
+- `GET /api/events/{id}/athletes` - Get athletes for specific event
 
-Woche 9: Final Polish
-Production Excellence:
+### Series Rankings
+- `GET /api/series/rankings/{eventId}` - Get series rankings and historical data
 
- Responsive Design: Tablet-Optimierung
- Offline Support: PWA Capabilities
- Analytics: Vercel Analytics Integration
- Documentation: User Guide & Video Tutorial
- Backup System: Automated Annotation Backups
+### Commentator Info (Optional)
+- `POST /api/commentator-info` - Save commentator annotations
+- Requires Supabase configuration
 
-🎉 PRODUCTION RELEASE: Vollständiges Tool für alle Events
+## Configuration ⚙️
 
-📋 Technologie-Stack & Patterns
-Frontend (Next.js)
-typescript// Optimierte Patterns
-- App Router mit Server Components
-- React Query/SWR für State Management
-- Tailwind CSS für schnelles Styling
-- Keyboard Navigation Hook
-- LocalStorage für Preferences
-Backend (Supabase)
-typescript// Simplified Architecture
-- PostgreSQL für strukturierte Daten
-- JSONB für flexible Annotations
-- Row Level Security für Teams
-- Realtime Subscriptions (optional)
-- Storage für Bilder
-Performance-Strategie
-typescript// Initial Load: Akzeptabel (3-10 Sekunden)
-// Navigation: Instant (<100ms)
-// Search: Instant (client-side)
-// Updates: Optimistic UI
+### Environment Variables (Optional)
+```bash
+# For commentator annotations feature
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_key
+```
 
-🚦 Deployment-Milestones
-Woche 3: MVP Testing
-✅ Single Event Dashboard live
-→ 2-3 Test-Kommentatoren
-→ Feedback sammeln
-→ Quick Fixes
-Woche 5: Multi-Event Beta
-✅ Vollständige Event-Coverage
-→ Alle Kommentatoren onboarden
-→ Performance monitoren
-Woche 7: Collaborative Launch
-✅ Annotations aktiviert
-→ Knowledge Base beginnt
-→ Team-Workflows etablieren
-Woche 9: Full Production
-✅ Alle Features komplett
-→ Offizieller Launch
-→ Continuous Improvements
+### Development Commands
+```bash
+# Backend only
+python backend_api.py
 
-🎯 Success Metrics
-Nach Phase 1 (Woche 3)
+# Frontend only
+cd frontend && npm run dev
 
- Dashboard lädt alle Athleten eines Events
- Navigation zwischen BIBs < 100ms
- Mindestens 1 Event erfolgreich kommentiert
+# Build for production
+cd frontend && npm run build
 
-Nach Phase 2 (Woche 5)
+# Linting
+cd frontend && npm run lint
+```
 
- 100+ Athleten problemlos handelbar
- Event-Switching funktioniert nahtlos
- Alle Kommentatoren nutzen das Tool
+## Performance 📊
 
-Nach Phase 3 (Woche 7)
+- **Initial Load**: 3-10 seconds (depends on LiveHeats API)
+- **Navigation**: <100ms (client-side caching)
+- **Search**: Instant (client-side filtering)
+- **Data Updates**: Cached for 5 minutes
 
- 50+ Annotations erstellt
- Annotations erscheinen bei neuen Events
- Edit-Workflow etabliert
+## Troubleshooting 🔧
 
-Nach Phase 4 (Woche 9)
+### Common Issues
 
- Tool bei allen FWT Events im Einsatz
- 500+ Annotations in der Datenbank
- Positive Feedback von allen Nutzern
+**Port Conflicts**
+- Backend runs on port 8000
+- Frontend runs on port 3000
+- Make sure these ports are available
 
+**PowerShell Execution Policy (Windows)**
+```powershell
+Set-ExecutionPolicy RemoteSigned
+```
 
-💡 Quick Win Features
-Immer dabei ab Phase 1:
+**Dependency Issues**
+```bash
+pip install --upgrade -r requirements.txt
+npm install --force
+```
 
-Instant Search: Tippen → Springen
-Keyboard Shortcuts: J/K Navigation, E für Edit, / für Suche
-Smart Preloading: Nächste Athleten im Cache
-Session Memory: Letzter Stand wird gemerkt
+## Contributing 🤝
 
-Progressive Enhancement:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-Phase 1: Core Navigation
-Phase 2: Batch Operations
-Phase 3: Inline Editing
-Phase 4: Advanced Features
+## Support 📞
 
+For issues or questions:
+1. Check the troubleshooting section
+2. Review API documentation at http://localhost:8000/docs
+3. Create an issue on GitHub
 
-🔄 Kontinuierliche Verbesserung
-Wöchentliche Iteration:
+## License 📄
 
-Deploy am Freitag
-Test am Wochenende (wenn Events sind)
-Feedback sammeln
-Fixes Montag/Dienstag
-Features Mittwoch/Donnerstag
+This project is built for the Freeride World Tour community.
 
+---
 
-9 Wochen zum Production-Ready Tool! 🚀
+**Built with ❤️ for FWT commentators**

@@ -13,15 +13,28 @@ class FWTEventMatcher {
     if (this.locationsLoaded) return;
     
     try {
+      console.log('🔍 Loading locations CSV...');
       const response = await fetch('/all_locations.csv');
+      console.log('📡 CSV Response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        throw new Error(`CSV fetch failed: ${response.status} ${response.statusText}`);
+      }
+      
       const csvText = await response.text();
+      console.log('📄 CSV loaded, length:', csvText.length, 'chars');
+      
       this.locations = csvText
         .split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0);
+      
+      console.log('📍 Locations parsed:', this.locations.length, 'locations');
+      console.log('🏔️ First 5 locations:', this.locations.slice(0, 5));
+      
       this.locationsLoaded = true;
     } catch (error) {
-      console.error('Failed to load locations CSV:', error);
+      console.error('❌ Failed to load locations CSV:', error);
       this.locations = [];
       this.locationsLoaded = true;
     }
@@ -32,6 +45,13 @@ class FWTEventMatcher {
     
     const normalized = this.normalizeEventName(eventName);
     const location = this.findLocationInEventName(normalized);
+    
+    console.log('🏷️ Location extraction:', {
+      original: eventName,
+      normalized: normalized,
+      location: location,
+      totalLocations: this.locations.length
+    });
     
     return {
       location,
