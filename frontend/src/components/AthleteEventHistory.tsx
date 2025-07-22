@@ -129,10 +129,10 @@ export function AthleteEventHistory({ athleteId, eventId }: AthleteEventHistoryP
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-900">
-                    {result.year}
+                    {result.event_name}
                   </div>
                   <div className="text-xs text-gray-500">
-                    {result.points} {t('athlete.eventHistory.points')}
+                    {result.year} • {result.points} {t('athlete.eventHistory.points')}
                   </div>
                 </div>
               </div>
