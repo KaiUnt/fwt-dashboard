@@ -10,6 +10,7 @@ import { AthleteNavigation } from './AthleteNavigation';
 import { BibJump } from './BibJump';
 import { QuickSearch } from './QuickSearch';
 import { PerformanceCurve } from './PerformanceCurve';
+import { AthleteEventHistory } from './AthleteEventHistory';
 import { useOfflineMultiEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { Athlete } from '@/types/athletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
@@ -280,6 +281,12 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                     status: 'active'
                   }}
                 />
+                
+                {/* Event History */}
+                <AthleteEventHistory 
+                  athleteId={currentAthlete.id} 
+                  eventId={currentAthlete.eventSource}
+                />
               </div>
               
               {/* 3. Performance Curve and Series Rankings */}
@@ -326,6 +333,14 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                      status: 'active'
                    }}
                  />
+                 
+                 {/* Event History */}
+                 <div className="mt-4">
+                   <AthleteEventHistory 
+                     athleteId={currentAthlete.id} 
+                     eventId={currentAthlete.eventSource}
+                   />
+                 </div>
                  
                  {/* Enhanced Multi-Series Rankings */}
                  {getAthleteSeriesData() && currentAthlete && (

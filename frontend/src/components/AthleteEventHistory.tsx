@@ -11,13 +11,9 @@ interface AthleteEventHistoryProps {
 }
 
 export function AthleteEventHistory({ athleteId, eventId }: AthleteEventHistoryProps) {
-  console.log('🚀 AthleteEventHistory component rendered!', { athleteId, eventId });
-  
   const { t } = useTranslation();
   const { data: eventHistory, isLoading: loading, error } = useAthleteEventHistory(athleteId, eventId);
   const [isCollapsed, setIsCollapsed] = useState(false);
-
-  console.log('📊 Event history state:', { eventHistory, loading, error });
 
 
   if (loading) {
