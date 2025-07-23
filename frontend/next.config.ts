@@ -88,7 +88,24 @@ export default withPWA({
       },
       {
         urlPattern: ({ url }) => {
-          // Cache JSON files but exclude translation files to prevent IDB race conditions
+          // Cache translation files specifically for offline support
+          return url.pathname.includes('/locales/') && url.pathname.endsWith('.json');
+        },
+        handler: "CacheFirst",
+        options: {
+          cacheName: "translation-files",
+          expiration: {
+            maxEntries: 10,
+            maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
+        urlPattern: ({ url }) => {
+          // Cache other JSON files but exclude translation files (handled above)
           return url.pathname.endsWith('.json') && !url.pathname.includes('/locales/');
         },
         handler: "StaleWhileRevalidate",
