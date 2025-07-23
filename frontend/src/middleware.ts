@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
                 'de';
 
   // Check if locale is supported
-  const supportedLocales = ['de', 'en'];
+  const supportedLocales = ['de', 'en', 'fr'];
   const activeLocale = supportedLocales.includes(locale) ? locale : 'de';
 
   // Set locale in response headers
