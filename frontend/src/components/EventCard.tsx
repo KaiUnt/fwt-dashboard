@@ -21,45 +21,80 @@ export function EventCard({
 }: EventCardProps) {
   const { t } = useTranslation();
   
-  // Extract event type from name (Pro, Challenger, Junior)
-  const getEventType = (name: string): string => {
-    if (name.toLowerCase().includes('pro')) return 'Pro';
-    if (name.toLowerCase().includes('challenger')) return 'Challenger';
-    if (name.toLowerCase().includes('junior')) return 'Junior';
+  // Extract event category from series name using same logic as AthleteSeriesRankings
+  const getCategoryFromSeriesName = (seriesName: string): string => {
+    const lowerName = seriesName.toLowerCase();
+    if (lowerName.includes('pro') || lowerName.includes('xtreme verbier')) return 'Pro';
+    if (lowerName.includes('challenger') && !lowerName.includes('qualifying')) return 'Challenger';
+    if ((lowerName.includes('qualifier') || lowerName.includes('ifsa')) && !lowerName.includes('national')) return 'Qualifier';
+    if (lowerName.includes('junior') && !lowerName.includes('national')) return 'Junior';
     return 'Event';
   };
 
-  const eventType = getEventType(event.name);
+  // For now, we use event name as fallback until series data is properly integrated
+  const eventType = getCategoryFromSeriesName(event.name);
   
   // Color scheme based on event type and status
   const getTypeColors = (type: string, isPast: boolean = false) => {
-    // Past events get muted colors
     if (isPast) {
-      return {
-        bg: 'bg-gradient-to-r from-gray-400 to-gray-500',
-        badge: 'bg-gray-100 text-gray-700',
-        border: 'border-gray-300'
-      };
+      switch (type) {
+        case 'Pro':
+          return {
+            bg: 'bg-gradient-to-r from-purple-200 to-violet-300',
+            badge: 'bg-purple-50 text-purple-600',
+            border: 'border-purple-100'
+          };
+        case 'Challenger':
+          return {
+            bg: 'bg-gradient-to-r from-yellow-200 to-amber-300',
+            badge: 'bg-yellow-50 text-yellow-600',
+            border: 'border-yellow-100'
+          };
+        case 'Qualifier':
+          return {
+            bg: 'bg-gradient-to-r from-green-200 to-emerald-300',
+            badge: 'bg-green-50 text-green-600',
+            border: 'border-green-100'
+          };
+        case 'Junior':
+          return {
+            bg: 'bg-gradient-to-r from-blue-200 to-indigo-300',
+            badge: 'bg-blue-50 text-blue-600',
+            border: 'border-blue-100'
+          };
+        default:
+          return {
+            bg: 'bg-gradient-to-r from-gray-200 to-slate-300',
+            badge: 'bg-gray-50 text-gray-600',
+            border: 'border-gray-100'
+          };
+      }
     }
-
+    
     switch (type) {
       case 'Pro':
         return {
-          bg: 'bg-gradient-to-r from-red-500 to-pink-600',
-          badge: 'bg-red-100 text-red-800',
-          border: 'border-red-200'
+          bg: 'bg-gradient-to-r from-purple-500 to-violet-600',
+          badge: 'bg-purple-100 text-purple-800',
+          border: 'border-purple-200'
         };
       case 'Challenger':
         return {
-          bg: 'bg-gradient-to-r from-blue-500 to-indigo-600',
-          badge: 'bg-blue-100 text-blue-800',
-          border: 'border-blue-200'
+          bg: 'bg-gradient-to-r from-yellow-500 to-amber-600',
+          badge: 'bg-yellow-100 text-yellow-800',
+          border: 'border-yellow-200'
         };
-      case 'Junior':
+      case 'Qualifier':
         return {
           bg: 'bg-gradient-to-r from-green-500 to-emerald-600',
           badge: 'bg-green-100 text-green-800',
           border: 'border-green-200'
+        };
+      case 'Junior':
+        return {
+          bg: 'bg-gradient-to-r from-blue-500 to-indigo-600',
+          badge: 'bg-blue-100 text-blue-800',
+          border: 'border-blue-200'
         };
       default:
         return {
