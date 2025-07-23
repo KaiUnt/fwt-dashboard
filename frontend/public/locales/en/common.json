@@ -202,6 +202,8 @@
     "offlineAvailable": "⚡ OFFLINE AVAILABLE",
     "noConnection": "No internet connection - Only offline events available",
     "savedEvents": "{count} Event{plural} saved for offline use",
+    "savedEventsSingular": "{count} Event saved for offline use",
+    "savedEventsPlural": "{count} Events saved for offline use",
     "autoDelete": "Auto-delete after 48h",
     "stale": "Stale",
     "saved": "Saved: {timestamp}",
