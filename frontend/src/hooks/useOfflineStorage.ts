@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   offlineStorage, 
-  OfflineEventData, 
-  OfflineStorageStats,
+  OfflineEventData,
   createEventId,
   parseEventId,
   calculateEstimatedSize,

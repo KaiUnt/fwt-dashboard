@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from './useOfflineStorage';
-import { EventAthletesResponse, Athlete } from '@/types/athletes';
+import { EventAthletesResponse } from '@/types/athletes';
 import { createEventId } from '@/utils/offlineStorage';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';

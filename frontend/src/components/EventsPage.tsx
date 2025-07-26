@@ -14,7 +14,7 @@ import { useOfflineStorage, useIsOffline } from '@/hooks/useOfflineStorage';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export function EventsPage() {
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [includePastEvents, setIncludePastEvents] = useState(false);
@@ -30,8 +30,6 @@ export function EventsPage() {
   const { 
     getOfflineEventStatuses, 
     deleteOfflineEvent, 
-    formatEventName,
-    formatEventDate,
     formatTimestamp,
     formatFileSize,
     parseEventId,

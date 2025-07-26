@@ -7,8 +7,10 @@ import { useIsOffline } from '@/hooks/useOfflineStorage';
 type TranslationKey = string;
 type TranslationParams = Record<string, string | number>;
 
+type TranslationValue = string | { [key: string]: TranslationValue };
+
 interface Translations {
-  [key: string]: any;
+  [key: string]: TranslationValue;
 }
 
 interface TranslationContextType {
@@ -136,7 +138,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     }
     
     const keys = key.split('.');
-    let value: any = translations;
+    let value: TranslationValue = translations;
     
     for (const k of keys) {
       if (value && typeof value === 'object' && k in value) {

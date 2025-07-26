@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useEventAthletes } from './useEventAthletes';
 import { useSeriesRankings, isMainSeasonRanking } from './useSeriesRankings';
 import { eventMatcher } from '@/utils/eventMatching';

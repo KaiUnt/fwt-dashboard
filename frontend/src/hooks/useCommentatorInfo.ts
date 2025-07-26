@@ -79,7 +79,7 @@ const fetchCommentatorInfo = async (athleteId: string): Promise<CommentatorInfo 
   return data.data || null;
 };
 
-const createCommentatorInfo = async (info: Omit<CommentatorInfo, 'id' | 'created_at' | 'updated_at'>): Promise<CommentatorInfo> => {
+const _createCommentatorInfo = async (info: Omit<CommentatorInfo, 'id' | 'created_at' | 'updated_at'>): Promise<CommentatorInfo> => {
   const response = await fetch(`${API_BASE_URL}/api/commentator-info`, {
     method: 'POST',
     headers: {

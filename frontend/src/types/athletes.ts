@@ -9,6 +9,11 @@ export interface Athlete {
   division?: string;
 }
 
+export interface MultiEventAthlete extends Athlete {
+  eventSource: string;
+  eventName: string;
+}
+
 export interface EventInfo {
   id: string;
   name: string;

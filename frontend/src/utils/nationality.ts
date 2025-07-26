@@ -743,7 +743,7 @@ export function getNationalitiesList(athletes: Array<{ nationality?: string }>):
 /**
  * Check if a nationality search query matches an athlete
  */
-export function matchesNationalitySearch(nationality?: string, query: string): boolean {
+export function matchesNationalitySearch(nationality: string | undefined, query: string): boolean {
   // Handle "No data found" case
   if (!nationality || nationality.trim() === '') {
     const queryLower = query.toLowerCase();

@@ -4,12 +4,13 @@ import { useState, useMemo } from 'react';
 import { Download, Check, AlertCircle, Loader2, Trash2, RefreshCw } from 'lucide-react';
 import { useOfflineStorage } from '@/hooks/useOfflineStorage';
 import { Athlete, EventInfo } from '@/types/athletes';
+import { SeriesData } from '@/hooks/useSeriesRankings';
 
 interface OfflineSaveButtonProps {
   eventIds: string[];
   athletes: Athlete[];
   eventInfo: EventInfo | EventInfo[];
-  seriesRankings?: any[];
+  seriesRankings?: SeriesData[];
   className?: string;
   variant?: 'primary' | 'secondary';
   showDetails?: boolean;
@@ -35,8 +36,7 @@ export function OfflineSaveButton({
     deleteOfflineEvent,
     getOfflineEventStatus,
     formatFileSize,
-    formatTimestamp,
-    isDataStale
+    formatTimestamp
   } = useOfflineStorage();
 
   const offlineStatus = getOfflineEventStatus(eventIds);

@@ -11,7 +11,6 @@ import { BibJump } from './BibJump';
 import { PerformanceCurve } from './PerformanceCurve';
 import { useOfflineEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
-import { CommentatorBackupButton } from './CommentatorBackupButton';
 import { AthleteEventHistory } from './AthleteEventHistory';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -24,16 +23,25 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const { data: athletesData, isLoading, error } = useOfflineEventAthletes(eventId);
-  const { data: seriesData, isLoading: seriesLoading, error: seriesError } = useOfflineSeriesRankings(eventId);
+  const { data: seriesData, isLoading: seriesLoading } = useOfflineSeriesRankings(eventId);
   const [currentAthleteIndex, setCurrentAthleteIndex] = useState(0);
   const [showBibJump, setShowBibJump] = useState(false);
 
   const athletes = athletesData?.athletes || [];
   const currentAthlete = athletes[currentAthleteIndex];
 
+  // Navigation callbacks defined before useEffect
+  const navigateToNext = useCallback(() => {
+    setCurrentAthleteIndex(prev => 
+      prev >= athletes.length - 1 ? 0 : prev + 1
+    );
+  }, [athletes.length]);
 
-
-  // Series data now handled by AthleteSeriesRankings component
+  const navigateToPrevious = useCallback(() => {
+    setCurrentAthleteIndex(prev => 
+      prev <= 0 ? athletes.length - 1 : prev - 1
+    );
+  }, [athletes.length]);
 
   // Keyboard Navigation
   useEffect(() => {
@@ -73,19 +81,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [athletes.length]);
-
-  const navigateToNext = useCallback(() => {
-    setCurrentAthleteIndex(prev => 
-      prev >= athletes.length - 1 ? 0 : prev + 1
-    );
-  }, [athletes.length]);
-
-  const navigateToPrevious = useCallback(() => {
-    setCurrentAthleteIndex(prev => 
-      prev <= 0 ? athletes.length - 1 : prev - 1
-    );
-  }, [athletes.length]);
+  }, [athletes.length, navigateToNext, navigateToPrevious]);
 
   const jumpToAthlete = (index: number) => {
     if (index >= 0 && index < athletes.length) {

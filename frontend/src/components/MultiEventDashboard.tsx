@@ -14,7 +14,6 @@ import { AthleteEventHistory } from './AthleteEventHistory';
 import { useOfflineMultiEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { Athlete } from '@/types/athletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
-import { CommentatorBackupButton } from './CommentatorBackupButton';
 
 
 interface MultiEventDashboardProps {
@@ -50,6 +49,19 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
 
   const currentAthlete = combinedAthletes[currentAthleteIndex];
   const hasError = !!error;
+
+  // Navigation callbacks defined before useEffect
+  const navigateToNext = useCallback(() => {
+    setCurrentAthleteIndex(prev => 
+      prev >= combinedAthletes.length - 1 ? 0 : prev + 1
+    );
+  }, [combinedAthletes.length]);
+
+  const navigateToPrevious = useCallback(() => {
+    setCurrentAthleteIndex(prev => 
+      prev <= 0 ? combinedAthletes.length - 1 : prev - 1
+    );
+  }, [combinedAthletes.length]);
 
   // Get series data for current athlete
   const getAthleteSeriesData = () => {
@@ -103,19 +115,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [combinedAthletes.length]);
-
-  const navigateToNext = useCallback(() => {
-    setCurrentAthleteIndex(prev => 
-      prev >= combinedAthletes.length - 1 ? 0 : prev + 1
-    );
-  }, [combinedAthletes.length]);
-
-  const navigateToPrevious = useCallback(() => {
-    setCurrentAthleteIndex(prev => 
-      prev <= 0 ? combinedAthletes.length - 1 : prev - 1
-    );
-  }, [combinedAthletes.length]);
+  }, [combinedAthletes.length, navigateToNext, navigateToPrevious]);
 
   const jumpToAthlete = (index: number) => {
     if (index >= 0 && index < combinedAthletes.length) {

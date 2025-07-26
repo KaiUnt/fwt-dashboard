@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { TrendingUp, Calendar, Medal, Star, Trophy, Target, Zap, ChevronDown, Eye, EyeOff, Award, Crown } from 'lucide-react';
+import { TrendingUp, Medal, Star, Trophy, Target, Zap, ChevronDown, Eye, EyeOff, Award, Crown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { SeriesData, isMainSeasonRanking, categorizeSeriesType, getAllEventsChronologically } from '@/hooks/useSeriesRankings';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -31,7 +31,7 @@ interface SeriesVisibility {
 
 export function PerformanceCurve({ 
   athleteId, 
-  athleteName, 
+  athleteName: _athleteName, 
   seriesData, 
   className = "" 
 }: PerformanceCurveProps) {
@@ -56,7 +56,7 @@ export function PerformanceCurve({
       const year = extractSeriesYear(series.series_name);
       const category = categorizeSeriesType(series.series_name);
 
-      for (const [divisionName, rankings] of Object.entries(series.divisions)) {
+      for (const [_divisionName, rankings] of Object.entries(series.divisions)) {
         const ranking = rankings.find(r => r.athlete.id === athleteId);
         if (ranking && ranking.place) {
           if (!yearlyData.has(year)) {
@@ -417,7 +417,7 @@ export function PerformanceCurve({
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-bold">
-                          {t('performance.pointsShort', { points: event.points })}
+                          {t('performance.pointsShort', { points: event.points || 0 })}
                         </div>
                       </div>
                     </div>

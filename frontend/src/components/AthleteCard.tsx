@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar, Trophy } from 'lucide-react';
+import { Calendar } from 'lucide-react';
+import Image from 'next/image';
 import { Athlete, EventInfo } from '@/types/athletes';
 import { useCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { CommentatorInfoSection } from './CommentatorInfoSection';
@@ -19,7 +20,7 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
   const [showCommentatorModal, setShowCommentatorModal] = useState(false);
   
   // Fetch commentator info for this athlete
-  const { data: commentatorInfo, error } = useCommentatorInfo(athlete.id);
+  const { data: commentatorInfo } = useCommentatorInfo(athlete.id);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -106,9 +107,11 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-shrink-0">
             {athlete.image ? (
-              <img 
+              <Image 
                 src={athlete.image} 
                 alt={athlete.name}
+                width={192}
+                height={256}
                 className="w-48 h-64 object-cover rounded-lg shadow-md"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';

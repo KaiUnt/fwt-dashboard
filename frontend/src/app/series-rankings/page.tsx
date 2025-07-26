@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Filter, Trophy, Users, Calendar, Star, Medal, Award, ArrowLeft, Loader2, TrendingUp, ExternalLink } from 'lucide-react';
+import { Search, Filter, Trophy, Users, Calendar, Medal, Award, ArrowLeft, Loader2, TrendingUp } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { SeriesInfo, SeriesListResponse, SeriesRankingsResponse, SeriesRanking } from '@/types/series';
+import { SeriesInfo, SeriesListResponse, SeriesRankingsResponse } from '@/types/series';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export default function SeriesRankingsPage() {
@@ -515,9 +516,11 @@ export default function SeriesRankingsPage() {
 
                                   <div className="col-span-4 flex items-center space-x-3">
                                     {ranking.athlete.image && (
-                                      <img
+                                      <Image
                                         src={ranking.athlete.image}
                                         alt={ranking.athlete.name}
+                                        width={32}
+                                        height={32}
                                         className="h-8 w-8 rounded-full object-cover"
                                       />
                                     )}

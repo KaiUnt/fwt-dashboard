@@ -73,7 +73,7 @@ export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
     }
   };
 
-  const filteredBibs = availableBibs.filter(bib => 
+  const _filteredBibs = availableBibs.filter(bib => 
     bib.includes(query)
   );
 

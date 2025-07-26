@@ -1,13 +1,13 @@
 'use client';
 
 import { Users, Search } from 'lucide-react';
-import { Athlete } from '@/types/athletes';
+import { Athlete, MultiEventAthlete } from '@/types/athletes';
 import { useState } from 'react';
 import { getCountryFlag, getNationalityDisplay, countUniqueNationalities, matchesNationalitySearch } from '@/utils/nationality';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface AthleteNavigationProps {
-  athletes: Athlete[];
+  athletes: (Athlete | MultiEventAthlete)[];
   currentIndex: number;
   onNavigate: (index: number) => void;
 }
@@ -77,13 +77,13 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
               // Find the actual index in the full athletes array  
               const actualIndex = athletes.findIndex(a => 
                 a.id === athlete.id && 
-                (a as any).eventSource === (athlete as any).eventSource
+                ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
               );
               const isActive = actualIndex === currentIndex;
               
               return (
                 <button
-                  key={`${athlete.id}-${(athlete as any).eventSource || index}`}
+                  key={`${athlete.id}-${'eventSource' in athlete ? athlete.eventSource : index}`}
                   onClick={() => onNavigate(actualIndex)}
                   className={`
                     w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors

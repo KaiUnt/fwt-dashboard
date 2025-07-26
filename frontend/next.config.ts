@@ -3,19 +3,18 @@ import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
   eslint: {
-    // Disable ESLint during builds for production deployment
-    ignoreDuringBuilds: true,
+    // Only ignore ESLint in development or CI environments where it's handled separately
+    ignoreDuringBuilds: process.env.NODE_ENV === 'development' || process.env.CI === 'true',
   },
   typescript: {
-    // Disable type checking during builds for production deployment
-    ignoreBuildErrors: true,
+    // Only ignore TypeScript errors in development - always check in production
+    ignoreBuildErrors: process.env.NODE_ENV === 'development',
   },
 };
 
 export default withPWA({
   dest: "public",
   register: true,
-  skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,

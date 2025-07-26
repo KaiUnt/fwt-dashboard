@@ -6,10 +6,7 @@ import {
   getEventBasedOverview, 
   getSeriesDetailView,
   getAvailableSeriesForAthlete,
-  getAllEventsChronologically,
-  SeriesDetailView,
-  EventResultDetail,
-  isMainSeasonRanking
+  getAllEventsChronologically
 } from '@/hooks/useSeriesRankings';
 import { SeriesData } from '@/hooks/useSeriesRankings';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -161,7 +158,7 @@ export function AthleteSeriesRankings({
   }
 
   // Get main series categories that are available for the athlete
-  const mainSeriesCategories = overview.availableCategories.filter(cat => cat.isMainSeries);
+  const _mainSeriesCategories = overview.availableCategories.filter(cat => cat.isMainSeries);
 
   // Filter main series by year
   const getMainSeriesByYear = (year: number | 'all') => {
@@ -781,7 +778,7 @@ export function AthleteSeriesRankings({
         ) : viewMode === 'all-events' ? (
           <span>{t('seriesRankings.careerTimelineFooter', { count: allEventsChronological.length })}</span>
         ) : (
-          <span>{t('seriesRankings.detailedViewFooter', { name: seriesDetail?.seriesInfo.name })}</span>
+          <span>{t('seriesRankings.detailedViewFooter', { name: seriesDetail?.seriesInfo.name || 'Unknown' })}</span>
         )}
       </div>
     </div>
