@@ -10,6 +10,16 @@ const nextConfig: NextConfig = {
     // Only ignore TypeScript errors in development - always check in production
     ignoreBuildErrors: process.env.NODE_ENV === 'development',
   },
+  images: {
+    domains: ['liveheats.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'liveheats.com',
+        pathname: '/images/**',
+      },
+    ],
+  },
 };
 
 export default withPWA({
