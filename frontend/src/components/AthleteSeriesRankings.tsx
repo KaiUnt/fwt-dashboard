@@ -21,6 +21,14 @@ interface AthleteSeriesRankingsProps {
 type ViewMode = 'overview' | 'series-detail' | 'all-events';
 type SortMode = 'chronological' | 'points' | 'ranking';
 
+interface SeriesInfoData {
+  seriesName: string;
+  seriesCategory: string;
+  division: string;
+  isMainSeries: boolean;
+  priority: number;
+}
+
 export function AthleteSeriesRankings({ 
   athleteId, 
   athleteName, 
@@ -568,15 +576,15 @@ export function AthleteSeriesRankings({
                             <div className="mt-2 text-xs">
                               <div className="text-gray-500 mb-1">{t('seriesRankings.foundIn')}:</div>
                               <div className="flex flex-wrap gap-1">
-                                {allSeriesInfo
-                                  .sort((a: any, b: any) => {
+                                {(allSeriesInfo as SeriesInfoData[])
+                                  .sort((a: SeriesInfoData, b: SeriesInfoData) => {
                                     // Main series first
                                     if (a.isMainSeries && !b.isMainSeries) return -1;
                                     if (!a.isMainSeries && b.isMainSeries) return 1;
                                     // Then by priority
                                     return (b.priority || 0) - (a.priority || 0);
                                   })
-                                  .map((series: any, idx: number) => (
+                                  .map((series: SeriesInfoData, idx: number) => (
                                   <span
                                     key={idx}
                                     className={`px-2 py-1 rounded text-xs ${getCategoryColor(series.seriesCategory, series.isMainSeries)}`}

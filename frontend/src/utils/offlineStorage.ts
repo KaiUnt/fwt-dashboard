@@ -24,7 +24,7 @@ export interface OfflineEventData {
     eventSource?: string;
     eventName?: string;
   }>;
-  seriesRankings?: any[];
+  seriesRankings?: unknown[];
   commentatorInfo?: {
     [athleteId: string]: {
       homebase?: string;
@@ -229,7 +229,7 @@ export function parseEventId(offlineEventId: string): string[] {
   return [offlineEventId];
 }
 
-export function calculateEstimatedSize(athletes: any[], seriesRankings: any[] = [], commentatorInfo: any = {}): number {
+export function calculateEstimatedSize(athletes: unknown[], seriesRankings: unknown[] = [], commentatorInfo: unknown = {}): number {
   // More accurate size estimation
   const athletesJson = JSON.stringify(athletes);
   const seriesJson = JSON.stringify(seriesRankings);

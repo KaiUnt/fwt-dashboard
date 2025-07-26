@@ -98,7 +98,7 @@ export function QuickSearch({ athletes, onSearch, onClose }: QuickSearchProps) {
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {filteredAthletes.map((athlete, index) => (
                     <button
-                      key={`${athlete.id}-${(athlete as any).eventSource || index}`}
+                      key={`${athlete.id}-${'eventSource' in athlete ? athlete.eventSource : index}`}
                       onClick={() => handleAthleteClick(athlete)}
                       className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-colors"
                     >

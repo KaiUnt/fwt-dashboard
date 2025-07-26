@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { Search, Calendar, Loader2, ToggleLeft, ToggleRight, Eye, History, Clock, RefreshCw, Download, Trash2 } from 'lucide-react';
 import { EventCard } from './EventCard';
 import { SearchInput } from './SearchInput';
@@ -437,7 +438,7 @@ export function EventsPage() {
   );
 }
 
-function handleEventSelect(event: FWTEvent, router: any) {
+function handleEventSelect(event: FWTEvent, router: AppRouterInstance) {
   // Navigate to dashboard for selected event
   router.push(`/dashboard/${event.id}`);
 } 

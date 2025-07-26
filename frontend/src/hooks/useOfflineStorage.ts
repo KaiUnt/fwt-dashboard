@@ -14,6 +14,24 @@ import {
   formatTimestamp
 } from '@/utils/offlineStorage';
 import { Athlete, EventInfo } from '@/types/athletes';
+import { SeriesData } from './useSeriesRankings';
+
+interface CommentatorInfo {
+  homebase?: string;
+  team?: string;
+  sponsors?: string;
+  favorite_trick?: string;
+  achievements?: string;
+  injuries?: string;
+  fun_facts?: string;
+  notes?: string;
+  social_media?: {
+    instagram?: string;
+    youtube?: string;
+    website?: string;
+  };
+  updated_at?: string;
+}
 
 export interface OfflineEventStatus {
   id: string;
@@ -90,7 +108,7 @@ export function useOfflineStorage() {
     eventIds: string[],
     athletes: Athlete[],
     eventInfo: EventInfo | EventInfo[],
-    seriesRankings?: any[],
+    seriesRankings?: SeriesData[],
     options: SaveOfflineOptions = {}
   ): Promise<void> => {
     if (!isInitialized) {
@@ -121,7 +139,7 @@ export function useOfflineStorage() {
       };
 
       // Collect commentator info from localStorage cache
-      const commentatorInfoCache: Record<string, any> = {};
+      const commentatorInfoCache: Record<string, CommentatorInfo> = {};
       try {
         const cachedCommentatorInfo = localStorage.getItem('commentator-info-cache');
         if (cachedCommentatorInfo) {

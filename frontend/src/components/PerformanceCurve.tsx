@@ -124,12 +124,23 @@ export function PerformanceCurve({
   };
 
   // Custom tooltip for better UX
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  interface TooltipPayload {
+    value: number;
+    dataKey: string;
+    color: string;
+    name: string;
+  }
+
+  const CustomTooltip = ({ active, payload, label }: { 
+    active?: boolean; 
+    payload?: TooltipPayload[]; 
+    label?: string | number; 
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-          <p className="font-semibold text-gray-900">{t('performance.year', { year: label })}</p>
-          {payload.map((entry: any, index: number) => (
+          <p className="font-semibold text-gray-900">{t('performance.year', { year: label || 'Unknown' })}</p>
+          {payload.map((entry: TooltipPayload, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
               <span className="font-medium capitalize">{entry.dataKey}:</span> #{entry.value}
             </p>

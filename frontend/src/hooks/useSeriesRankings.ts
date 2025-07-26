@@ -3,6 +3,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from './useOfflineStorage';
 
+export interface SeriesEventResult {
+  place?: number;
+  points?: number;
+  event?: {
+    id?: string;
+    name?: string;
+    date?: string;
+  };
+  eventDivision?: {
+    event?: {
+      id?: string;
+      name?: string;
+      date?: string;
+    };
+  };
+  status?: string;
+}
+
 export interface SeriesRanking {
   athlete: {
     id: string;
@@ -13,7 +31,7 @@ export interface SeriesRanking {
   };
   place?: number;
   points?: number;
-  results: any[];
+  results: SeriesEventResult[];
 }
 
 export interface SeriesData {
@@ -83,7 +101,7 @@ export function useOfflineSeriesRankings(eventId: string) {
             name: offlineData.eventData.events[0].name,
             date: offlineData.eventData.events[0].date
           },
-          series_rankings: offlineData.seriesRankings,
+          series_rankings: offlineData.seriesRankings as SeriesData[],
           athletes_count: offlineData.totalAthletes,
           series_count: offlineData.seriesRankings.length,
           message: 'Offline data'
@@ -146,7 +164,7 @@ export function useOfflineMultiEventSeriesRankings(eventId1: string, eventId2: s
                 name: event1.name,
                 date: event1.date
               },
-              series_rankings: offlineData.seriesRankings,
+              series_rankings: offlineData.seriesRankings as SeriesData[],
               athletes_count: offlineData.totalAthletes,
               series_count: offlineData.seriesRankings.length,
               message: 'Offline data'
@@ -157,13 +175,13 @@ export function useOfflineMultiEventSeriesRankings(eventId1: string, eventId2: s
                 name: event2.name,
                 date: event2.date
               },
-              series_rankings: offlineData.seriesRankings,
+              series_rankings: offlineData.seriesRankings as SeriesData[],
               athletes_count: offlineData.totalAthletes,
               series_count: offlineData.seriesRankings.length,
               message: 'Offline data'
             },
             combined: {
-              series_rankings: offlineData.seriesRankings,
+              series_rankings: offlineData.seriesRankings as SeriesData[],
               total_athletes: offlineData.totalAthletes,
               total_series: offlineData.seriesRankings.length
             }
@@ -336,7 +354,22 @@ export interface EventResultDetail {
   place?: number;
   points?: number;
   status?: string; // DNS, DNF, DQ, etc.
-  rawResult: any; // Full result data
+  rawResult: SeriesEventResult & {
+    seriesInfo?: {
+      seriesName: string;
+      seriesCategory: string;
+      division: string;
+      isMainSeries: boolean;
+      priority: number;
+    };
+    allSeriesInfo?: Array<{
+      seriesName: string;
+      seriesCategory: string;
+      division: string;
+      isMainSeries: boolean;
+      priority: number;
+    }>;
+  };
 }
 
 // Helper function to categorize series
@@ -989,15 +1022,18 @@ export function getAllEventsChronologically(
             
             // Add both series to allSeriesInfo array
             if (!existing.rawResult.allSeriesInfo) {
-              existing.rawResult.allSeriesInfo = [existingSeries];
+              existing.rawResult.allSeriesInfo = existingSeries ? [existingSeries] : [];
             }
             existing.rawResult.allSeriesInfo.push(currentSeries);
             
             // Keep the result from the series with higher priority
-            if (currentSeries.priority > existingSeries.priority) {
+            if (existingSeries && currentSeries.priority > existingSeries.priority) {
               existing.place = eventResult.place;
               existing.points = eventResult.points;
               existing.status = eventResult.status;
+              existing.rawResult.seriesInfo = currentSeries;
+            } else if (!existingSeries) {
+              // If no existing series info, use current
               existing.rawResult.seriesInfo = currentSeries;
             }
           } else {
