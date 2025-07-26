@@ -4,11 +4,14 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   // Basic Auth check
   const basicAuth = request.headers.get('authorization');
-  const url = request.nextUrl;
 
   if (!basicAuth) {
-    url.pathname = '/api/auth';
-    return NextResponse.rewrite(url);
+    return new Response('Authentication required', {
+      status: 401,
+      headers: {
+        'WWW-Authenticate': 'Basic realm="FWT Dashboard"',
+      },
+    });
   }
 
   const authValue = basicAuth.split(' ')[1];
@@ -16,11 +19,15 @@ export function middleware(request: NextRequest) {
 
   // Check credentials (replace with your desired username/password)
   const validUser = process.env.BASIC_AUTH_USER || 'admin';
-  const validPassword = process.env.BASIC_AUTH_PASSWORD || 'password';
+  const validPassword = process.env.BASIC_AUTH_PASSWORD || 'fwt2025';
 
   if (user !== validUser || pwd !== validPassword) {
-    url.pathname = '/api/auth';
-    return NextResponse.rewrite(url);
+    return new Response('Authentication required', {
+      status: 401,
+      headers: {
+        'WWW-Authenticate': 'Basic realm="FWT Dashboard"',
+      },
+    });
   }
 
   // Get locale from cookie or header
@@ -41,6 +48,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
