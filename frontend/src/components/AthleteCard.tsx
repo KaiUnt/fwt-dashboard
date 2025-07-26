@@ -20,9 +20,6 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
   
   // Fetch commentator info for this athlete
   const { data: commentatorInfo, error } = useCommentatorInfo(athlete.id);
-  
-  // Debug log
-  console.log('AthleteCard commentator info:', { athleteId: athlete.id, commentatorInfo, error });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
