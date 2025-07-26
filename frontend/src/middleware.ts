@@ -2,6 +2,27 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
+  // Basic Auth check
+  const basicAuth = request.headers.get('authorization');
+  const url = request.nextUrl;
+
+  if (!basicAuth) {
+    url.pathname = '/api/auth';
+    return NextResponse.rewrite(url);
+  }
+
+  const authValue = basicAuth.split(' ')[1];
+  const [user, pwd] = atob(authValue).split(':');
+
+  // Check credentials (replace with your desired username/password)
+  const validUser = process.env.BASIC_AUTH_USER || 'admin';
+  const validPassword = process.env.BASIC_AUTH_PASSWORD || 'password';
+
+  if (user !== validUser || pwd !== validPassword) {
+    url.pathname = '/api/auth';
+    return NextResponse.rewrite(url);
+  }
+
   // Get locale from cookie or header
   const locale = request.cookies.get('locale')?.value || 
                 request.headers.get('accept-language')?.split(',')[0]?.split('-')[0] || 
