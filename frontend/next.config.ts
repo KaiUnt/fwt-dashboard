@@ -2,16 +2,45 @@ import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
+  // Security: Never ignore ESLint/TypeScript errors in production
   eslint: {
-    // Only ignore ESLint in development or CI environments where it's handled separately
-    ignoreDuringBuilds: process.env.NODE_ENV === 'development' || process.env.CI === 'true',
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    // Only ignore TypeScript errors in development - always check in production
-    ignoreBuildErrors: process.env.NODE_ENV === 'development',
+    ignoreBuildErrors: false,
   },
+  // Security Headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://liveheats.com; connect-src 'self' https://liveheats.com http://localhost:8000;",
+          },
+        ],
+      },
+    ];
+  },
+  // Image Security
   images: {
-    domains: ['liveheats.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -19,7 +48,18 @@ const nextConfig: NextConfig = {
         pathname: '/images/**',
       },
     ],
+    // Remove deprecated 'domains' and add security
+    dangerouslyAllowSVG: false,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+  // Production optimizations (disable experimental CSS for now)
+  // experimental: {
+  //   optimizeCss: true,
+  // },
+  // Enable compression
+  compress: true,
+  // Security: Disable x-powered-by header
+  poweredByHeader: false,
 };
 
 export default withPWA({
@@ -45,14 +85,17 @@ export default withPWA({
         },
       },
       {
-        urlPattern: /^http:\/\/localhost:8000\/.*/,
+        // Only cache localhost API in development
+        urlPattern: ({ url }) => {
+          return process.env.NODE_ENV === 'development' && url.origin === 'http://localhost:8000';
+        },
         handler: "NetworkFirst",
         options: {
-          cacheName: "api-calls",
+          cacheName: "api-calls-dev",
           networkTimeoutSeconds: 10,
           expiration: {
-            maxEntries: 100,
-            maxAgeSeconds: 24 * 60 * 60, // 24 hours
+            maxEntries: 50,
+            maxAgeSeconds: 1 * 60 * 60, // 1 hour only
           },
           cacheableResponse: {
             statuses: [0, 200],

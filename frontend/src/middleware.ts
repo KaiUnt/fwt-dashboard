@@ -1,8 +1,24 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  // Basic Auth check
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Security: Get client IP for logging (future use)
+  const _ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+  
+  // Skip auth for API routes and PWA files
+  if (pathname.startsWith('/api/auth') || 
+      pathname.includes('sw.js') || 
+      pathname.includes('workbox') ||
+      pathname.includes('manifest.json')) {
+    const response = NextResponse.next();
+    // Add security headers even for skipped routes
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return response;
+  }
+
+  // Basic Auth check with improved security
   const basicAuth = request.headers.get('authorization');
 
   if (!basicAuth) {
@@ -10,22 +26,39 @@ export function middleware(request: NextRequest) {
       status: 401,
       headers: {
         'WWW-Authenticate': 'Basic realm="FWT Dashboard"',
+        'Cache-Control': 'no-store',
       },
     });
   }
 
-  const authValue = basicAuth.split(' ')[1];
-  const [user, pwd] = atob(authValue).split(':');
+  try {
+    const authValue = basicAuth.split(' ')[1];
+    if (!authValue) throw new Error('Invalid auth format');
+    
+    const [user, pwd] = atob(authValue).split(':');
 
-  // Check credentials (replace with your desired username/password)
-  const validUser = process.env.BASIC_AUTH_USER || 'admin';
-  const validPassword = process.env.BASIC_AUTH_PASSWORD || 'fwt2025';
+    // Security: Use environment variables for credentials
+    const validUser = process.env.BASIC_AUTH_USER || 'admin';
+    const validPassword = process.env.BASIC_AUTH_PASSWORD || 'fwt2025';
 
-  if (user !== validUser || pwd !== validPassword) {
+    if (user !== validUser || pwd !== validPassword) {
+      // Security: Add delay for failed attempts
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      return new Response('Authentication required', {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="FWT Dashboard"',
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+  } catch {
     return new Response('Authentication required', {
       status: 401,
       headers: {
         'WWW-Authenticate': 'Basic realm="FWT Dashboard"',
+        'Cache-Control': 'no-store',
       },
     });
   }
@@ -39,9 +72,11 @@ export function middleware(request: NextRequest) {
   const supportedLocales = ['de', 'en', 'fr'];
   const activeLocale = supportedLocales.includes(locale) ? locale : 'de';
 
-  // Set locale in response headers
+  // Set security headers and locale
   const response = NextResponse.next();
   response.headers.set('x-locale', activeLocale);
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  response.headers.set('Cache-Control', 'private, no-cache');
 
   return response;
 }
