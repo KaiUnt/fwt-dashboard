@@ -7,5 +7,5 @@ httpx==0.25.2
 python-dotenv==1.0.0
 slowapi==0.1.9
 
-# Use older pydantic version to avoid Rust compilation issues on cloud platforms
-pydantic==2.4.2
+# Use pydantic 1.x - NO Rust compilation required!
+pydantic==1.10.12
