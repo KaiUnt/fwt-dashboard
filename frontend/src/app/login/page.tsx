@@ -32,8 +32,14 @@ export default function LoginPage() {
     setError('')
 
     try {
+      // DEBUG: Check environment variables
+      console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+      console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        console.log('Attempting signup with:', { email, fullName })
+        
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -43,9 +49,15 @@ export default function LoginPage() {
           }
         })
         
+        console.log('Signup response:', { data, error })
+        
         if (error) throw error
         
-        setError('Check your email for the confirmation link!')
+        if (data.user) {
+          setError('User created successfully! Check your email for confirmation.')
+        } else {
+          setError('User creation failed - no user returned')
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
