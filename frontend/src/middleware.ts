@@ -38,8 +38,8 @@ export async function middleware(request: NextRequest) {
     const [user, pwd] = atob(authValue).split(':');
 
     // Security: Use environment variables for credentials
-    const validUser = process.env.BASIC_AUTH_USER || 'admin';
-    const validPassword = process.env.BASIC_AUTH_PASSWORD || 'fwt2025';
+    const validUser = process.env.BASIC_AUTH_USER;
+    const validPassword = process.env.BASIC_AUTH_PASSWORD;
 
     if (user !== validUser || pwd !== validPassword) {
       // Security: Add delay for failed attempts

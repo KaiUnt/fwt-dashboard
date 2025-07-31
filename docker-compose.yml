@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # FWT Dashboard Application
+  fwt-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - WORKERS=4
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs:rw
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - fwt-network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Nginx Reverse Proxy (Optional for production)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx:rw
+    depends_on:
+      - fwt-dashboard
+    restart: unless-stopped
+    networks:
+      - fwt-network
+    security_opt:
+      - no-new-privileges:true
+
+  # Monitoring with Prometheus (Optional)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - fwt-network
+    profiles:
+      - monitoring
+
+  # Grafana for monitoring dashboards (Optional)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=secure_password_change_me
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - fwt-network
+    profiles:
+      - monitoring
+
+networks:
+  fwt-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  prometheus_data:
+  grafana_data: 

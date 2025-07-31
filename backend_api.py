@@ -8,9 +8,10 @@ load_dotenv()
 # Add current directory to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Dict, Any, Optional
 import asyncio
 from api.client import LiveheatsClient
@@ -19,22 +20,60 @@ import uvicorn
 import logging
 import httpx
 import re
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import secrets
+import time
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
 
 # Add the current directory to the path so we can import our modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Enhanced logging setup
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s - IP: %(ip)s' if hasattr(logging, 'ip') else '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-# Supabase configuration
+# Security: Environment validation
+def validate_environment():
+    """Validate critical environment variables"""
+    required_vars = []  # No required vars for basic functionality
+    
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    if missing_vars:
+        logger.error(f"Missing required environment variables: {missing_vars}")
+        raise RuntimeError(f"Missing environment variables: {missing_vars}")
+    
+    # Validate Supabase if provided
+    supabase_url = os.getenv("SUPABASE_URL", "")
+    if supabase_url and not supabase_url.startswith("https://"):
+        logger.warning("SUPABASE_URL should use HTTPS")
+
+validate_environment()
+
+# Supabase configuration with validation
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY", "")
+
+# Input validation schemas
+class EventIdSchema(BaseModel):
+    event_id: str = Field(..., min_length=1, max_length=100, regex=r'^[a-zA-Z0-9_-]+$')
+
+class AthleteIdSchema(BaseModel):
+    athlete_id: str = Field(..., min_length=1, max_length=100, regex=r'^[a-zA-Z0-9_-]+$')
 
 # Supabase REST API helper
 class SupabaseClient:
     def __init__(self, url: str, key: str):
+        if not url or not key:
+            raise ValueError("Supabase URL and key are required")
+        
         self.url = url.rstrip('/')
         self.key = key
         self.headers = {
@@ -45,108 +84,283 @@ class SupabaseClient:
         }
     
     async def select(self, table: str, columns: str = "*", filters: dict = None):
-        """Select data from table"""
+        """Select data from table with input validation"""
+        # Validate table name
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
+            raise ValueError("Invalid table name")
+        
         url = f"{self.url}/rest/v1/{table}"
         params = {"select": columns}
         
         if filters:
             for key, value in filters.items():
+                # Validate filter keys
+                if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', key):
+                    raise ValueError(f"Invalid filter key: {key}")
                 params[f"{key}"] = f"eq.{value}"
         
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=self.headers, params=params)
-            response.raise_for_status()
-            return response.json()
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, headers=self.headers, params=params)
+                response.raise_for_status()
+                return response.json()
+        except httpx.TimeoutException:
+            logger.error("Supabase request timeout")
+            raise HTTPException(status_code=504, detail="Database request timeout")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Supabase HTTP error: {e.response.status_code}")
+            raise HTTPException(status_code=500, detail="Database error")
     
     async def insert(self, table: str, data: dict):
-        """Insert data into table"""
+        """Insert data into table with validation"""
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
+            raise ValueError("Invalid table name")
+        
+        # Sanitize data
+        sanitized_data = self._sanitize_data(data)
         url = f"{self.url}/rest/v1/{table}"
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=self.headers, json=data)
-            response.raise_for_status()
-            return response.json()
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, headers=self.headers, json=sanitized_data)
+                response.raise_for_status()
+                return response.json()
+        except httpx.TimeoutException:
+            logger.error("Supabase request timeout")
+            raise HTTPException(status_code=504, detail="Database request timeout")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Supabase HTTP error: {e.response.status_code}")
+            raise HTTPException(status_code=500, detail="Database error")
     
     async def update(self, table: str, data: dict, filters: dict):
-        """Update data in table"""
+        """Update data in table with validation"""
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
+            raise ValueError("Invalid table name")
+        
+        sanitized_data = self._sanitize_data(data)
         url = f"{self.url}/rest/v1/{table}"
         params = {}
         
         if filters:
             for key, value in filters.items():
+                if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', key):
+                    raise ValueError(f"Invalid filter key: {key}")
                 params[f"{key}"] = f"eq.{value}"
         
-        async with httpx.AsyncClient() as client:
-            response = await client.patch(url, headers=self.headers, params=params, json=data)
-            response.raise_for_status()
-            return response.json()
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.patch(url, headers=self.headers, params=params, json=sanitized_data)
+                response.raise_for_status()
+                return response.json()
+        except httpx.TimeoutException:
+            logger.error("Supabase request timeout")
+            raise HTTPException(status_code=504, detail="Database request timeout")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Supabase HTTP error: {e.response.status_code}")
+            raise HTTPException(status_code=500, detail="Database error")
     
     async def rpc(self, function_name: str, params: dict = None):
-        """Call RPC function"""
-        url = f"{self.url}/rest/v1/rpc/{function_name}"
+        """Call RPC function with validation"""
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', function_name):
+            raise ValueError("Invalid function name")
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=self.headers, json=params or {})
-            response.raise_for_status()
-            return response.json()
+        url = f"{self.url}/rest/v1/rpc/{function_name}"
+        sanitized_params = self._sanitize_data(params or {})
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, headers=self.headers, json=sanitized_params)
+                response.raise_for_status()
+                return response.json()
+        except httpx.TimeoutException:
+            logger.error("Supabase request timeout")
+            raise HTTPException(status_code=504, detail="Database request timeout")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Supabase HTTP error: {e.response.status_code}")
+            raise HTTPException(status_code=500, detail="Database error")
+    
+    def _sanitize_data(self, data: dict) -> dict:
+        """Sanitize input data"""
+        if not isinstance(data, dict):
+            return data
+        
+        sanitized = {}
+        for key, value in data.items():
+            # Validate key names
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', key):
+                logger.warning(f"Skipping invalid key: {key}")
+                continue
+            
+            # Basic sanitization for strings
+            if isinstance(value, str):
+                # Remove potential XSS vectors
+                value = re.sub(r'<script[^>]*>.*?</script>', '', value, flags=re.IGNORECASE | re.DOTALL)
+                value = value.strip()
+                
+                # Limit string length
+                if len(value) > 10000:
+                    value = value[:10000]
+            
+            sanitized[key] = value
+        
+        return sanitized
 
-# Initialize Supabase client if credentials are provided
+# Initialize Supabase client with error handling
 supabase_client: Optional[SupabaseClient] = None
 if SUPABASE_URL and SUPABASE_KEY:
     try:
         supabase_client = SupabaseClient(SUPABASE_URL, SUPABASE_KEY)
-        logger.info("Supabase HTTP client initialized successfully")
+        logger.info("Supabase client initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize Supabase HTTP client: {e}")
+        logger.error(f"Failed to initialize Supabase client: {e}")
         supabase_client = None
 else:
     logger.warning("Supabase credentials not provided. Commentator info features will be disabled.")
 
-# Pydantic models for commentator info
+# Enhanced Pydantic models with validation
 class CommentatorInfoCreate(BaseModel):
-    athlete_id: str
-    homebase: Optional[str] = None
-    team: Optional[str] = None
-    sponsors: Optional[str] = None
-    favorite_trick: Optional[str] = None
-    achievements: Optional[str] = None
-    injuries: Optional[str] = None
-    fun_facts: Optional[str] = None
-    notes: Optional[str] = None
-    social_media: Optional[Dict[str, str]] = None
+    athlete_id: str = Field(..., min_length=1, max_length=100, regex=r'^[a-zA-Z0-9_-]+$')
+    homebase: Optional[str] = Field(None, max_length=200)
+    team: Optional[str] = Field(None, max_length=200)
+    sponsors: Optional[str] = Field(None, max_length=1000)
+    favorite_trick: Optional[str] = Field(None, max_length=200)
+    achievements: Optional[str] = Field(None, max_length=2000)
+    injuries: Optional[str] = Field(None, max_length=2000)
+    fun_facts: Optional[str] = Field(None, max_length=2000)
+    notes: Optional[str] = Field(None, max_length=2000)
+    social_media: Optional[Dict[str, str]] = Field(None)
+    
+    @validator('social_media')
+    def validate_social_media(cls, v):
+        if v is None:
+            return v
+        
+        allowed_keys = {'instagram', 'youtube', 'website', 'facebook', 'tiktok'}
+        for key in v.keys():
+            if key not in allowed_keys:
+                raise ValueError(f"Invalid social media key: {key}")
+            if not isinstance(v[key], str) or len(v[key]) > 500:
+                raise ValueError(f"Invalid social media URL for {key}")
+        
+        return v
 
 class CommentatorInfoUpdate(BaseModel):
-    homebase: Optional[str] = None
-    team: Optional[str] = None
-    sponsors: Optional[str] = None
-    favorite_trick: Optional[str] = None
-    achievements: Optional[str] = None
-    injuries: Optional[str] = None
-    fun_facts: Optional[str] = None
-    notes: Optional[str] = None
-    social_media: Optional[Dict[str, str]] = None
+    homebase: Optional[str] = Field(None, max_length=200)
+    team: Optional[str] = Field(None, max_length=200)
+    sponsors: Optional[str] = Field(None, max_length=1000)
+    favorite_trick: Optional[str] = Field(None, max_length=200)
+    achievements: Optional[str] = Field(None, max_length=2000)
+    injuries: Optional[str] = Field(None, max_length=2000)
+    fun_facts: Optional[str] = Field(None, max_length=2000)
+    notes: Optional[str] = Field(None, max_length=2000)
+    social_media: Optional[Dict[str, str]] = Field(None)
+    
+    @validator('social_media')
+    def validate_social_media(cls, v):
+        if v is None:
+            return v
+        
+        allowed_keys = {'instagram', 'youtube', 'website', 'facebook', 'tiktok'}
+        for key in v.keys():
+            if key not in allowed_keys:
+                raise ValueError(f"Invalid social media key: {key}")
+            if not isinstance(v[key], str) or len(v[key]) > 500:
+                raise ValueError(f"Invalid social media URL for {key}")
+        
+        return v
 
-app = FastAPI(title="FWT Events API", version="1.0.0")
+# Security middleware
+async def log_request(request: Request):
+    """Log all requests for security monitoring"""
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    
+    logger.info(f"Request: {request.method} {request.url.path} - IP: {client_ip} - UA: {user_agent}")
+    
+    # Simple anomaly detection
+    suspicious_patterns = [
+        r'<script',
+        r'javascript:',
+        r'\.\./\.\.',
+        r'union\s+select',
+        r'drop\s+table'
+    ]
+    
+    for pattern in suspicious_patterns:
+        if re.search(pattern, str(request.url), re.IGNORECASE):
+            logger.warning(f"Suspicious request pattern detected: {pattern} - IP: {client_ip}")
 
-# CORS Setup für Frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js dev server
-        "https://fwt-dashboard-1.onrender.com",  # Production frontend
-        "https://*.onrender.com",  # Allow all Render subdomains
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="FWT Events API", 
+    version="1.0.0",
+    docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
+    redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
 )
 
+# Add rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Enhanced CORS Setup
+allowed_origins = [
+    "http://localhost:3000",  # Next.js dev server
+    "https://fwt-dashboard-1.onrender.com",  # Production frontend
+]
+
+# Add additional origins from environment
+additional_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
+allowed_origins.extend([origin.strip() for origin in additional_origins if origin.strip()])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining"]
+)
+
+# Security: Add request logging middleware
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    start_time = time.time()
+    
+    # Log request
+    await log_request(request)
+    
+    response = await call_next(request)
+    
+    # Add security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    
+    # Log response time
+    process_time = time.time() - start_time
+    logger.info(f"Request processed in {process_time:.4f}s")
+    
+    return response
+
 @app.get("/")
-async def root():
-    return {"message": "FWT Events API is running"}
+@limiter.limit("10/minute")
+async def root(request: Request):
+    return {"message": "FWT Events API is running", "version": "1.0.0", "status": "healthy"}
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "supabase_available": supabase_client is not None
+    }
 
 @app.get("/api/events")
-async def get_future_events(include_past: bool = False):
+@limiter.limit("30/minute")
+async def get_future_events(request: Request, include_past: bool = False):
     """Get FWT events for event selection."""
     try:
         from api.client import LiveheatsClient
@@ -156,24 +370,37 @@ async def get_future_events(include_past: bool = False):
         else:
             events = await client.get_future_events()
         
+        # Input validation and sanitization
+        if not isinstance(events, list):
+            logger.error("Invalid events data type received from API")
+            raise HTTPException(status_code=500, detail="Invalid data format")
+        
         # Format events für Frontend
         formatted_events = []
         for event in events:
-            formatted_events.append({
-                "id": event["id"],
-                "name": event["name"],
-                "date": event["date"],
-                "formatted_date": datetime.fromisoformat(
-                    event["date"].replace("Z", "+00:00")
-                ).strftime("%d.%m.%Y"),
-                "location": extract_location_from_name(event["name"]),
-                "year": datetime.fromisoformat(
-                    event["date"].replace("Z", "+00:00")
-                ).year
-            })
+            if not isinstance(event, dict) or "id" not in event:
+                logger.warning(f"Skipping invalid event data: {event}")
+                continue
+                
+            try:
+                formatted_events.append({
+                    "id": str(event["id"])[:100],  # Limit length
+                    "name": str(event.get("name", "Unknown"))[:200],
+                    "date": event.get("date", ""),
+                    "formatted_date": datetime.fromisoformat(
+                        event["date"].replace("Z", "+00:00")
+                    ).strftime("%d.%m.%Y") if event.get("date") else "",
+                    "location": extract_location_from_name(event.get("name", "")),
+                    "year": datetime.fromisoformat(
+                        event["date"].replace("Z", "+00:00")
+                    ).year if event.get("date") else None
+                })
+            except Exception as e:
+                logger.warning(f"Error formatting event {event.get('id')}: {e}")
+                continue
         
-        # Sortiere nach Datum
-        formatted_events.sort(key=lambda x: x["date"])
+        # Sort by date
+        formatted_events.sort(key=lambda x: x.get("date", ""))
         
         return {
             "events": formatted_events,
@@ -182,9 +409,10 @@ async def get_future_events(include_past: bool = False):
         }
         
     except Exception as e:
+        logger.error(f"Error fetching events: {e}")
         raise HTTPException(
             status_code=500, 
-            detail=f"Failed to fetch events: {str(e)}"
+            detail="Failed to fetch events"
         )
 
 @app.get("/api/events/{event_id}/athletes")
