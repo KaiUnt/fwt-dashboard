@@ -1,66 +1,111 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Security: Get client IP for logging (future use)
-  const _ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+  // Security: Get client IP for logging
+  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
   
-  // Skip auth for API routes and PWA files
-  if (pathname.startsWith('/api/auth') || 
-      pathname.includes('sw.js') || 
-      pathname.includes('workbox') ||
-      pathname.includes('manifest.json')) {
-    const response = NextResponse.next();
-    // Add security headers even for skipped routes
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  // Skip auth for public routes and PWA files
+  const publicRoutes = [
+    '/login',
+    '/auth/callback',
+    '/api/auth',
+    '/_next',
+    '/favicon.ico',
+    '/sw.js',
+    '/workbox',
+    '/manifest.json'
+  ]
+
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
+  
+  if (isPublicRoute) {
+    // Add security headers even for public routes
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     return response;
   }
 
-  // Basic Auth check with improved security
-  const basicAuth = request.headers.get('authorization');
-
-  if (!basicAuth) {
-    return new Response('Authentication required', {
-      status: 401,
-      headers: {
-        'WWW-Authenticate': 'Basic realm="FWT Dashboard"',
-        'Cache-Control': 'no-store',
+  // Create Supabase client for middleware
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: any) {
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
       },
-    });
+    }
+  )
+
+  // Check if user is authenticated
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    const url = new URL('/login', request.url)
+    url.searchParams.set('redirectTo', pathname)
+    return NextResponse.redirect(url)
   }
 
-  try {
-    const authValue = basicAuth.split(' ')[1];
-    if (!authValue) throw new Error('Invalid auth format');
-    
-    const [user, pwd] = atob(authValue).split(':');
-
-    // Security: Use environment variables for credentials
-    const validUser = process.env.BASIC_AUTH_USER;
-    const validPassword = process.env.BASIC_AUTH_PASSWORD;
-
-    if (user !== validUser || pwd !== validPassword) {
-      // Security: Add delay for failed attempts
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      return new Response('Authentication required', {
-        status: 401,
-        headers: {
-          'WWW-Authenticate': 'Basic realm="FWT Dashboard"',
-          'Cache-Control': 'no-store',
-        },
-      });
+  // Log user activity for non-API routes
+  if (!pathname.startsWith('/api')) {
+    try {
+      await supabase.rpc('log_user_action', {
+        p_action_type: 'page_view',
+        p_resource_type: 'page',
+        p_resource_id: pathname,
+        p_action_details: {
+          ip_address: ip,
+          user_agent: request.headers.get('user-agent') || 'unknown'
+        }
+      })
+    } catch (error) {
+      // Silently fail activity logging to not block the request
+      console.warn('Failed to log user activity:', error)
     }
-  } catch {
-    return new Response('Authentication required', {
-      status: 401,
-      headers: {
-        'WWW-Authenticate': 'Basic realm="FWT Dashboard"',
-        'Cache-Control': 'no-store',
-      },
-    });
   }
 
   // Get locale from cookie or header
@@ -73,10 +118,13 @@ export async function middleware(request: NextRequest) {
   const activeLocale = supportedLocales.includes(locale) ? locale : 'de';
 
   // Set security headers and locale
-  const response = NextResponse.next();
   response.headers.set('x-locale', activeLocale);
   response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   response.headers.set('Cache-Control', 'private, no-cache');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 
   return response;
 }
