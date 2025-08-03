@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://liveheats.com https://liveheats.es; connect-src 'self' https://liveheats.com https://liveheats.es http://localhost:8000 https://fwt-dashboard.onrender.com https://*.supabase.co;",
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://liveheats.com https://liveheats.es https://www.liveheats.com https://res.cloudinary.com; connect-src 'self' https://liveheats.com https://liveheats.es http://localhost:8000 https://fwt-dashboard.onrender.com https://*.supabase.co;",
           },
         ],
       },
@@ -51,6 +51,16 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'liveheats.es',
         pathname: '/images/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.liveheats.com',
+        pathname: '/images/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/liveheats-com/**',
       },
     ],
     // Remove deprecated 'domains' and add security
