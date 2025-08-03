@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 export const dynamic = 'force-dynamic'
 import { useAuth } from '@/providers/AuthProvider'
 import { createClient } from '@/lib/supabase'
+import { AppHeader } from '@/components/AppHeader'
 import { Activity, Clock, Eye, User, Calendar, RefreshCw } from 'lucide-react'
 import type { UserAction, LoginActivity } from '@/types/supabase'
 
@@ -178,41 +179,34 @@ export default function ActivityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Activity className="h-8 w-8 text-blue-600" />
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">My Activity</h1>
-                <p className="text-gray-600">Track your dashboard usage and sessions</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* Filter */}
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">Last 7 Days</option>
-              </select>
-              
-              {/* Refresh */}
-              <button
-                onClick={fetchActivityData}
-                className="p-2 text-gray-400 hover:text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader 
+        title="My Activity"
+        subtitle="Track your dashboard usage and sessions"
+        showBackButton={true}
+        backUrl="/"
+      >
+        {/* Filter */}
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="week">Last 7 Days</option>
+        </select>
+        
+        {/* Refresh */}
+        <button
+          onClick={fetchActivityData}
+          className="p-2 text-gray-400 hover:text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+      </AppHeader>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Error */}
         {error && (

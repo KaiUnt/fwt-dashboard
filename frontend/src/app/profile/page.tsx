@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 export const dynamic = 'force-dynamic'
 import { useAuth } from '@/providers/AuthProvider'
 import { createClient } from '@/lib/supabase'
+import { AppHeader } from '@/components/AppHeader'
 import { User, Mail, Shield, Building, Calendar, Key, Save, Eye, EyeOff, Check, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -172,16 +173,15 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <User className="h-8 w-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
-          </div>
-          <p className="text-gray-600">Manage your account information and security settings</p>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader 
+        title="Profile Settings"
+        subtitle="Manage your account information and security settings"
+        showBackButton={true}
+        backUrl="/"
+      />
+      
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Messages */}
         {message && (

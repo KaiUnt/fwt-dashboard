@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic'
 import { useAuth } from '@/providers/AuthProvider'
 import { createClient } from '@/lib/supabase'
 import type { UserProfile, ActiveSession, UserAction } from '@/types/supabase'
-import { Shield, Users, Activity, Clock, Eye, AlertTriangle } from 'lucide-react'
+import { AppHeader } from '@/components/AppHeader'
+import { Users, Activity, Clock, Eye, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
 interface AdminStats {
@@ -163,16 +164,15 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="h-8 w-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          </div>
-          <p className="text-gray-600">Manage users, monitor activity, and view system statistics</p>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader 
+        title="Admin Dashboard"
+        subtitle="Manage users, monitor activity, and view system statistics"
+        showBackButton={true}
+        backUrl="/"
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

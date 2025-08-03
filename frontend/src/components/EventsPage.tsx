@@ -13,6 +13,7 @@ import { FWTEvent } from '@/types/events';
 import { useQueryClient } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from '@/hooks/useOfflineStorage';
 import { useTranslation } from '@/hooks/useTranslation';
+import { AppHeader } from './AppHeader';
 
 
 export function EventsPage() {
@@ -158,88 +159,82 @@ export function EventsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {t('events.title')}
-              </h1>
-              <p className="text-gray-600 mt-1">
-                {isMultiEventMode 
-                  ? t('events.multiEventDescription')
-                  : t('events.subtitle')
-                }
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
-                <Calendar className="h-4 w-4" />
-                <span>
-                  {t('events.eventsCount', { count: events.length })}
-                  {includePastEvents && (
-                    <span className="ml-1 text-xs">
-                      ({events.filter(e => !e.is_past).length} {t('events.upcoming')}, {events.filter(e => e.is_past).length} {t('events.past')})
-                    </span>
-                  )}
-                </span>
-              </div>
-              
-              {/* Refresh Button */}
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing || isLoading}
-                className="flex items-center space-x-2 px-4 py-2 rounded-lg border-2 border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-200 disabled:opacity-50"
-                title={t('events.refreshTitle')}
-              >
-                <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span className="font-medium">
-                  {isRefreshing ? t('buttons.updating') : t('buttons.update')}
-                </span>
-              </button>
-              
-              {/* Past Events Toggle */}
-              <button
-                onClick={() => setIncludePastEvents(!includePastEvents)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 ${
-                  includePastEvents
-                    ? 'bg-orange-50 border-orange-200 text-orange-700'
-                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-                }`}
-                title={t('events.showPastEvents')}
-              >
-                {includePastEvents ? (
-                  <History className="h-5 w-5 text-orange-600" />
-                ) : (
-                  <Clock className="h-5 w-5" />
-                )}
-                <span className="font-medium">
-                  {includePastEvents ? t('buttons.allEvents') : t('buttons.showAllEvents')}
-                </span>
-              </button>
-              
-              {/* Multi-Event Toggle */}
-              <button
-                onClick={() => setIsMultiEventMode(!isMultiEventMode)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 ${
-                  isMultiEventMode
-                    ? 'bg-blue-50 border-blue-200 text-blue-700'
-                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {isMultiEventMode ? (
-                  <ToggleRight className="h-5 w-5 text-blue-600" />
-                ) : (
-                  <ToggleLeft className="h-5 w-5" />
-                )}
-                <span className="font-medium">{t('buttons.multiEventMode')}</span>
-              </button>
-            </div>
-          </div>
-          
-          {/* Multi-Event Status */}
+      <AppHeader 
+        title={t('events.title')}
+        subtitle={isMultiEventMode 
+          ? t('events.multiEventDescription')
+          : t('events.subtitle')
+        }
+        showBackButton={false}
+      >
+        <div className="flex items-center space-x-2 text-sm text-gray-500">
+          <Calendar className="h-4 w-4" />
+          <span>
+            {t('events.eventsCount', { count: events.length })}
+            {includePastEvents && (
+              <span className="ml-1 text-xs">
+                ({events.filter(e => !e.is_past).length} {t('events.upcoming')}, {events.filter(e => e.is_past).length} {t('events.past')})
+              </span>
+            )}
+          </span>
+        </div>
+        
+        {/* Refresh Button */}
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing || isLoading}
+          className="flex items-center space-x-2 px-4 py-2 rounded-lg border-2 border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-200 disabled:opacity-50"
+          title={t('events.refreshTitle')}
+        >
+          <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span className="font-medium">
+            {isRefreshing ? t('buttons.updating') : t('buttons.update')}
+          </span>
+        </button>
+        
+        {/* Past Events Toggle */}
+        <button
+          onClick={() => setIncludePastEvents(!includePastEvents)}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 ${
+            includePastEvents
+              ? 'bg-orange-50 border-orange-200 text-orange-700'
+              : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+          }`}
+          title={t('events.showPastEvents')}
+        >
+          {includePastEvents ? (
+            <History className="h-5 w-5 text-orange-600" />
+          ) : (
+            <Clock className="h-5 w-5" />
+          )}
+          <span className="font-medium">
+            {includePastEvents ? t('buttons.allEvents') : t('buttons.showAllEvents')}
+          </span>
+        </button>
+        
+        {/* Multi-Event Toggle */}
+        <button
+          onClick={() => setIsMultiEventMode(!isMultiEventMode)}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 ${
+            isMultiEventMode
+              ? 'bg-blue-50 border-blue-200 text-blue-700'
+              : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          {isMultiEventMode ? (
+            <ToggleRight className="h-5 w-5 text-blue-600" />
+          ) : (
+            <ToggleLeft className="h-5 w-5" />
+          )}
+          <span className="font-medium">{t('buttons.multiEventMode')}</span>
+        </button>
+      </AppHeader>
+
+      {/* Multi-Event Status */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {isMultiEventMode && (
-            <div className="mt-4 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="py-4 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <div className="flex items-center space-x-3">
                 <div className="text-blue-700 font-medium">
                   {t('events.selectedEvents', { count: selectedEventIds.length })}

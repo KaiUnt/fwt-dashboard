@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { createClient } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 import type { UserProfile } from '@/types/supabase'
+import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 
 interface AuthContextType {
   user: User | null
@@ -38,7 +39,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userId)
         .single()
 
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any
+      const result = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]) as PostgrestSingleResponse<UserProfile>
+      
+      const { data, error } = result
       
       if (error) {
         // PGRST116 means no rows returned, which is OK for new users
