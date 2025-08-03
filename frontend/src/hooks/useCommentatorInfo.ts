@@ -70,13 +70,25 @@ const useIsOffline = () => {
 
 // Online API functions
 const fetchCommentatorInfo = async (athleteId: string): Promise<CommentatorInfo | null> => {
-  const response = await fetch(`${API_BASE_URL}/api/commentator-info/${athleteId}`);
-  if (!response.ok) {
-    if (response.status === 404) return null;
-    throw new Error(`Failed to fetch commentator info: ${response.status}`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/commentator-info/${athleteId}`);
+    
+    if (!response.ok) {
+      // Handle expected cases where no commentator info exists
+      if (response.status === 404 || response.status === 503) {
+        console.log(`No commentator info available for athlete ${athleteId} (${response.status})`);
+        return null;
+      }
+      throw new Error(`Failed to fetch commentator info: ${response.status}`);
+    }
+    
+    const data: CommentatorInfoResponse = await response.json();
+    return data.data || null;
+  } catch (error) {
+    // Network errors, CORS, etc.
+    console.warn(`Commentator info fetch failed for athlete ${athleteId}:`, error);
+    return null;
   }
-  const data: CommentatorInfoResponse = await response.json();
-  return data.data || null;
 };
 
 const _createCommentatorInfo = async (info: Omit<CommentatorInfo, 'id' | 'created_at' | 'updated_at'>): Promise<CommentatorInfo> => {
@@ -170,9 +182,11 @@ export function useCommentatorInfo(athleteId: string) {
       
       return null;
     },
-    retry: isOffline ? 0 : 2,
+    retry: isOffline ? 0 : 0, // No retries to prevent infinite loops
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
   });
 }
 

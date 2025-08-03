@@ -87,10 +87,8 @@ export default withPWA({
         },
       },
       {
-        // Only cache localhost API in development
-        urlPattern: ({ url }) => {
-          return process.env.NODE_ENV === 'development' && url.origin === 'http://localhost:8000';
-        },
+        // Disable development API caching to prevent _ref errors
+        urlPattern: /^http:\/\/localhost:8000\/api\//,
         handler: "NetworkFirst",
         options: {
           cacheName: "api-calls-dev",
@@ -105,13 +103,7 @@ export default withPWA({
         },
       },
       {
-        urlPattern: ({ url }) => {
-          const currentYear = new Date().getFullYear();
-          const lastYear = currentYear - 1;
-          return url.pathname.includes('/api/series-rankings') && 
-                 (url.searchParams.get('year') === currentYear.toString() || 
-                  url.searchParams.get('year') === lastYear.toString());
-        },
+        urlPattern: /\/api\/series-rankings/,
         handler: "StaleWhileRevalidate",
         options: {
           cacheName: "series-rankings-current",
@@ -125,9 +117,7 @@ export default withPWA({
         },
       },
       {
-        urlPattern: ({ url }) => {
-          return url.pathname.includes('/api/athlete/') && url.pathname.includes('/event-history/');
-        },
+        urlPattern: /\/api\/athlete\/.*\/event-history\//,
         handler: "StaleWhileRevalidate",
         options: {
           cacheName: "athlete-event-history",
@@ -141,10 +131,7 @@ export default withPWA({
         },
       },
       {
-        urlPattern: ({ url }) => {
-          // Cache translation files specifically for offline support
-          return url.pathname.includes('/locales/') && url.pathname.endsWith('.json');
-        },
+        urlPattern: /\/locales\/.*\.json$/,
         handler: "CacheFirst",
         options: {
           cacheName: "translation-files",
@@ -158,10 +145,7 @@ export default withPWA({
         },
       },
       {
-        urlPattern: ({ url }) => {
-          // Cache other JSON files but exclude translation files (handled above)
-          return url.pathname.endsWith('.json') && !url.pathname.includes('/locales/');
-        },
+        urlPattern: /\.json$/,
         handler: "StaleWhileRevalidate",
         options: {
           cacheName: "static-resources",
