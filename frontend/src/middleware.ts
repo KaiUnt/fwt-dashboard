@@ -22,7 +22,8 @@ export async function middleware(request: NextRequest) {
     '/favicon.ico',
     '/sw.js',
     '/workbox',
-    '/manifest.json'
+    '/manifest.json',
+    '/locales'  // Translation files
   ]
 
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
