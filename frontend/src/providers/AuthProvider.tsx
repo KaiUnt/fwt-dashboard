@@ -27,9 +27,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('🔍 Fetching profile for user:', userId)
       
-      // Add timeout for profile fetch
+      // Add timeout for profile fetch (increased to 15 seconds)
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
       })
       
       const fetchPromise = supabase
@@ -40,7 +40,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any
       
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        // PGRST116 means no rows returned, which is OK for new users
+        if (error.code === 'PGRST116') {
+          console.log('ℹ️ No profile found for user (new user):', userId)
+          return null
+        }
+        
+        // Log other errors but don't throw
         console.error('Error fetching profile:', error)
         return null
       }
@@ -70,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
         isInitialLoad = false
       }
-    }, 10000) // 10 seconds timeout
+    }, 20000) // 20 seconds timeout
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
