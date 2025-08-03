@@ -52,14 +52,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      console.log('🔄 AuthProvider: Getting initial session...')
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      console.log('📋 AuthProvider: Session data:', { session, error })
       
       if (session?.user) {
+        console.log('✅ AuthProvider: User found, fetching profile...')
         setUser(session.user)
         const profile = await fetchProfile(session.user.id)
+        console.log('📄 AuthProvider: Profile fetched:', profile)
         setProfile(profile)
+      } else {
+        console.log('❌ AuthProvider: No user found')
       }
       
+      console.log('🏁 AuthProvider: Setting loading to false')
       setLoading(false)
     }
 
