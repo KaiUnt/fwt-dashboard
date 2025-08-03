@@ -1,6 +1,31 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Helper function to detect if request is offline/cached
+function isOfflineRequest(request: NextRequest): boolean {
+  // Check various indicators for offline state
+  const cacheControl = request.headers.get('cache-control');
+  const pragma = request.headers.get('pragma');
+  const connection = request.headers.get('connection');
+  
+  // Service Worker offline indicators
+  const isFromServiceWorker = request.headers.get('service-worker') === 'offline';
+  const isCachedRequest = cacheControl?.includes('only-if-cached') || pragma === 'no-cache';
+  
+  return isFromServiceWorker || isCachedRequest || connection === 'offline';
+}
+
+// Helper function to check if user has offline data for requested path
+function hasOfflineDataForPath(request: NextRequest, pathname: string): boolean {
+  // Check if this is a dashboard route with potential offline data
+  const isDashboardRoute = pathname.startsWith('/dashboard/');
+  const isEventsRoute = pathname === '/';
+  
+  // For now, we'll allow access if there's an offline auth cookie
+  // This can be enhanced to check actual offline data presence
+  return isDashboardRoute || isEventsRoute;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -86,6 +111,25 @@ export async function middleware(request: NextRequest) {
 
   // Redirect to login if not authenticated
   if (!user) {
+    // Check for offline access with cached auth state
+    const isOffline = isOfflineRequest(request);
+    const offlineAuthState = request.cookies.get('offline-auth-state');
+    const offlineAuthExpiry = request.cookies.get('offline-auth-expiry');
+    
+    if (isOffline && offlineAuthState && offlineAuthExpiry) {
+      // Check if cached auth hasn't expired
+      const expiryTime = parseInt(offlineAuthExpiry.value);
+      const now = Date.now();
+      
+      if (now < expiryTime && hasOfflineDataForPath(request, pathname)) {
+        console.log('🔒 Allowing offline access with cached auth for:', pathname);
+        // Allow access with cached auth state
+        response.headers.set('x-offline-auth', 'true');
+        return response;
+      }
+    }
+    
+    // Normal redirect to login for online requests or expired offline auth
     const url = new URL('/login', request.url)
     url.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(url)

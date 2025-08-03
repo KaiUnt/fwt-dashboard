@@ -6,6 +6,48 @@ import type { User } from '@supabase/supabase-js'
 import type { UserProfile } from '@/types/supabase'
 import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 
+// Helper functions for offline auth state caching
+const setOfflineAuthState = (user: User | null) => {
+  if (typeof window === 'undefined') return;
+  
+  if (user) {
+    // Cache auth state for offline use (7 days)
+    const expiryTime = Date.now() + (7 * 24 * 60 * 60 * 1000);
+    document.cookie = `offline-auth-state=${user.id}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+    document.cookie = `offline-auth-expiry=${expiryTime}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+    console.log('💾 Cached auth state for offline use');
+  } else {
+    // Clear offline auth state
+    document.cookie = 'offline-auth-state=; path=/; max-age=0';
+    document.cookie = 'offline-auth-expiry=; path=/; max-age=0';
+    console.log('🗑️ Cleared offline auth state');
+  }
+};
+
+const getOfflineAuthState = (): { isValid: boolean; userId?: string } => {
+  if (typeof window === 'undefined') return { isValid: false };
+  
+  const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    acc[key] = value;
+    return acc;
+  }, {} as Record<string, string>);
+  
+  const authState = cookies['offline-auth-state'];
+  const authExpiry = cookies['offline-auth-expiry'];
+  
+  if (authState && authExpiry) {
+    const expiryTime = parseInt(authExpiry);
+    const now = Date.now();
+    
+    if (now < expiryTime) {
+      return { isValid: true, userId: authState };
+    }
+  }
+  
+  return { isValid: false };
+};
+
 interface AuthContextType {
   user: User | null
   profile: UserProfile | null
@@ -14,6 +56,9 @@ interface AuthContextType {
   isAdmin: boolean
   isCommentator: boolean
   refreshProfile: () => Promise<void>
+  // Offline auth helpers
+  getOfflineAuthState: () => { isValid: boolean; userId?: string }
+  isOfflineAuthValid: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -92,6 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Set user immediately
         setUser(session?.user ?? null)
         
+        // Cache auth state for offline use
+        setOfflineAuthState(session?.user ?? null)
+        
         try {
           if (session?.user) {
             console.log('✅ AuthProvider: User found, fetching profile...')
@@ -160,10 +208,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) {
       console.error('Error signing out:', error)
     }
+    
+    // Clear offline auth state
+    setOfflineAuthState(null)
   }
 
   const isAdmin = profile?.role === 'admin'
   const isCommentator = profile?.role === 'commentator' || profile?.role === 'admin'
+  
+  // Check offline auth validity
+  const offlineAuth = getOfflineAuthState()
+  const isOfflineAuthValid = offlineAuth.isValid
 
   const value = {
     user,
@@ -172,7 +227,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     isAdmin,
     isCommentator,
-    refreshProfile
+    refreshProfile,
+    getOfflineAuthState,
+    isOfflineAuthValid
   }
 
   return (
