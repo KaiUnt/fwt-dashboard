@@ -35,13 +35,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // DEBUG: Check environment variables
-      console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-      console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-      
       if (isSignUp) {
-        console.log('Attempting signup with:', { email, fullName })
-        
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -51,8 +45,6 @@ export default function LoginPage() {
             }
           }
         })
-        
-        console.log('Signup response:', { data, error })
         
         if (error) throw error
         
