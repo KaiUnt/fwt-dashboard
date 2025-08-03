@@ -25,17 +25,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      console.log('🔍 Fetching profile for user:', userId)
+      
+      // Add timeout for profile fetch
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+      })
+      
+      const fetchPromise = supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single()
 
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any
+      
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching profile:', error)
         return null
       }
 
+      console.log('✅ Profile fetched successfully:', data)
       return data
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -51,44 +61,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const getInitialSession = async () => {
-      console.log('🔄 AuthProvider: Getting initial session...')
-      const { data: { session }, error } = await supabase.auth.getSession()
-      
-      console.log('📋 AuthProvider: Session data:', { session, error })
-      
-      if (session?.user) {
-        console.log('✅ AuthProvider: User found, fetching profile...')
-        setUser(session.user)
-        const profile = await fetchProfile(session.user.id)
-        console.log('📄 AuthProvider: Profile fetched:', profile)
-        setProfile(profile)
-      } else {
-        console.log('❌ AuthProvider: No user found')
+    let isInitialLoad = true
+
+    // Fallback timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (isInitialLoad) {
+        console.warn('⏰ AuthProvider: Timeout reached, forcing loading to false')
+        setLoading(false)
+        isInitialLoad = false
       }
+    }, 10000) // 10 seconds timeout
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 AuthProvider: Auth state changed:', { event, hasSession: !!session })
+        
+        // Set user immediately
+        setUser(session?.user ?? null)
+        
+        try {
+          if (session?.user) {
+            console.log('✅ AuthProvider: User found, fetching profile...')
+            const profile = await fetchProfile(session.user.id)
+            console.log('📄 AuthProvider: Profile fetched:', profile)
+            setProfile(profile)
+          } else {
+            console.log('❌ AuthProvider: No user found')
+            setProfile(null)
+          }
+        } catch (error) {
+          console.error('❌ AuthProvider: Error handling auth state change:', error)
+          // Set profile to null on error to avoid hanging
+          setProfile(null)
+        } finally {
+          // Always set loading to false, even on errors
+          console.log('🏁 AuthProvider: Setting loading to false')
+          setLoading(false)
+          isInitialLoad = false
+        }
+      }
+    )
+
+    // Get initial session only if we haven't loaded yet
+    const getInitialSession = async () => {
+      if (!isInitialLoad) return
       
-      console.log('🏁 AuthProvider: Setting loading to false')
-      setLoading(false)
+      console.log('🔄 AuthProvider: Getting initial session...')
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        console.log('📋 AuthProvider: Initial session data:', { session, error })
+        
+        // Only handle initial session if auth state change hasn't fired yet
+        if (isInitialLoad) {
+          setUser(session?.user ?? null)
+          
+          if (session?.user) {
+            console.log('✅ AuthProvider: Initial user found, fetching profile...')
+            const profile = await fetchProfile(session.user.id)
+            console.log('📄 AuthProvider: Initial profile fetched:', profile)
+            setProfile(profile)
+          } else {
+            setProfile(null)
+          }
+          
+          setLoading(false)
+          isInitialLoad = false
+        }
+      } catch (error) {
+        console.error('❌ AuthProvider: Error getting initial session:', error)
+        setLoading(false)
+        isInitialLoad = false
+      }
     }
 
     getInitialSession()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null)
-        
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id)
-          setProfile(profile)
-        } else {
-          setProfile(null)
-        }
-        
-        setLoading(false)
-      }
-    )
-
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [supabase.auth, fetchProfile])
 
   const signOut = async () => {
