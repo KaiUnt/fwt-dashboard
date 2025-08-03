@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
 import { useAuth } from '@/providers/AuthProvider'
 import { createClient } from '@/lib/supabase'
 import { User, Mail, Shield, Building, Calendar, Key, Save, Eye, EyeOff, Check, AlertCircle } from 'lucide-react'
@@ -8,7 +11,6 @@ import Link from 'next/link'
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const [message, setMessage] = useState('')
@@ -19,10 +21,8 @@ export default function ProfilePage() {
   const [organization, setOrganization] = useState('')
   
   // Password change state
-  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
@@ -59,8 +59,8 @@ export default function ProfilePage() {
       setMessage('Profile updated successfully!')
       
       setTimeout(() => setMessage(''), 3000)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setSaving(false)
     }
@@ -92,13 +92,12 @@ export default function ProfilePage() {
       if (error) throw error
 
       setMessage('Password changed successfully!')
-      setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
       
       setTimeout(() => setMessage(''), 3000)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setChangingPassword(false)
     }
@@ -202,7 +201,7 @@ export default function ProfilePage() {
                   
                   <div className="flex items-center justify-center text-sm text-gray-500">
                     <Calendar className="h-4 w-4 mr-1" />
-                    Member since {new Date(profile.created_at).toLocaleDateString('de-DE')}
+                    Member since {profile.created_at ? new Date(profile.created_at).toLocaleDateString('de-DE') : 'Unknown'}
                   </div>
                 </div>
               </div>

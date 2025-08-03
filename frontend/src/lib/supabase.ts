@@ -13,7 +13,7 @@ export const logUserAction = async (
   action_type: string,
   resource_type?: string,
   resource_id?: string,
-  action_details?: Record<string, any>
+  action_details?: Record<string, unknown>
 ) => {
   const supabase = createClient()
   

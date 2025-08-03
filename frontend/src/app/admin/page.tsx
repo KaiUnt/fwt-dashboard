@@ -1,6 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
 import { useAuth } from '@/providers/AuthProvider'
 import { createClient } from '@/lib/supabase'
 import type { UserProfile, ActiveSession, UserAction } from '@/types/supabase'
@@ -25,15 +28,7 @@ export default function AdminDashboard() {
 
   const supabase = createClient()
 
-  useEffect(() => {
-    if (!authLoading && !isAdmin) {
-      return
-    }
-
-    fetchAdminData()
-  }, [isAdmin, authLoading])
-
-  const fetchAdminData = async () => {
+  const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true)
 
@@ -94,12 +89,21 @@ export default function AdminDashboard() {
         totalActions: todayActions?.length || 0
       })
 
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      return
+    }
+
+    fetchAdminData()
+  }, [isAdmin, authLoading, fetchAdminData])
+
 
   const formatTime = (timestamp: string | null) => {
     if (!timestamp) return 'N/A'
@@ -266,7 +270,7 @@ export default function AdminDashboard() {
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-900">
                           <span className="font-medium">
-                            {(action as any).user_profiles?.full_name || 'Unknown User'}
+                            {(action as UserAction & { user_profiles?: { full_name?: string } }).user_profiles?.full_name || 'Unknown User'}
                           </span>
                           {' '}
                           <span className="text-gray-600">{action.action_type}</span>

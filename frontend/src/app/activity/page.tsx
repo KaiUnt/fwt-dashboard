@@ -1,10 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
 import { useAuth } from '@/providers/AuthProvider'
 import { createClient } from '@/lib/supabase'
-import { Activity, Clock, Eye, User, Calendar, Filter, RefreshCw } from 'lucide-react'
-import type { UserAction, UserLoginActivity } from '@/types/supabase'
+import { Activity, Clock, Eye, User, Calendar, RefreshCw } from 'lucide-react'
+import type { UserAction, LoginActivity } from '@/types/supabase'
 
 interface ActivityStats {
   totalActions: number
@@ -14,23 +17,17 @@ interface ActivityStats {
 }
 
 export default function ActivityPage() {
-  const { user, profile, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [stats, setStats] = useState<ActivityStats>({ totalActions: 0, todayActions: 0, totalSessions: 0, lastLogin: null })
   const [actions, setActions] = useState<UserAction[]>([])
-  const [loginActivity, setLoginActivity] = useState<UserLoginActivity[]>([])
+  const [loginActivity, setLoginActivity] = useState<LoginActivity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all') // 'all', 'today', 'week'
 
   const supabase = createClient()
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      fetchActivityData()
-    }
-  }, [user, authLoading, filter])
-
-  const fetchActivityData = async () => {
+  const fetchActivityData = useCallback(async () => {
     if (!user) return
 
     try {
@@ -91,12 +88,19 @@ export default function ActivityPage() {
         lastLogin
       })
 
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, filter, supabase])
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchActivityData()
+    }
+  }, [user, authLoading, filter, fetchActivityData])
+
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleString('de-DE', {
@@ -292,7 +296,7 @@ export default function ActivityPage() {
                           </p>
                         )}
                         <p className="text-xs text-gray-500">
-                          {formatRelativeTime(action.timestamp)}
+                          {action.timestamp ? formatRelativeTime(action.timestamp) : 'No timestamp'}
                         </p>
                       </div>
                     </div>
@@ -324,7 +328,7 @@ export default function ActivityPage() {
                             {session.login_method} Login
                           </p>
                           <p className="text-xs text-gray-500">
-                            {formatTime(session.login_timestamp)}
+                            {session.login_timestamp ? formatTime(session.login_timestamp) : 'No timestamp'}
                           </p>
                           {session.ip_address && (
                             <p className="text-xs text-gray-400">
@@ -338,7 +342,7 @@ export default function ActivityPage() {
                           <div>
                             <p className="text-xs text-gray-500">Ended</p>
                             <p className="text-xs text-gray-400">
-                              {formatRelativeTime(session.logout_timestamp)}
+                              {session.logout_timestamp ? formatRelativeTime(session.logout_timestamp) : 'No timestamp'}
                             </p>
                           </div>
                         ) : (
