@@ -21,8 +21,10 @@ export default function ProfilePage() {
   const [organization, setOrganization] = useState('')
   
   // Password change state
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
@@ -69,6 +71,11 @@ export default function ProfilePage() {
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!currentPassword) {
+      setError('Current password is required')
+      return
+    }
+
     if (newPassword !== confirmPassword) {
       setError('New passwords do not match')
       return
@@ -79,19 +86,39 @@ export default function ProfilePage() {
       return
     }
 
+    if (currentPassword === newPassword) {
+      setError('New password must be different from current password')
+      return
+    }
+
     setChangingPassword(true)
     setError('')
     setMessage('')
 
     try {
-      // Supabase requires re-authentication for password change
-      const { error } = await supabase.auth.updateUser({
+      // First, verify the current password by attempting to sign in
+      if (!user?.email) {
+        throw new Error('User email not found')
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword
+      })
+
+      if (signInError) {
+        throw new Error('Current password is incorrect')
+      }
+
+      // If current password is correct, update to new password
+      const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       })
 
-      if (error) throw error
+      if (updateError) throw updateError
 
       setMessage('Password changed successfully!')
+      setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
       
@@ -300,6 +327,31 @@ export default function ProfilePage() {
               
               <form onSubmit={handlePasswordChange} className="p-6 space-y-4">
                 <div>
+                  <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                    Current Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="currentPassword"
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter current password"
+                      required
+                    />
+                    <Key className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                    >
+                      {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
                     New Password
                   </label>
@@ -352,7 +404,7 @@ export default function ProfilePage() {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={changingPassword || !newPassword || !confirmPassword}
+                    disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
                     className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {changingPassword ? (

@@ -253,7 +253,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Recent Activity */}
+          {/* Recent Activity - Later: Will include credit transactions, event purchases */}
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>

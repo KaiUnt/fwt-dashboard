@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/providers/AuthProvider'
-import { User, LogOut, Settings, Shield, Activity, ChevronDown } from 'lucide-react'
+import { User, LogOut, Settings, Shield, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 
 export function UserNav() {
   const { user, profile, signOut, isAdmin, loading } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
+  const router = useRouter()
 
   if (loading) {
     return (
@@ -20,8 +22,15 @@ export function UserNav() {
   }
 
   const handleSignOut = async () => {
-    await signOut()
-    setIsOpen(false)
+    try {
+      await signOut()
+      setIsOpen(false)
+      // Redirect to login page after successful logout
+      router.push('/login')
+    } catch (error) {
+      console.error('Error during logout:', error)
+      setIsOpen(false)
+    }
   }
 
   const getRoleColor = (role: string) => {
@@ -127,6 +136,7 @@ export function UserNav() {
                 </Link>
               )}
 
+              {/* Activity temporarily hidden - will be expanded to include credits/purchased events
               <Link
                 href="/activity"
                 className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -135,6 +145,7 @@ export function UserNav() {
                 <Activity className="h-4 w-4" />
                 My Activity
               </Link>
+              */}
             </div>
 
             {/* Sign Out */}

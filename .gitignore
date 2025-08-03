@@ -184,4 +184,9 @@ secrets/
 api_keys.json
 
 # Windows artifacts
-nul 
+nul
+
+# Documentation files (development only)
+*.md
+!README.md
+!readme.md 
