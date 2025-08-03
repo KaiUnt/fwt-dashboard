@@ -22,6 +22,9 @@
     "edit": "Edit",
     "saving": "Speichern..."
   },
+  "header": {
+    "language": "Sprache"
+  },
   "seriesRankings": {
     "firstEvent": "🌟 Erstes FWT Event - Exciting debut!",
     "fwtSeriesRankings": "FWT Series Rankings",

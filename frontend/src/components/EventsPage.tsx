@@ -14,6 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from '@/hooks/useOfflineStorage';
 import { useTranslation } from '@/hooks/useTranslation';
 
+
 export function EventsPage() {
   const { t } = useTranslation();
   const router = useRouter();

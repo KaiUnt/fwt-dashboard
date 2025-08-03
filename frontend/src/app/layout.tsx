@@ -4,8 +4,7 @@ import "./globals.css";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { TranslationProvider } from "@/providers/TranslationProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { UserNav } from "@/components/UserNav";
+
 
 const inter = Inter({
   subsets: ["latin"],
@@ -56,10 +55,6 @@ export default function RootLayout({
         <QueryProvider>
           <TranslationProvider>
             <AuthProvider>
-              <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-                <UserNav />
-                <LanguageSwitcher />
-              </div>
               {children}
             </AuthProvider>
           </TranslationProvider>

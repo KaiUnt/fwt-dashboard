@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Search, Users, Keyboard, Trophy } from 'lucide-react';
+import { Search, Users, Keyboard, Trophy, ArrowLeft } from 'lucide-react';
 import { useOfflineMultiEventSeriesRankings } from '@/hooks/useSeriesRankings';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { AthleteCard } from './AthleteCard';
@@ -14,6 +14,7 @@ import { AthleteEventHistory } from './AthleteEventHistory';
 import { useOfflineMultiEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { Athlete } from '@/types/athletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
+
 
 
 interface MultiEventDashboardProps {

@@ -22,6 +22,9 @@
     "edit": "Modifier",
     "saving": "Enregistrement..."
   },
+  "header": {
+    "language": "Langue"
+  },
   "seriesRankings": {
     "firstEvent": "🌟 Premier événement FWT - Débuts passionnants !",
     "fwtSeriesRankings": "Classements des séries FWT",

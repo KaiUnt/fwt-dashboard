@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Users, Keyboard, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Keyboard, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useOfflineSeriesRankings } from '@/hooks/useSeriesRankings';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { AthleteCard } from './AthleteCard';
@@ -12,6 +12,7 @@ import { PerformanceCurve } from './PerformanceCurve';
 import { useOfflineEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
 import { AthleteEventHistory } from './AthleteEventHistory';
+import { AppHeader } from './AppHeader';
 import { useTranslation } from '@/hooks/useTranslation';
 
 
@@ -134,58 +135,34 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/')}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span>{t('buttons.back')}</span>
-              </button>
-              
-              <div className="h-6 w-px bg-gray-300" />
-              
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {athletesData.event.name}
-                </h1>
-                <p className="text-gray-600">
-                  {athletesData.event.date} • {t('dashboard.athletesCount', { count: athletes.length })}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <div className="text-sm text-gray-500">
-                <Users className="h-4 w-4 inline mr-1" />
-                {currentAthleteIndex + 1} / {athletes.length}
-              </div>
-              
-              <button
-                onClick={() => setShowBibJump(true)}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                title={t('dashboard.searchAthletes')}
-              >
-                <Keyboard className="h-5 w-5" />
-              </button>
-              
-              <OfflineSaveButton
-                eventIds={[eventId]}
-                athletes={athletes}
-                eventInfo={athletesData.event}
-                seriesRankings={seriesData?.series_rankings}
-                isDataLoading={isLoading || seriesLoading}
-                variant="secondary"
-              />
-              
-              {/* <CommentatorBackupButton /> */}
-            </div>
-          </div>
+      <AppHeader 
+        title={athletesData.event.name}
+        subtitle={`${athletesData.event.date} • ${t('dashboard.athletesCount', { count: athletes.length })}`}
+        showBackButton={true}
+        backUrl="/"
+      >
+        <div className="text-sm text-gray-500 flex items-center">
+          <Users className="h-4 w-4 inline mr-1" />
+          {currentAthleteIndex + 1} / {athletes.length}
         </div>
-      </div>
+        
+        <button
+          onClick={() => setShowBibJump(true)}
+          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          title={t('dashboard.searchAthletes')}
+        >
+          <Keyboard className="h-5 w-5" />
+        </button>
+        
+        <OfflineSaveButton
+          eventIds={[eventId]}
+          athletes={athletes}
+          eventInfo={athletesData.event}
+          seriesRankings={seriesData?.series_rankings}
+          isDataLoading={isLoading || seriesLoading}
+          variant="secondary"
+        />
+      </AppHeader>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
