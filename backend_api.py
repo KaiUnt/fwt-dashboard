@@ -51,15 +51,15 @@ def validate_environment():
         raise RuntimeError(f"Missing environment variables: {missing_vars}")
     
     # Validate Supabase if provided
-    supabase_url = os.getenv("SUPABASE_URL", "")
+    supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")
     if supabase_url and not supabase_url.startswith("https://"):
         logger.warning("SUPABASE_URL should use HTTPS")
 
 validate_environment()
 
 # Supabase configuration with validation
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY", "")
+SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")
 
 # Input validation schemas
 class EventIdSchema(BaseModel):
