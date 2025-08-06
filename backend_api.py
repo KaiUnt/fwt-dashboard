@@ -102,6 +102,53 @@ class EventIdSchema(BaseModel):
 class AthleteIdSchema(BaseModel):
     athlete_id: str = Field(..., min_length=1, max_length=100, pattern=r'^[a-zA-Z0-9_-]+$')
 
+# Friends System Models
+class FriendRequestCreate(BaseModel):
+    email: str = Field(..., min_length=1, max_length=255)
+    
+    @validator('email')
+    def validate_email(cls, v):
+        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
+            raise ValueError('Invalid email format')
+        return v.lower()
+
+class FriendRequestResponse(BaseModel):
+    id: str
+    requester_id: str
+    addressee_id: str
+    status: str
+    created_at: str
+    updated_at: str
+
+class UserProfile(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    role: str
+    organization: str
+    is_active: bool
+    created_at: str
+    updated_at: str
+
+class CommentatorInfoWithAuthor(BaseModel):
+    id: str
+    athlete_id: str
+    homebase: Optional[str]
+    team: Optional[str]
+    sponsors: Optional[str]
+    favorite_trick: Optional[str]
+    achievements: Optional[str]
+    injuries: Optional[str]
+    fun_facts: Optional[str]
+    notes: Optional[str]
+    social_media: Optional[Dict[str, str]]
+    created_at: str
+    updated_at: str
+    deleted_at: Optional[str]
+    created_by: Optional[str]
+    author_name: Optional[str]
+    is_own_data: bool
+
 # Supabase REST API helper
 class SupabaseClient:
     def __init__(self, url: str, key: str):
@@ -1788,53 +1835,6 @@ def extract_location_from_name(event_name: str) -> str:
         return parts[0].strip()
     
     return "TBD"
-
-# Friends System Models
-class FriendRequestCreate(BaseModel):
-    email: str = Field(..., min_length=1, max_length=255)
-    
-    @validator('email')
-    def validate_email(cls, v):
-        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
-            raise ValueError('Invalid email format')
-        return v.lower()
-
-class FriendRequestResponse(BaseModel):
-    id: str
-    requester_id: str
-    addressee_id: str
-    status: str
-    created_at: str
-    updated_at: str
-
-class UserProfile(BaseModel):
-    id: str
-    email: str
-    full_name: str
-    role: str
-    organization: str
-    is_active: bool
-    created_at: str
-    updated_at: str
-
-class CommentatorInfoWithAuthor(BaseModel):
-    id: str
-    athlete_id: str
-    homebase: Optional[str]
-    team: Optional[str]
-    sponsors: Optional[str]
-    favorite_trick: Optional[str]
-    achievements: Optional[str]
-    injuries: Optional[str]
-    fun_facts: Optional[str]
-    notes: Optional[str]
-    social_media: Optional[Dict[str, str]]
-    created_at: str
-    updated_at: str
-    deleted_at: Optional[str]
-    created_by: Optional[str]
-    author_name: Optional[str]
-    is_own_data: bool
 
 if __name__ == "__main__":
     print("Starting FastAPI server on http://localhost:8000")
