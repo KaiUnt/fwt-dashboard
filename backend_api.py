@@ -1255,6 +1255,108 @@ async def import_commentator_info(import_data: dict):
         logger.error(f"Error importing commentator info: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to import commentator info: {str(e)}")
 
+@app.post("/api/security/log-failed-attempt")
+@limiter.limit("10/minute")
+async def log_failed_login_attempt(request: Request, email: str, reason: str = "unknown"):
+    """Log a failed login attempt for security monitoring"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        client_ip = request.client.host if request.client else "unknown"
+        user_agent = request.headers.get("user-agent", "unknown")
+        
+        # Log the failed attempt
+        failed_attempt_data = {
+            "email": email,
+            "ip_address": client_ip,
+            "failure_reason": reason,
+            "user_agent": user_agent,
+            "attempt_timestamp": datetime.now().isoformat()
+        }
+        
+        await supabase_client.insert("failed_login_attempts", failed_attempt_data)
+        
+        # Check for suspicious activity
+        recent_attempts = await supabase_client.select(
+            "failed_login_attempts", 
+            "*", 
+            {"ip_address": client_ip}
+        )
+        
+        # Filter attempts from last hour
+        one_hour_ago = datetime.now().isoformat()
+        recent_failed = [a for a in recent_attempts if a.get("attempt_timestamp", "") > one_hour_ago]
+        
+        if len(recent_failed) > 10:
+            logger.warning(f"Suspicious activity detected: {len(recent_failed)} failed attempts from IP {client_ip}")
+        
+        return {"success": True, "logged": True}
+        
+    except Exception as e:
+        logger.error(f"Error logging failed login attempt: {e}")
+        raise HTTPException(status_code=500, detail="Failed to log security event")
+
+@app.get("/api/security/alerts")
+async def get_security_alerts(request: Request):
+    """Get security alerts for admin monitoring"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Get recent failed attempts
+        recent_attempts = await supabase_client.select("failed_login_attempts", "*")
+        
+        # Group by IP and email for analysis
+        ip_attempts = {}
+        email_attempts = {}
+        
+        for attempt in recent_attempts:
+            ip = attempt.get("ip_address", "unknown")
+            email = attempt.get("email", "unknown")
+            
+            if ip not in ip_attempts:
+                ip_attempts[ip] = []
+            ip_attempts[ip].append(attempt)
+            
+            if email not in email_attempts:
+                email_attempts[email] = []
+            email_attempts[email].append(attempt)
+        
+        # Generate alerts
+        alerts = []
+        
+        # IP-based alerts
+        for ip, attempts in ip_attempts.items():
+            if len(attempts) > 5:
+                alerts.append({
+                    "type": "high_failed_attempts_ip",
+                    "severity": "high",
+                    "message": f"IP {ip} has {len(attempts)} failed attempts",
+                    "data": {"ip": ip, "count": len(attempts)}
+                })
+        
+        # Email-based alerts
+        for email, attempts in email_attempts.items():
+            if len(attempts) > 3:
+                alerts.append({
+                    "type": "high_failed_attempts_email",
+                    "severity": "medium",
+                    "message": f"Email {email} has {len(attempts)} failed attempts",
+                    "data": {"email": email, "count": len(attempts)}
+                })
+        
+        return {
+            "alerts": alerts,
+            "total_recent_attempts": len(recent_attempts),
+            "unique_ips": len(ip_attempts),
+            "unique_emails": len(email_attempts)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting security alerts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get security alerts")
+
 def extract_location_from_name(event_name: str) -> str:
     """Extract location from event name."""
     # Common FWT location patterns
