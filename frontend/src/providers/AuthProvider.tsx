@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { createClient } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 import type { UserProfile } from '@/types/supabase'
-import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 
 // Helper functions for offline auth state caching
 const setOfflineAuthState = (user: User | null) => {
