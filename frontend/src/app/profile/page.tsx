@@ -9,9 +9,11 @@ import { createClient } from '@/lib/supabase'
 import { AppHeader } from '@/components/AppHeader'
 import { User, Mail, Shield, Building, Calendar, Key, Save, Eye, EyeOff, Check, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export default function ProfilePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
+  const { t } = useTranslation()
   const [saving, setSaving] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const [message, setMessage] = useState('')
@@ -59,11 +61,11 @@ export default function ProfilePage() {
       if (error) throw error
 
       await refreshProfile()
-      setMessage('Profile updated successfully!')
+      setMessage(t('profile.messages.profileUpdated'))
       
       setTimeout(() => setMessage(''), 3000)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      setError(err instanceof Error ? err.message : t('profile.messages.anErrorOccurred'))
     } finally {
       setSaving(false)
     }
@@ -73,22 +75,22 @@ export default function ProfilePage() {
     e.preventDefault()
     
     if (!currentPassword) {
-      setError('Current password is required')
+      setError(t('profile.messages.currentPasswordRequired'))
       return
     }
 
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match')
+      setError(t('profile.messages.passwordsDoNotMatch'))
       return
     }
 
     if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters long')
+      setError(t('profile.messages.passwordTooShort'))
       return
     }
 
     if (currentPassword === newPassword) {
-      setError('New password must be different from current password')
+      setError(t('profile.messages.passwordSameAsCurrent'))
       return
     }
 
@@ -99,7 +101,7 @@ export default function ProfilePage() {
     try {
       // First, verify the current password by attempting to sign in
       if (!user?.email) {
-        throw new Error('User email not found')
+        throw new Error(t('profile.messages.userEmailNotFound'))
       }
 
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -108,7 +110,7 @@ export default function ProfilePage() {
       })
 
       if (signInError) {
-        throw new Error('Current password is incorrect')
+        throw new Error(t('profile.messages.currentPasswordIncorrect'))
       }
 
       // If current password is correct, update to new password
@@ -118,14 +120,14 @@ export default function ProfilePage() {
 
       if (updateError) throw updateError
 
-      setMessage('Password changed successfully!')
+      setMessage(t('profile.messages.passwordChanged'))
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
       
       setTimeout(() => setMessage(''), 3000)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      setError(err instanceof Error ? err.message : t('profile.messages.anErrorOccurred'))
     } finally {
       setChangingPassword(false)
     }
@@ -133,9 +135,9 @@ export default function ProfilePage() {
 
   const getRoleDisplayName = (role: string) => {
     switch (role) {
-      case 'admin': return 'Administrator'
-      case 'commentator': return 'Commentator'
-      case 'viewer': return 'Viewer'
+      case 'admin': return t('profile.roles.administrator')
+      case 'commentator': return t('profile.roles.commentator')
+      case 'viewer': return t('profile.roles.viewer')
       default: return role
     }
   }
@@ -160,14 +162,14 @@ export default function ProfilePage() {
   if (!user || !profile) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600">Please log in to access your profile.</p>
-          <Link href="/login" className="text-blue-600 hover:text-blue-800 mt-4 inline-block">
-            Go to Login
-          </Link>
-        </div>
+              <div className="text-center">
+        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('profile.accessDenied')}</h1>
+        <p className="text-gray-600">{t('profile.pleaseLogin')}</p>
+        <Link href="/login" className="text-blue-600 hover:text-blue-800 mt-4 inline-block">
+          {t('profile.goToLogin')}
+        </Link>
+      </div>
       </div>
     )
   }
@@ -175,8 +177,8 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader 
-        title="Profile Settings"
-        subtitle="Manage your account information and security settings"
+        title={t('profile.title')}
+        subtitle={t('profile.subtitle')}
         showBackButton={true}
         backUrl="/"
       />
@@ -207,7 +209,7 @@ export default function ProfilePage() {
                   {profile.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                  {profile.full_name || 'Unnamed User'}
+                  {profile.full_name || t('profile.unnamedUser')}
                 </h2>
                 <p className="text-gray-500 mb-4">{user.email}</p>
                 
@@ -228,7 +230,7 @@ export default function ProfilePage() {
                   
                   <div className="flex items-center justify-center text-sm text-gray-500">
                     <Calendar className="h-4 w-4 mr-1" />
-                    Member since {profile.created_at ? new Date(profile.created_at).toLocaleDateString('de-DE') : 'Unknown'}
+                    {t('profile.memberSince')} {profile.created_at ? new Date(profile.created_at).toLocaleDateString('de-DE') : t('profile.unknown')}
                   </div>
                 </div>
               </div>
@@ -240,14 +242,14 @@ export default function ProfilePage() {
             {/* Profile Information */}
             <div className="bg-white rounded-lg shadow">
               <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Profile Information</h3>
-                <p className="text-sm text-gray-500">Update your personal information</p>
+                <h3 className="text-lg font-semibold text-gray-900">{t('profile.profileInformation')}</h3>
+                <p className="text-sm text-gray-500">{t('profile.updatePersonalInfo')}</p>
               </div>
               
               <form onSubmit={handleProfileUpdate} className="p-6 space-y-4">
                 <div>
                   <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
+                    {t('profile.fullName')}
                   </label>
                   <div className="relative">
                     <input
@@ -256,7 +258,7 @@ export default function ProfilePage() {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter your full name"
+                      placeholder={t('profile.enterFullName')}
                     />
                     <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                   </div>
@@ -264,7 +266,7 @@ export default function ProfilePage() {
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
+                    {t('profile.emailAddress')}
                   </label>
                   <div className="relative">
                     <input
@@ -276,12 +278,12 @@ export default function ProfilePage() {
                     />
                     <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('profile.emailCannotBeChanged')}</p>
                 </div>
 
                 <div>
                   <label htmlFor="organization" className="block text-sm font-medium text-gray-700 mb-1">
-                    Organization
+                    {t('profile.organization')}
                   </label>
                   <div className="relative">
                     <input
@@ -290,7 +292,7 @@ export default function ProfilePage() {
                       value={organization}
                       onChange={(e) => setOrganization(e.target.value)}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter your organization"
+                      placeholder={t('profile.enterOrganization')}
                     />
                     <Building className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                   </div>
@@ -305,12 +307,12 @@ export default function ProfilePage() {
                     {saving ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Saving...
+                        {t('profile.saving')}
                       </>
                     ) : (
                       <>
                         <Save className="h-4 w-4" />
-                        Save Changes
+                        {t('profile.saveChanges')}
                       </>
                     )}
                   </button>
@@ -321,14 +323,14 @@ export default function ProfilePage() {
             {/* Password Change */}
             <div className="bg-white rounded-lg shadow">
               <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Change Password</h3>
-                <p className="text-sm text-gray-500">Update your password to keep your account secure</p>
+                <h3 className="text-lg font-semibold text-gray-900">{t('profile.changePassword')}</h3>
+                <p className="text-sm text-gray-500">{t('profile.updatePasswordSecure')}</p>
               </div>
               
               <form onSubmit={handlePasswordChange} className="p-6 space-y-4">
                 <div>
                   <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                    Current Password
+                    {t('profile.currentPassword')}
                   </label>
                   <div className="relative">
                     <input
@@ -337,7 +339,7 @@ export default function ProfilePage() {
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter current password"
+                      placeholder={t('profile.enterCurrentPassword')}
                       required
                     />
                     <Key className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -353,7 +355,7 @@ export default function ProfilePage() {
 
                 <div>
                   <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                    New Password
+                    {t('profile.newPassword')}
                   </label>
                   <div className="relative">
                     <input
@@ -362,7 +364,7 @@ export default function ProfilePage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter new password"
+                      placeholder={t('profile.enterNewPassword')}
                       required
                     />
                     <Key className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -378,7 +380,7 @@ export default function ProfilePage() {
 
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm New Password
+                    {t('profile.confirmNewPassword')}
                   </label>
                   <div className="relative">
                     <input
@@ -387,7 +389,7 @@ export default function ProfilePage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Confirm new password"
+                      placeholder={t('profile.confirmNewPasswordPlaceholder')}
                       required
                     />
                     <Key className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -410,12 +412,12 @@ export default function ProfilePage() {
                     {changingPassword ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Changing...
+                        {t('profile.changing')}
                       </>
                     ) : (
                       <>
                         <Key className="h-4 w-4" />
-                        Change Password
+                        {t('profile.changePasswordButton')}
                       </>
                     )}
                   </button>

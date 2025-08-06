@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/providers/AuthProvider'
 import { User, LogOut, Settings, Shield, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export function UserNav() {
   const { user, profile, signOut, isAdmin, loading } = useAuth()
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
 
@@ -94,7 +96,7 @@ export function UserNav() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {profile.full_name || 'Unnamed User'}
+                    {profile.full_name || t('profile.userNav.unnamedUser')}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
                     {user.email}
@@ -122,7 +124,7 @@ export function UserNav() {
                 onClick={() => setIsOpen(false)}
               >
                 <Settings className="h-4 w-4" />
-                Profile Settings
+                {t('profile.userNav.profileSettings')}
               </Link>
 
               {isAdmin && (
@@ -132,7 +134,7 @@ export function UserNav() {
                   onClick={() => setIsOpen(false)}
                 >
                   <Shield className="h-4 w-4" />
-                  Admin Dashboard
+                  {t('profile.userNav.adminDashboard')}
                 </Link>
               )}
 
@@ -155,7 +157,7 @@ export function UserNav() {
                 className="flex items-center gap-3 px-4 py-2 text-sm text-red-700 hover:bg-red-50 w-full text-left"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t('profile.userNav.signOut')}
               </button>
             </div>
           </div>

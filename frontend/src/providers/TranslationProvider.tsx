@@ -7,6 +7,13 @@ import { useIsOffline } from '@/hooks/useOfflineStorage';
 type TranslationKey = string;
 type TranslationParams = Record<string, string | number>;
 
+// Pluralization rules for different languages
+const pluralRules = {
+  de: (count: number) => count === 1 ? 'Singular' : 'Plural',
+  en: (count: number) => count === 1 ? 'Singular' : 'Plural',
+  fr: (count: number) => count === 1 ? 'Singular' : 'Plural',
+} as const;
+
 type TranslationValue = string | { [key: string]: TranslationValue };
 
 interface Translations {
@@ -24,6 +31,26 @@ const TranslationContext = createContext<TranslationContextType | undefined>(und
 
 // Prevent multiple simultaneous requests for the same locale
 const translationCache = new Map<string, Promise<Translations>>();
+
+// Get default locale with browser language detection
+const getDefaultLocale = (): string => {
+  if (typeof window === 'undefined') return 'de';
+  
+  // Check localStorage first
+  const savedLocale = localStorage.getItem('locale');
+  if (savedLocale && ['de', 'en', 'fr'].includes(savedLocale)) {
+    return savedLocale;
+  }
+  
+  // Try to detect from browser language
+  const browserLang = navigator.language.split('-')[0];
+  if (['de', 'en', 'fr'].includes(browserLang)) {
+    return browserLang;
+  }
+  
+  // Fallback to German
+  return 'de';
+};
 
 // Fetch function for translations (following the same pattern as event data)
 async function fetchTranslations(locale: string): Promise<Translations> {
@@ -77,12 +104,10 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   const [locale, setLocaleState] = useState('de');
   const isOffline = useIsOffline();
 
-  // Initialize locale from localStorage
+  // Initialize locale with browser detection
   useEffect(() => {
-    const savedLocale = typeof window !== 'undefined' 
-      ? localStorage.getItem('locale') || 'de'
-      : 'de';
-    setLocaleState(savedLocale);
+    const defaultLocale = getDefaultLocale();
+    setLocaleState(defaultLocale);
   }, []);
 
   // Use the same offline-first pattern as event data, but with optimizations to prevent IDB race conditions
@@ -150,6 +175,32 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     
     if (typeof value !== 'string') {
       return key;
+    }
+    
+    // Handle pluralization if count parameter is provided
+    if (params?.count !== undefined) {
+      const count = Number(params.count);
+      const pluralRule = pluralRules[locale as keyof typeof pluralRules];
+      if (pluralRule) {
+        const pluralForm = pluralRule(count);
+        const pluralKey = `${key}${pluralForm}`;
+        
+        // Try to get the pluralized version
+        const pluralKeys = pluralKey.split('.');
+        let pluralValue: TranslationValue = translations;
+        
+        for (const k of pluralKeys) {
+          if (pluralValue && typeof pluralValue === 'object' && k in pluralValue) {
+            pluralValue = pluralValue[k];
+          } else {
+            break; // Fall back to original key
+          }
+        }
+        
+        if (typeof pluralValue === 'string') {
+          value = pluralValue;
+        }
+      }
     }
     
     // Replace parameters in translation

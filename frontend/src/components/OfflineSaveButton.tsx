@@ -5,6 +5,7 @@ import { Download, Check, AlertCircle, Loader2, Trash2, RefreshCw } from 'lucide
 import { useOfflineStorage } from '@/hooks/useOfflineStorage';
 import { Athlete, EventInfo } from '@/types/athletes';
 import { SeriesData } from '@/hooks/useSeriesRankings';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface OfflineSaveButtonProps {
   eventIds: string[];
@@ -27,6 +28,7 @@ export function OfflineSaveButton({
   showDetails = true,
   isDataLoading = false
 }: OfflineSaveButtonProps) {
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const {
@@ -101,7 +103,7 @@ export function OfflineSaveButton({
           <div className={`${baseClasses} ${variantClasses[variant]} ${isSaving || isDeleting ? 'opacity-50' : ''}`}>
             <Check className="h-4 w-4 text-green-500" />
             <span className="text-sm">
-              {isStale ? '⚠️ Offline (veraltet)' : '✅ Offline verfügbar'}
+              {isStale ? t('offline.offlineStale') : t('offline.offlineAvailableCheck')}
             </span>
           </div>
           
@@ -109,7 +111,7 @@ export function OfflineSaveButton({
             onClick={() => setShowModal(true)}
             disabled={isSaving || isDeleting}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Offline-Daten verwalten"
+            title={t('offline.manageOfflineData')}
           >
             {isSaving || isDeleting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -123,13 +125,13 @@ export function OfflineSaveButton({
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <h3 className="text-lg font-semibold mb-4">Offline-Daten verwalten</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('offline.manageOfflineData')}</h3>
               
               <div className="space-y-4">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center space-x-2 mb-2">
                     <Check className="h-5 w-5 text-green-500" />
-                    <span className="font-medium">Offline verfügbar</span>
+                    <span className="font-medium">{t('offline.offlineAvailable')}</span>
                     {isStale && (
                       <AlertCircle className="h-4 w-4 text-amber-500" />
                     )}
@@ -137,10 +139,10 @@ export function OfflineSaveButton({
                   
                   {offlineStatus && (
                     <div className="text-sm text-gray-600 space-y-1">
-                      <div>Athleten: {offlineStatus.totalAthletes}</div>
-                      <div>Größe: {formatFileSize(offlineStatus.estimatedSize)}</div>
-                      <div>Gespeichert: {formatTimestamp(offlineStatus.timestamp)}</div>
-                      <div>Verfügbar bis: {formatTimestamp(offlineStatus.expiresAt)}</div>
+                      <div>{t('offline.athletes')}: {offlineStatus.totalAthletes}</div>
+                      <div>{t('offline.size')}: {formatFileSize(offlineStatus.estimatedSize)}</div>
+                      <div>{t('offline.savedAt')}: {formatTimestamp(offlineStatus.timestamp)}</div>
+                      <div>{t('offline.availableUntil')}: {formatTimestamp(offlineStatus.expiresAt)}</div>
                     </div>
                   )}
                 </div>
@@ -156,7 +158,7 @@ export function OfflineSaveButton({
                     ) : (
                       <RefreshCw className="h-4 w-4" />
                     )}
-                    <span>Aktualisieren</span>
+                    <span>{t('offline.update')}</span>
                   </button>
                   
                   <button
@@ -169,7 +171,7 @@ export function OfflineSaveButton({
                     ) : (
                       <Trash2 className="h-4 w-4" />
                     )}
-                    <span>Löschen</span>
+                    <span>{t('offline.delete')}</span>
                   </button>
                 </div>
               </div>
@@ -179,7 +181,7 @@ export function OfflineSaveButton({
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
                 >
-                  Schließen
+                  {t('offline.close')}
                 </button>
               </div>
             </div>
@@ -190,10 +192,10 @@ export function OfflineSaveButton({
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <h3 className="text-lg font-semibold mb-4">Offline-Daten löschen?</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('offline.deleteOfflineDataConfirm')}</h3>
               
               <p className="text-gray-600 mb-6">
-                Diese Aktion kann nicht rückgängig gemacht werden. Die Offline-Daten werden dauerhaft gelöscht.
+                {t('offline.deleteConfirmMessage')}
               </p>
               
               <div className="flex space-x-2">
@@ -201,7 +203,7 @@ export function OfflineSaveButton({
                   onClick={() => setShowDeleteConfirm(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Abbrechen
+                  {t('offline.cancel')}
                 </button>
                 <button
                   onClick={handleDelete}
@@ -213,7 +215,7 @@ export function OfflineSaveButton({
                   ) : (
                     <Trash2 className="h-4 w-4" />
                   )}
-                  <span>Löschen</span>
+                  <span>{t('offline.delete')}</span>
                 </button>
               </div>
             </div>
@@ -238,11 +240,11 @@ export function OfflineSaveButton({
           <Download className="h-4 w-4" />
         )}
         <span>
-          {isDataLoading ? 'Lade Daten...' : 'Offline speichern'}
+          {isDataLoading ? t('offline.loadingData') : t('offline.saveOffline')}
         </span>
         {showDetails && !isDataLoading && (
           <span className="text-xs opacity-75">
-            ({athletes.length} Athleten{seriesRankings ? ` + Rankings` : ''})
+            ({t('offline.athletesWithBib', { count: athletes.length })}{seriesRankings ? ` + ${t('offline.seriesRankings')}` : ''})
           </span>
         )}
       </button>
@@ -251,28 +253,28 @@ export function OfflineSaveButton({
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold mb-4">Für Offline speichern</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('offline.saveForOffline')}</h3>
             
             <div className="space-y-4">
               <div className="bg-blue-50 rounded-lg p-4">
-                <h4 className="font-medium mb-2">Folgende Daten werden gespeichert:</h4>
+                <h4 className="font-medium mb-2">{t('offline.dataToBeSaved')}</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• {athletes.length} Athleten mit BIB-Nummern</li>
-                  <li>• Event-Informationen</li>
+                  <li>• {t('offline.athletesWithBib', { count: athletes.length })}</li>
+                  <li>• {t('offline.eventInformation')}</li>
                   {seriesRankings && (
-                    <li>• Series Rankings (2008-2025)</li>
+                    <li>• {t('offline.seriesRankings')}</li>
                   )}
-                  <li>• Kommentatoren-Infos (falls vorhanden)</li>
-                  <li>• Geschätzte Größe: {formatFileSize(estimatedSize)}</li>
+                  <li>• {t('offline.commentatorInfo')}</li>
+                  <li>• {t('offline.estimatedSize')}: {formatFileSize(estimatedSize)}</li>
                 </ul>
               </div>
               
               <div className="bg-green-50 rounded-lg p-4">
-                <h4 className="font-medium mb-2">Verfügbarkeit:</h4>
+                <h4 className="font-medium mb-2">{t('offline.availability')}</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• Offline verfügbar für 48 Stunden</li>
-                  <li>• Funktioniert ohne Internetverbindung</li>
-                  <li>• Automatische Löschung nach Ablauf</li>
+                  <li>• {t('offline.offlineAvailable48h')}</li>
+                  <li>• {t('offline.worksWithoutInternet')}</li>
+                  <li>• {t('offline.autoDeleteAfterExpiry')}</li>
                 </ul>
               </div>
             </div>
@@ -282,7 +284,7 @@ export function OfflineSaveButton({
                 onClick={() => setShowModal(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Abbrechen
+                {t('offline.cancel')}
               </button>
               <button
                 onClick={handleSave}
@@ -294,7 +296,7 @@ export function OfflineSaveButton({
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                <span>Speichern</span>
+                <span>{t('offline.save')}</span>
               </button>
             </div>
           </div>

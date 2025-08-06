@@ -286,9 +286,7 @@ export function EventsPage() {
                     <p className="text-sm text-gray-600">
                       {isOffline 
                         ? t('offline.noConnection')
-                        : offlineEvents.length === 1 
-                          ? t('offline.savedEventsSingular', { count: offlineEvents.length })
-                          : t('offline.savedEventsPlural', { count: offlineEvents.length })
+                        : t('offline.savedEvents', { count: offlineEvents.length })
                       }
                     </p>
                   </div>
