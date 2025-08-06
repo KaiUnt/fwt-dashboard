@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/providers/AuthProvider'
-import { User, LogOut, Settings, Shield, ChevronDown } from 'lucide-react'
+import { User, LogOut, Settings, Shield, ChevronDown, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslation } from '@/hooks/useTranslation'
 
@@ -125,6 +125,15 @@ export function UserNav() {
               >
                 <Settings className="h-4 w-4" />
                 {t('profile.userNav.profileSettings')}
+              </Link>
+
+              <Link
+                href="/friends"
+                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setIsOpen(false)}
+              >
+                <Users className="h-4 w-4" />
+                {t('profile.userNav.friends')}
               </Link>
 
               {isAdmin && (

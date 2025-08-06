@@ -58,4 +58,61 @@ export interface CommentatorInfoListResponse {
   success: boolean;
   data?: CommentatorInfo[];
   error?: string;
+}
+
+// Friends System Types
+export interface UserConnection {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FriendRequest {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  requester?: UserProfile;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  organization: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Friend {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  friend: UserProfile;
+}
+
+// Enhanced Commentator Info with Authorship
+export interface CommentatorInfoWithAuthor extends CommentatorInfo {
+  created_by?: string;
+  author_name?: string;
+  is_own_data: boolean;
+}
+
+// Tab Data Interface
+export interface TabData {
+  id: 'mine' | 'all' | string; // string for friend IDs
+  label: string;
+  author_name?: string;
+  count: number;
+  data: CommentatorInfoWithAuthor[];
 } 

@@ -333,7 +333,12 @@
     "toSave": "to save",
     "toClose": "to close",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "tabs": {
+      "mine": "My Notes",
+      "all": "All Info"
+    },
+    "byAuthor": "By {author}"
   },
   "errors": {
     "loadingFailed": "Loading failed",
@@ -389,6 +394,7 @@
     "userNav": {
       "unnamedUser": "Unnamed User",
       "profileSettings": "Profile Settings",
+      "friends": "Friends",
       "adminDashboard": "Admin Dashboard",
       "signOut": "Sign Out"
     }

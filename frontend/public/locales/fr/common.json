@@ -389,6 +389,7 @@
     "userNav": {
       "unnamedUser": "Utilisateur sans nom",
       "profileSettings": "Paramètres du profil",
+      "friends": "Amis",
       "adminDashboard": "Tableau de bord admin",
       "signOut": "Se déconnecter"
     }

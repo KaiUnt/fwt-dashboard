@@ -26,6 +26,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import secrets
 import time
+import jwt
+import json
 
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -60,6 +62,38 @@ validate_environment()
 # Supabase configuration with validation
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")
+
+# JWT token security
+security = HTTPBearer()
+
+def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Extract user ID from Supabase JWT token"""
+    try:
+        # Decode the JWT token without verification (Supabase handles verification)
+        # The token structure is: header.payload.signature
+        token_parts = credentials.credentials.split('.')
+        if len(token_parts) != 3:
+            raise HTTPException(status_code=401, detail="Invalid token format")
+        
+        # Decode the payload (second part)
+        payload = token_parts[1]
+        # Add padding if needed
+        payload += '=' * (4 - len(payload) % 4)
+        
+        # Decode base64
+        import base64
+        decoded_payload = base64.b64decode(payload).decode('utf-8')
+        token_data = json.loads(decoded_payload)
+        
+        # Extract user ID from the token
+        user_id = token_data.get('sub')
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        
+        return user_id
+    except Exception as e:
+        logger.error(f"Error extracting user ID from token: {e}")
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
 
 # Input validation schemas
 class EventIdSchema(BaseModel):
@@ -170,6 +204,32 @@ class SupabaseClient:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(url, headers=self.headers, json=sanitized_params)
+                response.raise_for_status()
+                return response.json()
+        except httpx.TimeoutException:
+            logger.error("Supabase request timeout")
+            raise HTTPException(status_code=504, detail="Database request timeout")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Supabase HTTP error: {e.response.status_code}")
+            raise HTTPException(status_code=500, detail="Database error")
+
+    async def delete(self, table: str, filters: dict):
+        """Delete data from table with validation"""
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
+            raise ValueError("Invalid table name")
+        
+        url = f"{self.url}/rest/v1/{table}"
+        params = {}
+        
+        if filters:
+            for key, value in filters.items():
+                if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', key):
+                    raise ValueError(f"Invalid filter key: {key}")
+                params[f"{key}"] = f"eq.{value}"
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.delete(url, headers=self.headers, params=params)
                 response.raise_for_status()
                 return response.json()
         except httpx.TimeoutException:
@@ -896,7 +956,10 @@ async def get_commentator_info(athlete_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
 
 @app.post("/api/commentator-info")
-async def create_commentator_info(info: CommentatorInfoCreate):
+async def create_commentator_info(
+    info: CommentatorInfoCreate,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Create commentator info for an athlete"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -908,8 +971,17 @@ async def create_commentator_info(info: CommentatorInfoCreate):
         if existing:
             raise HTTPException(status_code=409, detail="Commentator info already exists for this athlete")
         
+        # Add user info to the data
+        info_data = info.dict()
+        info_data["created_by"] = current_user_id
+        
+        # Get user profile for author name
+        user_profile = await supabase_client.select("user_profiles", "full_name", {"id": current_user_id})
+        if user_profile:
+            info_data["author_name"] = user_profile[0]["full_name"]
+        
         # Create new record
-        result = await supabase_client.insert("commentator_info", info.dict())
+        result = await supabase_client.insert("commentator_info", info_data)
         
         return {
             "success": True,
@@ -924,7 +996,11 @@ async def create_commentator_info(info: CommentatorInfoCreate):
         raise HTTPException(status_code=500, detail=f"Failed to create commentator info: {str(e)}")
 
 @app.put("/api/commentator-info/{athlete_id}")
-async def update_commentator_info(athlete_id: str, info: CommentatorInfoUpdate):
+async def update_commentator_info(
+    athlete_id: str, 
+    info: CommentatorInfoUpdate,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Update commentator info for an athlete"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -936,7 +1012,15 @@ async def update_commentator_info(athlete_id: str, info: CommentatorInfoUpdate):
         if not existing:
             # Create new record if it doesn't exist
             create_data = CommentatorInfoCreate(athlete_id=athlete_id, **info.dict())
-            result = await supabase_client.insert("commentator_info", create_data.dict())
+            create_data_dict = create_data.dict()
+            create_data_dict["created_by"] = current_user_id
+            
+            # Get user profile for author name
+            user_profile = await supabase_client.select("user_profiles", "full_name", {"id": current_user_id})
+            if user_profile:
+                create_data_dict["author_name"] = user_profile[0]["full_name"]
+            
+            result = await supabase_client.insert("commentator_info", create_data_dict)
         else:
             # Update existing record
             update_data = {k: v for k, v in info.dict().items() if v is not None}
@@ -953,7 +1037,10 @@ async def update_commentator_info(athlete_id: str, info: CommentatorInfoUpdate):
         raise HTTPException(status_code=500, detail=f"Failed to update commentator info: {str(e)}")
 
 @app.delete("/api/commentator-info/{athlete_id}")
-async def soft_delete_commentator_info(athlete_id: str):
+async def soft_delete_commentator_info(
+    athlete_id: str,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Soft delete commentator info for an athlete"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -977,7 +1064,10 @@ async def soft_delete_commentator_info(athlete_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete commentator info: {str(e)}")
 
 @app.post("/api/commentator-info/{athlete_id}/restore")
-async def restore_commentator_info(athlete_id: str):
+async def restore_commentator_info(
+    athlete_id: str,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Restore soft-deleted commentator info for an athlete"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -1020,7 +1110,9 @@ async def get_deleted_commentator_info():
         raise HTTPException(status_code=500, detail=f"Failed to fetch deleted commentator info: {str(e)}")
 
 @app.post("/api/commentator-info/cleanup")
-async def cleanup_old_deleted_commentator_info():
+async def cleanup_old_deleted_commentator_info(
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Clean up old deleted commentator info records (older than 30 days)"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -1057,6 +1149,310 @@ async def get_all_commentator_info():
         
     except Exception as e:
         logger.error(f"Error fetching all commentator info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
+
+# Friends System APIs
+
+@app.post("/api/friends/request")
+@limiter.limit("10/minute")
+async def create_friend_request(
+    request: Request, 
+    friend_request: FriendRequestCreate,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
+    """Send a friend request to another user by email"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Find user by email
+        user_result = await supabase_client.select("user_profiles", "*", {"email": friend_request.email})
+        
+        if not user_result:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        target_user = user_result[0]
+        
+        if target_user["id"] == current_user_id:
+            raise HTTPException(status_code=400, detail="Cannot send friend request to yourself")
+        
+        # Check if connection already exists
+        existing_connection = await supabase_client.select(
+            "user_connections", 
+            "*", 
+            {
+                "requester_id": current_user_id,
+                "addressee_id": target_user["id"]
+            }
+        )
+        
+        if existing_connection:
+            raise HTTPException(status_code=409, detail="Friend request already exists")
+        
+        # Create friend request
+        connection_data = {
+            "requester_id": current_user_id,
+            "addressee_id": target_user["id"],
+            "status": "pending"
+        }
+        
+        result = await supabase_client.insert("user_connections", connection_data)
+        
+        return {
+            "success": True,
+            "data": result[0] if result else None,
+            "message": "Friend request sent successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating friend request: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create friend request: {str(e)}")
+
+@app.get("/api/friends/pending")
+async def get_pending_friend_requests(current_user_id: str = Depends(extract_user_id_from_token)):
+    """Get pending friend requests for current user"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Get pending requests where user is the addressee
+        result = await supabase_client.select(
+            "user_connections", 
+            "*", 
+            {
+                "addressee_id": current_user_id,
+                "status": "pending"
+            }
+        )
+        
+        # Get requester details
+        pending_requests = []
+        for connection in result:
+            requester = await supabase_client.select("user_profiles", "*", {"id": connection["requester_id"]})
+            if requester:
+                pending_requests.append({
+                    **connection,
+                    "requester": requester[0]
+                })
+        
+        return {
+            "success": True,
+            "data": pending_requests,
+            "total": len(pending_requests)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching pending friend requests: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch pending requests: {str(e)}")
+
+@app.put("/api/friends/accept/{connection_id}")
+async def accept_friend_request(
+    connection_id: str,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
+    """Accept a friend request"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Update connection status
+        result = await supabase_client.update(
+            "user_connections",
+            {"status": "accepted"},
+            {"id": connection_id, "addressee_id": current_user_id}
+        )
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Friend request not found")
+        
+        return {
+            "success": True,
+            "data": result[0] if result else None,
+            "message": "Friend request accepted"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error accepting friend request: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to accept friend request: {str(e)}")
+
+@app.put("/api/friends/decline/{connection_id}")
+async def decline_friend_request(
+    connection_id: str,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
+    """Decline a friend request"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Update connection status
+        result = await supabase_client.update(
+            "user_connections",
+            {"status": "declined"},
+            {"id": connection_id, "addressee_id": current_user_id}
+        )
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Friend request not found")
+        
+        return {
+            "success": True,
+            "data": result[0] if result else None,
+            "message": "Friend request declined"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error declining friend request: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to decline friend request: {str(e)}")
+
+@app.delete("/api/friends/{connection_id}")
+async def remove_friend(
+    connection_id: str,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
+    """Remove a friend connection"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Delete connection where user is involved
+        result = await supabase_client.delete(
+            "user_connections",
+            {"id": connection_id}
+        )
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Friend connection not found")
+        
+        return {
+            "success": True,
+            "message": "Friend removed successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing friend: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to remove friend: {str(e)}")
+
+@app.get("/api/friends")
+async def get_friends(current_user_id: str = Depends(extract_user_id_from_token)):
+    """Get list of accepted friends"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Get accepted connections where user is involved
+        result = await supabase_client.select(
+            "user_connections", 
+            "*", 
+            {"status": "accepted"}
+        )
+        
+        # Filter connections where current user is involved
+        user_connections = [
+            conn for conn in result 
+            if conn["requester_id"] == current_user_id or conn["addressee_id"] == current_user_id
+        ]
+        
+        # Get friend details
+        friends = []
+        for connection in user_connections:
+            friend_id = connection["addressee_id"] if connection["requester_id"] == current_user_id else connection["requester_id"]
+            friend = await supabase_client.select("user_profiles", "*", {"id": friend_id})
+            if friend:
+                friends.append({
+                    **connection,
+                    "friend": friend[0]
+                })
+        
+        return {
+            "success": True,
+            "data": friends,
+            "total": len(friends)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching friends: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch friends: {str(e)}")
+
+# Enhanced Commentator Info APIs with Friends System
+
+@app.get("/api/commentator-info/{athlete_id}/friends")
+async def get_commentator_info_with_friends(
+    athlete_id: str, 
+    source: str = "mine",
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
+    """Get commentator info including friends' data"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        
+        if source == "mine":
+            # Get only user's own data
+            result = await supabase_client.select(
+                "commentator_info", 
+                "*", 
+                {"athlete_id": athlete_id, "created_by": current_user_id}
+            )
+        elif source == "friends":
+            # Get friends' data
+            # First get accepted friends
+            friends_result = await supabase_client.select(
+                "user_connections", 
+                "*", 
+                {"status": "accepted"}
+            )
+            
+            user_connections = [
+                conn for conn in friends_result 
+                if conn["requester_id"] == current_user_id or conn["addressee_id"] == current_user_id
+            ]
+            
+            friend_ids = []
+            for connection in user_connections:
+                friend_id = connection["addressee_id"] if connection["requester_id"] == current_user_id else connection["requester_id"]
+                friend_ids.append(friend_id)
+            
+            # Get commentator info from friends
+            result = []
+            for friend_id in friend_ids:
+                friend_data = await supabase_client.select(
+                    "commentator_info", 
+                    "*", 
+                    {"athlete_id": athlete_id, "created_by": friend_id}
+                )
+                if friend_data:
+                    result.extend(friend_data)
+        else:  # "all"
+            # Get all data (own + friends) - this is handled by RLS policies
+            result = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id})
+        
+        # Add authorship info
+        enhanced_result = []
+        for item in result:
+            is_own = item.get("created_by") == current_user_id
+            enhanced_result.append({
+                **item,
+                "is_own_data": is_own
+            })
+        
+        return {
+            "success": True,
+            "data": enhanced_result,
+            "total": len(enhanced_result)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching commentator info with friends: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
 
 @app.get("/api/fullresults")
@@ -1203,7 +1599,10 @@ async def export_all_commentator_info():
         raise HTTPException(status_code=500, detail=f"Failed to export commentator info: {str(e)}")
 
 @app.post("/api/commentator-info/import")
-async def import_commentator_info(import_data: dict):
+async def import_commentator_info(
+    import_data: dict,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Import commentator info from backup file"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -1235,6 +1634,14 @@ async def import_commentator_info(import_data: dict):
                 else:
                     # Insert new record
                     insert_data = {k: v for k, v in record.items() if k not in ["id", "created_at", "updated_at"]}
+                    # Add user info to imported data
+                    insert_data["created_by"] = current_user_id
+                    
+                    # Get user profile for author name
+                    user_profile = await supabase_client.select("user_profiles", "full_name", {"id": current_user_id})
+                    if user_profile:
+                        insert_data["author_name"] = user_profile[0]["full_name"]
+                    
                     await supabase_client.insert("commentator_info", insert_data)
                     imported_count += 1
                     
@@ -1381,6 +1788,53 @@ def extract_location_from_name(event_name: str) -> str:
         return parts[0].strip()
     
     return "TBD"
+
+# Friends System Models
+class FriendRequestCreate(BaseModel):
+    email: str = Field(..., min_length=1, max_length=255)
+    
+    @validator('email')
+    def validate_email(cls, v):
+        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
+            raise ValueError('Invalid email format')
+        return v.lower()
+
+class FriendRequestResponse(BaseModel):
+    id: str
+    requester_id: str
+    addressee_id: str
+    status: str
+    created_at: str
+    updated_at: str
+
+class UserProfile(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    role: str
+    organization: str
+    is_active: bool
+    created_at: str
+    updated_at: str
+
+class CommentatorInfoWithAuthor(BaseModel):
+    id: str
+    athlete_id: str
+    homebase: Optional[str]
+    team: Optional[str]
+    sponsors: Optional[str]
+    favorite_trick: Optional[str]
+    achievements: Optional[str]
+    injuries: Optional[str]
+    fun_facts: Optional[str]
+    notes: Optional[str]
+    social_media: Optional[Dict[str, str]]
+    created_at: str
+    updated_at: str
+    deleted_at: Optional[str]
+    created_by: Optional[str]
+    author_name: Optional[str]
+    is_own_data: bool
 
 if __name__ == "__main__":
     print("Starting FastAPI server on http://localhost:8000")
