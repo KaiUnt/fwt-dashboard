@@ -122,7 +122,6 @@ export async function middleware(request: NextRequest) {
       const now = Date.now();
       
       if (now < expiryTime && hasOfflineDataForPath(request, pathname)) {
-        console.log('🔒 Allowing offline access with cached auth for:', pathname);
         // Allow access with cached auth state
         response.headers.set('x-offline-auth', 'true');
         return response;

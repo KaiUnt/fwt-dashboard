@@ -15,12 +15,10 @@ const setOfflineAuthState = (user: User | null) => {
     const expiryTime = Date.now() + (7 * 24 * 60 * 60 * 1000);
     document.cookie = `offline-auth-state=${user.id}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
     document.cookie = `offline-auth-expiry=${expiryTime}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-    console.log('💾 Cached auth state for offline use');
   } else {
     // Clear offline auth state
     document.cookie = 'offline-auth-state=; path=/; max-age=0';
     document.cookie = 'offline-auth-expiry=; path=/; max-age=0';
-    console.log('🗑️ Cleared offline auth state');
   }
 };
 
@@ -71,8 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-      console.log('🔍 Fetching profile for user:', userId)
-      
       // Add timeout for profile fetch (increased to 15 seconds)
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
@@ -94,7 +90,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         // PGRST116 means no rows returned, which is OK for new users
         if (error.code === 'PGRST116') {
-          console.log('ℹ️ No profile found for user (new user):', userId)
           return null
         }
         
@@ -103,7 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null
       }
 
-      console.log('✅ Profile fetched successfully:', data)
       return data
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -124,7 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Fallback timeout to prevent infinite loading
     const timeout = setTimeout(() => {
       if (isInitialLoad) {
-        console.warn('⏰ AuthProvider: Timeout reached, forcing loading to false')
         setLoading(false)
         isInitialLoad = false
       }
@@ -132,8 +125,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔄 AuthProvider: Auth state changed:', { event, hasSession: !!session })
-        
         // Set user immediately
         setUser(session?.user ?? null)
         
@@ -142,21 +133,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         try {
           if (session?.user) {
-            console.log('✅ AuthProvider: User found, fetching profile...')
             const profile = await fetchProfile(session.user.id)
-            console.log('📄 AuthProvider: Profile fetched:', profile)
             setProfile(profile)
           } else {
-            console.log('❌ AuthProvider: No user found')
             setProfile(null)
           }
         } catch (error) {
-          console.error('❌ AuthProvider: Error handling auth state change:', error)
+          console.error('Error handling auth state change:', error)
           // Set profile to null on error to avoid hanging
           setProfile(null)
         } finally {
           // Always set loading to false, even on errors
-          console.log('🏁 AuthProvider: Setting loading to false')
           setLoading(false)
           isInitialLoad = false
         }
@@ -167,19 +154,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const getInitialSession = async () => {
       if (!isInitialLoad) return
       
-      console.log('🔄 AuthProvider: Getting initial session...')
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
-        console.log('📋 AuthProvider: Initial session data:', { session, error })
         
         // Only handle initial session if auth state change hasn't fired yet
         if (isInitialLoad) {
           setUser(session?.user ?? null)
           
           if (session?.user) {
-            console.log('✅ AuthProvider: Initial user found, fetching profile...')
             const profile = await fetchProfile(session.user.id)
-            console.log('📄 AuthProvider: Initial profile fetched:', profile)
             setProfile(profile)
           } else {
             setProfile(null)
@@ -189,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isInitialLoad = false
         }
       } catch (error) {
-        console.error('❌ AuthProvider: Error getting initial session:', error)
+        console.error('Error getting initial session:', error)
         setLoading(false)
         isInitialLoad = false
       }
