@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useAuth } from '@/providers/AuthProvider'
-import { Mail, Lock, Eye, EyeOff, Loader2, Mountain, AlertTriangle } from 'lucide-react'
+import { Mail, Eye, EyeOff, Loader2, Mountain, AlertTriangle } from 'lucide-react'
 
 // Rate limiting configuration
 const MAX_LOGIN_ATTEMPTS = 5
@@ -165,18 +165,7 @@ export default function LoginPage() {
     }
   }
 
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    })
-    
-    if (error) {
-      setError(error.message)
-    }
-  }
+
 
   const formatTimeRemaining = () => {
     if (!isLocked) return ''

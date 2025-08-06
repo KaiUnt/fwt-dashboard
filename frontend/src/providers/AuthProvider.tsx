@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!isInitialLoad) return
       
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
+        const { data: { session } } = await supabase.auth.getSession()
         
         // Only handle initial session if auth state change hasn't fired yet
         if (isInitialLoad) {

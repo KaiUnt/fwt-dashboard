@@ -24,7 +24,7 @@ interface SecurityAlert {
   type: string
   severity: 'low' | 'medium' | 'high'
   message: string
-  data: any
+  data: { ip?: string; email?: string; count?: number }
   timestamp: string
 }
 
