@@ -44,7 +44,7 @@ const friendsApi = {
   },
 
   // Send friend request
-  sendFriendRequest: async (email: string): Promise<{ success: boolean; data: any; message: string }> => {
+  sendFriendRequest: async (email: string): Promise<{ success: boolean; data: unknown; message: string }> => {
     const token = await getAuthToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -66,7 +66,7 @@ const friendsApi = {
   },
 
   // Accept friend request
-  acceptFriendRequest: async (connectionId: string): Promise<{ success: boolean; data: any; message: string }> => {
+  acceptFriendRequest: async (connectionId: string): Promise<{ success: boolean; data: unknown; message: string }> => {
     const token = await getAuthToken();
     const headers: Record<string, string> = {};
     if (token) {
@@ -85,7 +85,7 @@ const friendsApi = {
   },
 
   // Decline friend request
-  declineFriendRequest: async (connectionId: string): Promise<{ success: boolean; data: any; message: string }> => {
+  declineFriendRequest: async (connectionId: string): Promise<{ success: boolean; data: unknown; message: string }> => {
     const token = await getAuthToken();
     const headers: Record<string, string> = {};
     if (token) {

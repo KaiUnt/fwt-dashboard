@@ -16,7 +16,7 @@ interface CommentatorInfoSectionProps {
 
 export function CommentatorInfoSection({
   athleteId,
-  athleteName,
+  athleteName: _athleteName,
   commentatorInfo,
   onEdit,
 }: CommentatorInfoSectionProps) {

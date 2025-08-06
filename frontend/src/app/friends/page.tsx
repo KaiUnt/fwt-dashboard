@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { UserPlus, UserCheck, UserX, Mail, Check, X, Users, UserMinus } from 'lucide-react';
+import { UserPlus, UserCheck, Mail, Check, X, Users, UserMinus } from 'lucide-react';
 import { useFriends, usePendingFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useDeclineFriendRequest, useRemoveFriend } from '@/hooks/useFriends';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export default function FriendsPage() {
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   const [email, setEmail] = useState('');
   const [isSendingRequest, setIsSendingRequest] = useState(false);
 
