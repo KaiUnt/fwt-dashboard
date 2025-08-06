@@ -69,23 +69,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-      // Add timeout for profile fetch (increased to 15 seconds)
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
-      })
-      
-      const fetchPromise = supabase
+      // Simplified profile fetch without race condition
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single()
-
-      const result = await Promise.race([
-        fetchPromise,
-        timeoutPromise
-      ]) as PostgrestSingleResponse<UserProfile>
-      
-      const { data, error } = result
       
       if (error) {
         // PGRST116 means no rows returned, which is OK for new users
@@ -121,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
         isInitialLoad = false
       }
-    }, 20000) // 20 seconds timeout
+    }, 10000) // Reduced to 10 seconds timeout
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -149,36 +138,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     )
-
-    // Get initial session only if we haven't loaded yet
-    const getInitialSession = async () => {
-      if (!isInitialLoad) return
-      
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        // Only handle initial session if auth state change hasn't fired yet
-        if (isInitialLoad) {
-          setUser(session?.user ?? null)
-          
-          if (session?.user) {
-            const profile = await fetchProfile(session.user.id)
-            setProfile(profile)
-          } else {
-            setProfile(null)
-          }
-          
-          setLoading(false)
-          isInitialLoad = false
-        }
-      } catch (error) {
-        console.error('Error getting initial session:', error)
-        setLoading(false)
-        isInitialLoad = false
-      }
-    }
-
-    getInitialSession()
 
     return () => {
       clearTimeout(timeout)

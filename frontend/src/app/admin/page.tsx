@@ -77,18 +77,34 @@ export default function AdminDashboard() {
 
       if (sessionsError) throw sessionsError
 
-      // Fetch recent actions (last 24 hours)
+      // Fetch recent actions (last 24 hours) - separate queries to avoid JOIN issues
       const { data: actions, error: actionsError } = await supabase
         .from('user_actions')
-        .select(`
-          *,
-          user_profiles!inner(full_name, email)
-        `)
+        .select('*')
         .gte('timestamp', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .order('timestamp', { ascending: false })
         .limit(50)
 
       if (actionsError) throw actionsError
+
+      // Fetch user profiles for actions (if we have actions)
+      let actionsWithProfiles = actions || []
+      if (actions && actions.length > 0) {
+        const userIds = [...new Set(actions.map(action => action.user_id).filter(Boolean))]
+        
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('user_profiles')
+            .select('id, full_name, email')
+            .in('id', userIds)
+          
+          // Combine actions with profile data
+          actionsWithProfiles = actions.map(action => ({
+            ...action,
+            user_profiles: profiles?.find(profile => profile.id === action.user_id) || null
+          }))
+        }
+      }
 
       // Fetch login activity for today
       const today = new Date().toISOString().split('T')[0]
@@ -165,7 +181,7 @@ export default function AdminDashboard() {
 
       setAllUsers(users || [])
       setActiveSessions(sessions || [])
-      setRecentActions(actions || [])
+      setRecentActions(actionsWithProfiles || [])
       setSecurityAlerts(alerts)
       setFailedAttempts(failedAttemptsData || [])
       setStats({
