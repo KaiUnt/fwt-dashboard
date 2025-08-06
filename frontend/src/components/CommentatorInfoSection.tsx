@@ -30,6 +30,23 @@ export function CommentatorInfoSection({
   const { data: friendsData } = useCommentatorInfoWithFriends(athleteId, 'friends');
   const { data: mergedData } = useMergedCommentatorInfo(athleteId);
 
+  const countFields = (info: CommentatorInfo | null): number => {
+    if (!info) return 0;
+    return [
+      info.homebase,
+      info.team,
+      info.sponsors,
+      info.favorite_trick,
+      info.achievements,
+      info.injuries,
+      info.fun_facts,
+      info.notes,
+      info.social_media?.instagram,
+      info.social_media?.youtube,
+      info.social_media?.website
+    ].filter(Boolean).length;
+  };
+
   // Build tabs
   const tabs: TabData[] = [
     {
@@ -70,23 +87,6 @@ export function CommentatorInfoSection({
 
   const handleToggle = () => {
     setIsExpanded(!isExpanded);
-  };
-
-  const countFields = (info: CommentatorInfo | null): number => {
-    if (!info) return 0;
-    return [
-      info.homebase,
-      info.team,
-      info.sponsors,
-      info.favorite_trick,
-      info.achievements,
-      info.injuries,
-      info.fun_facts,
-      info.notes,
-      info.social_media?.instagram,
-      info.social_media?.youtube,
-      info.social_media?.website
-    ].filter(Boolean).length;
   };
 
   const renderCommentatorInfo = (data: CommentatorInfoWithAuthor[]) => {
