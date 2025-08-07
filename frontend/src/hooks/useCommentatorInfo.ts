@@ -272,10 +272,8 @@ export function useUpdateCommentatorInfo() {
           cache[athleteId] = updatedInfo;
           setCommentatorInfoCache(cache);
           
-          console.log('Successfully updated commentator info online for athlete:', athleteId);
           return updatedInfo;
         } catch (error: unknown) {
-          console.warn('Online update failed for athlete:', athleteId, error);
           
           // Re-throw authentication and permission errors immediately
           if (error instanceof Error && (error.message?.includes('Authentication') || error.message?.includes('permission'))) {
@@ -283,10 +281,8 @@ export function useUpdateCommentatorInfo() {
           }
           
           // For other errors, fall through to offline handling
-          console.log('Falling back to offline storage for athlete:', athleteId);
         }
       } else {
-        console.log('Device is offline, using offline storage for athlete:', athleteId);
       }
       
       // Offline handling
@@ -330,7 +326,6 @@ export function useUpdateCommentatorInfo() {
       queue.push(queueItem);
       setSyncQueue(queue);
       
-      console.log('Saved commentator info offline for athlete:', athleteId, 'Queue item:', queueItem);
       return updatedInfo;
     },
     onSuccess: (data, variables) => {

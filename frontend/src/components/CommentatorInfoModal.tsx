@@ -194,7 +194,6 @@ export function CommentatorInfoModal({
 
   if (!isOpen) return null;
 
-  console.log('CommentatorInfoModal rendering:', { isOpen, athleteId, athleteName });
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">

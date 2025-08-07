@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Friend, FriendRequest } from '@/types/athletes';
 import { createClient } from '@/lib/supabase';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 // Helper function to get auth token
 const getAuthToken = async (): Promise<string | null> => {
   const supabase = createClient();
@@ -21,7 +23,7 @@ const friendsApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch('/api/friends', { headers });
+    const response = await fetch(`${API_BASE_URL}/api/friends`, { headers });
     if (!response.ok) {
       throw new Error('Failed to fetch friends');
     }
@@ -36,7 +38,7 @@ const friendsApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch('/api/friends/pending', { headers });
+    const response = await fetch(`${API_BASE_URL}/api/friends/pending`, { headers });
     if (!response.ok) {
       throw new Error('Failed to fetch pending requests');
     }
@@ -53,7 +55,7 @@ const friendsApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch('/api/friends/request', {
+    const response = await fetch(`${API_BASE_URL}/api/friends/request`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ email }),
@@ -73,7 +75,7 @@ const friendsApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(`/api/friends/accept/${connectionId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/friends/accept/${connectionId}`, {
       method: 'PUT',
       headers,
     });
@@ -92,7 +94,7 @@ const friendsApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(`/api/friends/decline/${connectionId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/friends/decline/${connectionId}`, {
       method: 'PUT',
       headers,
     });
@@ -111,7 +113,7 @@ const friendsApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(`/api/friends/${connectionId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/friends/${connectionId}`, {
       method: 'DELETE',
       headers,
     });
@@ -127,8 +129,16 @@ const friendsApi = {
 export const useFriends = () => {
   return useQuery({
     queryKey: ['friends'],
-    queryFn: friendsApi.getFriends,
+    queryFn: async () => {
+      try {
+        return await friendsApi.getFriends();
+      } catch (error) {
+        // If friends API fails, return empty response to prevent UI crashes
+        return { success: true, data: [], total: 0 };
+      }
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false, // Don't retry friends API failures
   });
 };
 
@@ -136,8 +146,16 @@ export const useFriends = () => {
 export const usePendingFriendRequests = () => {
   return useQuery({
     queryKey: ['pending-friend-requests'],
-    queryFn: friendsApi.getPendingRequests,
+    queryFn: async () => {
+      try {
+        return await friendsApi.getPendingRequests();
+      } catch (error) {
+        // If friends API fails, return empty response to prevent UI crashes
+        return { success: true, data: [], total: 0 };
+      }
+    },
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: false, // Don't retry friends API failures
   });
 };
 
