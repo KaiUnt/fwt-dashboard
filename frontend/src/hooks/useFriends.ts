@@ -14,34 +14,15 @@ const getAuthToken = async (): Promise<string | null> => {
     // Get current session
     const { data: { session } } = await supabase.auth.getSession();
     
-    // If no session, try to refresh
+    // If no session, return null immediately - don't try to refresh
     if (!session) {
-      console.log('No session found, attempting to refresh...');
-      const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
-      if (error) {
-        console.error('Failed to refresh session:', error);
-        return null;
-      }
-      return refreshedSession?.access_token || null;
+      console.log('No session found');
+      return null;
     }
     
-    // Check if token is about to expire (within 5 minutes)
-    if (session.expires_at) {
-      const expiresAt = new Date(session.expires_at).getTime();
-      const now = Date.now();
-      const fiveMinutes = 5 * 60 * 1000;
-      
-      if (expiresAt - now < fiveMinutes) {
-        console.log('Token expiring soon, refreshing...');
-        const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
-        if (error) {
-          console.error('Failed to refresh session:', error);
-          return session.access_token; // Return current token if refresh fails
-        }
-        return refreshedSession?.access_token || session.access_token;
-      }
-    }
-    
+    // Always return the current token - don't try to refresh automatically
+    // The user can refresh manually if needed
+    console.log('Token available, expires at:', session.expires_at);
     return session.access_token || null;
   } catch (error) {
     console.error('Error getting auth token:', error);
