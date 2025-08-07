@@ -6,7 +6,7 @@ python-multipart==0.0.6
 httpx==0.25.2
 python-dotenv==1.0.0
 slowapi==0.1.9
-PyJWT==2.8.0
+PyJWT==2.10.1
 
 # Use pydantic 1.x - NO Rust compilation required!
 pydantic==1.10.12 

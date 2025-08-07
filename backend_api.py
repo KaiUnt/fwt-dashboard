@@ -66,6 +66,12 @@ SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")
 # JWT token security
 security = HTTPBearer()
 
+def get_user_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Extract raw user JWT token from credentials"""
+    if not credentials or not credentials.credentials:
+        raise HTTPException(status_code=401, detail="Authorization token required")
+    return credentials.credentials
+
 def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """Extract user ID from Supabase JWT token with robust error handling"""
     try:
@@ -217,15 +223,28 @@ class SupabaseClient:
             raise ValueError("Supabase URL and key are required")
         
         self.url = url.rstrip('/')
-        self.key = key
-        self.headers = {
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
+        self.key = key  # This is the anon key for public access
+        
+    def _get_headers(self, user_token: Optional[str] = None):
+        """Get headers for Supabase request, preferring user token for RLS"""
+        headers = {
+            "apikey": self.key,  # Always required
             "Content-Type": "application/json",
             "Prefer": "return=representation"
         }
+        
+        if user_token:
+            # Use user JWT token for RLS-enabled operations
+            headers["Authorization"] = f"Bearer {user_token}"
+            logger.info("Using user JWT token for Supabase request (RLS enabled)")
+        else:
+            # Fall back to service key for non-RLS operations
+            headers["Authorization"] = f"Bearer {self.key}"
+            logger.info("Using service key for Supabase request (no RLS)")
+        
+        return headers
     
-    async def select(self, table: str, columns: str = "*", filters: dict = None):
+    async def select(self, table: str, columns: str = "*", filters: dict = None, user_token: Optional[str] = None):
         """Select data from table with input validation"""
         # Validate table name
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
@@ -241,19 +260,23 @@ class SupabaseClient:
                     raise ValueError(f"Invalid filter key: {key}")
                 params[f"{key}"] = f"eq.{value}"
         
+        headers = self._get_headers(user_token)
+        
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(url, headers=self.headers, params=params)
+                response = await client.get(url, headers=headers, params=params)
                 response.raise_for_status()
                 return response.json()
         except httpx.TimeoutException:
             logger.error("Supabase request timeout")
             raise HTTPException(status_code=504, detail="Database request timeout")
         except httpx.HTTPStatusError as e:
-            logger.error(f"Supabase HTTP error: {e.response.status_code}")
+            logger.error(f"Supabase HTTP error: {e.response.status_code} - {e.response.text}")
+            if e.response.status_code == 401:
+                raise HTTPException(status_code=401, detail="Database authentication failed - user token may be invalid")
             raise HTTPException(status_code=500, detail="Database error")
     
-    async def insert(self, table: str, data: dict):
+    async def insert(self, table: str, data: dict, user_token: Optional[str] = None):
         """Insert data into table with validation"""
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
             raise ValueError("Invalid table name")
@@ -261,20 +284,23 @@ class SupabaseClient:
         # Sanitize data
         sanitized_data = self._sanitize_data(data)
         url = f"{self.url}/rest/v1/{table}"
+        headers = self._get_headers(user_token)
         
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(url, headers=self.headers, json=sanitized_data)
+                response = await client.post(url, headers=headers, json=sanitized_data)
                 response.raise_for_status()
                 return response.json()
         except httpx.TimeoutException:
             logger.error("Supabase request timeout")
             raise HTTPException(status_code=504, detail="Database request timeout")
         except httpx.HTTPStatusError as e:
-            logger.error(f"Supabase HTTP error: {e.response.status_code}")
+            logger.error(f"Supabase HTTP error: {e.response.status_code} - {e.response.text}")
+            if e.response.status_code == 401:
+                raise HTTPException(status_code=401, detail="Database authentication failed - user token may be invalid")
             raise HTTPException(status_code=500, detail="Database error")
     
-    async def update(self, table: str, data: dict, filters: dict):
+    async def update(self, table: str, data: dict, filters: dict, user_token: Optional[str] = None):
         """Update data in table with validation"""
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
             raise ValueError("Invalid table name")
@@ -282,6 +308,7 @@ class SupabaseClient:
         sanitized_data = self._sanitize_data(data)
         url = f"{self.url}/rest/v1/{table}"
         params = {}
+        headers = self._get_headers(user_token)
         
         if filters:
             for key, value in filters.items():
@@ -291,14 +318,16 @@ class SupabaseClient:
         
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.patch(url, headers=self.headers, params=params, json=sanitized_data)
+                response = await client.patch(url, headers=headers, params=params, json=sanitized_data)
                 response.raise_for_status()
                 return response.json()
         except httpx.TimeoutException:
             logger.error("Supabase request timeout")
             raise HTTPException(status_code=504, detail="Database request timeout")
         except httpx.HTTPStatusError as e:
-            logger.error(f"Supabase HTTP error: {e.response.status_code}")
+            logger.error(f"Supabase HTTP error: {e.response.status_code} - {e.response.text}")
+            if e.response.status_code == 401:
+                raise HTTPException(status_code=401, detail="Database authentication failed - user token may be invalid")
             raise HTTPException(status_code=500, detail="Database error")
     
     async def rpc(self, function_name: str, params: dict = None):
@@ -1107,15 +1136,18 @@ async def create_commentator_info(
 async def update_commentator_info(
     athlete_id: str, 
     info: CommentatorInfoUpdate,
-    current_user_id: str = Depends(extract_user_id_from_token)
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
 ):
-    """Update commentator info for an athlete"""
+    """Update commentator info for an athlete with user token forwarding"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        # Check if record exists
-        existing = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id})
+        logger.info(f"Updating commentator info for athlete {athlete_id} with user token")
+        
+        # Check if record exists (using user token for RLS)
+        existing = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id}, user_token=user_token)
         
         if not existing:
             # Create new record if it doesn't exist
@@ -1123,25 +1155,30 @@ async def update_commentator_info(
             create_data_dict = create_data.dict()
             create_data_dict["created_by"] = current_user_id
             
-            # Get user profile for author name
-            user_profile = await supabase_client.select("user_profiles", "full_name", {"id": current_user_id})
+            # Get user profile for author name (using user token)
+            user_profile = await supabase_client.select("user_profiles", "full_name", {"id": current_user_id}, user_token=user_token)
             if user_profile:
                 create_data_dict["author_name"] = user_profile[0]["full_name"]
             
-            result = await supabase_client.insert("commentator_info", create_data_dict)
+            result = await supabase_client.insert("commentator_info", create_data_dict, user_token=user_token)
         else:
-            # Update existing record
+            # Update existing record (using user token for RLS)
             update_data = {k: v for k, v in info.dict().items() if v is not None}
-            result = await supabase_client.update("commentator_info", update_data, {"athlete_id": athlete_id})
+            result = await supabase_client.update("commentator_info", update_data, {"athlete_id": athlete_id}, user_token=user_token)
         
+        logger.info(f"Successfully updated commentator info for athlete {athlete_id}")
         return {
             "success": True,
             "data": result[0] if result else None,
             "message": "Commentator info updated successfully"
         }
         
+    except HTTPException as http_ex:
+        # Re-raise HTTP exceptions (including 401 from Supabase)
+        logger.error(f"HTTP error updating commentator info for athlete {athlete_id}: {http_ex.status_code} - {http_ex.detail}")
+        raise
     except Exception as e:
-        logger.error(f"Error updating commentator info for athlete {athlete_id}: {e}")
+        logger.error(f"Unexpected error updating commentator info for athlete {athlete_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update commentator info: {str(e)}")
 
 @app.delete("/api/commentator-info/{athlete_id}")
