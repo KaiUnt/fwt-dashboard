@@ -132,20 +132,53 @@ const updateCommentatorInfo = async (athleteId: string, info: Partial<Commentato
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  
+  if (!token) {
+    throw new Error('Authentication required. Please log in again.');
   }
+  
+  headers['Authorization'] = `Bearer ${token}`;
   
   const response = await fetch(`${API_BASE_URL}/api/commentator-info/${athleteId}`, {
     method: 'PUT',
     headers,
     body: JSON.stringify(info),
   });
+  
   if (!response.ok) {
-    throw new Error(`Failed to update commentator info: ${response.status}`);
+    let errorMessage = `Failed to update commentator info: ${response.status}`;
+    
+    try {
+      const errorData = await response.json();
+      if (errorData.detail) {
+        errorMessage = errorData.detail;
+      }
+    } catch (parseError) {
+      // If we can't parse the error response, use the default message
+      console.warn('Could not parse error response:', parseError);
+    }
+    
+    // Handle specific status codes
+    if (response.status === 401) {
+      throw new Error('Authentication failed. Please refresh the page and log in again.');
+    } else if (response.status === 403) {
+      throw new Error('You do not have permission to edit this athlete\'s information.');
+    } else if (response.status === 404) {
+      throw new Error('Athlete not found.');
+    } else if (response.status === 503) {
+      throw new Error('Service temporarily unavailable. Please try again later.');
+    }
+    
+    throw new Error(errorMessage);
   }
+  
   const data: CommentatorInfoResponse = await response.json();
-  return data.data!;
+  
+  if (!data.data) {
+    throw new Error('Invalid response from server.');
+  }
+  
+  return data.data;
 };
 
 // Main hook for fetching commentator info
@@ -224,31 +257,59 @@ export function useUpdateCommentatorInfo() {
 
   return useMutation({
     mutationFn: async ({ athleteId, info }: { athleteId: string; info: Partial<CommentatorInfo> }) => {
+      // Validate input
+      if (!athleteId || !info) {
+        throw new Error('Invalid input: athleteId and info are required');
+      }
+      
       if (!isOffline) {
         try {
           // Try online update
           const updatedInfo = await updateCommentatorInfo(athleteId, info);
           
-          // Update cache
+          // Update cache on successful online update
           const cache = getCommentatorInfoCache();
           cache[athleteId] = updatedInfo;
           setCommentatorInfoCache(cache);
           
+          console.log('Successfully updated commentator info online for athlete:', athleteId);
           return updatedInfo;
-        } catch (error) {
-          console.warn('Online update failed, queuing for sync:', error);
-          // Fall through to offline handling
+        } catch (error: unknown) {
+          console.warn('Online update failed for athlete:', athleteId, error);
+          
+          // Re-throw authentication and permission errors immediately
+          if (error instanceof Error && (error.message?.includes('Authentication') || error.message?.includes('permission'))) {
+            throw error;
+          }
+          
+          // For other errors, fall through to offline handling
+          console.log('Falling back to offline storage for athlete:', athleteId);
         }
+      } else {
+        console.log('Device is offline, using offline storage for athlete:', athleteId);
       }
       
       // Offline handling
       const cache = getCommentatorInfoCache();
       const existingInfo = cache[athleteId];
       
+      // Create updated info object
       const updatedInfo: CommentatorInfo = {
-        ...existingInfo,
-        ...info,
+        id: existingInfo?.id || `offline-${athleteId}`,
         athlete_id: athleteId,
+        homebase: info.homebase || existingInfo?.homebase || '',
+        team: info.team || existingInfo?.team || '',
+        sponsors: info.sponsors || existingInfo?.sponsors || '',
+        favorite_trick: info.favorite_trick || existingInfo?.favorite_trick || '',
+        achievements: info.achievements || existingInfo?.achievements || '',
+        injuries: info.injuries || existingInfo?.injuries || '',
+        fun_facts: info.fun_facts || existingInfo?.fun_facts || '',
+        notes: info.notes || existingInfo?.notes || '',
+        social_media: {
+          ...existingInfo?.social_media,
+          ...info.social_media,
+        },
+        created_at: existingInfo?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       
@@ -258,20 +319,35 @@ export function useUpdateCommentatorInfo() {
       
       // Add to sync queue
       const queue = getSyncQueue();
-      queue.push({
+      const queueItem: SyncQueueItem = {
         id: `${athleteId}-${Date.now()}`,
         athleteId,
         action: existingInfo ? 'update' : 'create',
         data: info,
         timestamp: Date.now(),
-      });
+      };
+      
+      queue.push(queueItem);
       setSyncQueue(queue);
       
+      console.log('Saved commentator info offline for athlete:', athleteId, 'Queue item:', queueItem);
       return updatedInfo;
     },
     onSuccess: (data, variables) => {
-      // Invalidate and refetch
+      // Update React Query cache
       queryClient.setQueryData(['commentator-info', variables.athleteId], data);
+      
+      // Invalidate all related queries to ensure UI consistency
+      queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId] });
+      queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId, 'mine'] });
+      queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId, 'friends'] });
+      queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId, 'all'] });
+      
+      // Also update the basic commentator info query for backwards compatibility
+      queryClient.invalidateQueries({ queryKey: ['commentator-info'] });
+    },
+    onError: (error: unknown, variables) => {
+      console.error('Failed to update commentator info for athlete:', variables.athleteId, error);
     },
   });
 }
