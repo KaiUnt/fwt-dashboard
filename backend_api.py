@@ -1475,7 +1475,8 @@ async def get_pending_friend_requests(
 @app.put("/api/friends/accept/{connection_id}")
 async def accept_friend_request(
     connection_id: str,
-    current_user_id: str = Depends(extract_user_id_from_token)
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
 ):
     """Accept a friend request"""
     if not supabase_client:
@@ -1486,7 +1487,8 @@ async def accept_friend_request(
         result = await supabase_client.update(
             "user_connections",
             {"status": "accepted"},
-            {"id": connection_id, "addressee_id": current_user_id}
+            {"id": connection_id, "addressee_id": current_user_id},
+            user_token
         )
         
         if not result:
@@ -1507,7 +1509,8 @@ async def accept_friend_request(
 @app.put("/api/friends/decline/{connection_id}")
 async def decline_friend_request(
     connection_id: str,
-    current_user_id: str = Depends(extract_user_id_from_token)
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
 ):
     """Decline a friend request"""
     if not supabase_client:
@@ -1518,7 +1521,8 @@ async def decline_friend_request(
         result = await supabase_client.update(
             "user_connections",
             {"status": "declined"},
-            {"id": connection_id, "addressee_id": current_user_id}
+            {"id": connection_id, "addressee_id": current_user_id},
+            user_token
         )
         
         if not result:
@@ -1539,7 +1543,8 @@ async def decline_friend_request(
 @app.delete("/api/friends/{connection_id}")
 async def remove_friend(
     connection_id: str,
-    current_user_id: str = Depends(extract_user_id_from_token)
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
 ):
     """Remove a friend connection"""
     if not supabase_client:
@@ -1549,7 +1554,8 @@ async def remove_friend(
         # Delete connection where user is involved
         result = await supabase_client.delete(
             "user_connections",
-            {"id": connection_id}
+            {"id": connection_id},
+            user_token
         )
         
         if not result:
@@ -1567,7 +1573,10 @@ async def remove_friend(
         raise HTTPException(status_code=500, detail=f"Failed to remove friend: {str(e)}")
 
 @app.get("/api/friends")
-async def get_friends(current_user_id: str = Depends(extract_user_id_from_token)):
+async def get_friends(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
     """Get list of accepted friends"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -1577,7 +1586,8 @@ async def get_friends(current_user_id: str = Depends(extract_user_id_from_token)
         result = await supabase_client.select(
             "user_connections", 
             "*", 
-            {"status": "accepted"}
+            {"status": "accepted"},
+            user_token
         )
         
         # Filter connections where current user is involved
@@ -1590,7 +1600,7 @@ async def get_friends(current_user_id: str = Depends(extract_user_id_from_token)
         friends = []
         for connection in user_connections:
             friend_id = connection["addressee_id"] if connection["requester_id"] == current_user_id else connection["requester_id"]
-            friend = await supabase_client.select("user_profiles", "*", {"id": friend_id})
+            friend = await supabase_client.select("user_profiles", "*", {"id": friend_id}, user_token)
             if friend:
                 friends.append({
                     **connection,
