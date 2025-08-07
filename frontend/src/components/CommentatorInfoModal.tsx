@@ -5,7 +5,6 @@ import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, Fil
 import { CommentatorInfo } from '@/types/athletes';
 import { useUpdateCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { useTranslation } from '@/hooks/useTranslation';
-import { debugAuthSession } from '@/lib/supabase';
 
 interface CommentatorInfoModalProps {
   athleteId: string;
