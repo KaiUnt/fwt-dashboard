@@ -7,11 +7,33 @@ import { createClient } from '@/lib/supabase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Helper function to get auth token
+// Helper function to get auth token with debugging
 const getAuthToken = async (): Promise<string | null> => {
   const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+  const { data: { session }, error } = await supabase.auth.getSession();
+  
+  console.log('Auth Debug - Session:', {
+    hasSession: !!session,
+    hasAccessToken: !!session?.access_token,
+    userId: session?.user?.id,
+    tokenLength: session?.access_token?.length,
+    error: error
+  });
+  
+  if (!session?.access_token) {
+    console.warn('Auth Debug - No access token found in session');
+    return null;
+  }
+  
+  // Validate token format
+  const tokenParts = session.access_token.split('.');
+  console.log('Auth Debug - Token parts:', tokenParts.length);
+  
+  if (tokenParts.length !== 3) {
+    console.warn('Auth Debug - Invalid JWT format, expected 3 parts, got:', tokenParts.length);
+  }
+  
+  return session.access_token;
 };
 
 // Storage keys

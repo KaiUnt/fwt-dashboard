@@ -69,47 +69,67 @@ security = HTTPBearer()
 def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """Extract user ID from Supabase JWT token with robust error handling"""
     try:
+        logger.info("=== JWT Token Validation Debug ===")
+        
         if not credentials or not credentials.credentials:
+            logger.error("No credentials provided in request")
             raise HTTPException(status_code=401, detail="Authorization token required")
+        
+        token = credentials.credentials
+        logger.info(f"Received token length: {len(token)}")
+        logger.info(f"Token starts with: {token[:20]}...")
         
         # Decode the JWT token without verification (Supabase handles verification)
         # The token structure is: header.payload.signature
-        token_parts = credentials.credentials.split('.')
+        token_parts = token.split('.')
+        logger.info(f"Token parts count: {len(token_parts)}")
+        
         if len(token_parts) != 3:
-            logger.warning(f"Invalid token format: expected 3 parts, got {len(token_parts)}")
+            logger.error(f"Invalid token format: expected 3 parts, got {len(token_parts)}")
+            logger.error(f"Token parts lengths: {[len(part) for part in token_parts]}")
             raise HTTPException(status_code=401, detail="Invalid token format")
         
         # Decode the payload (second part)
         payload = token_parts[1]
+        logger.info(f"Payload part length: {len(payload)}")
+        
         # Add padding if needed for base64 decoding
         padding_needed = 4 - len(payload) % 4
         if padding_needed != 4:
             payload += '=' * padding_needed
+            logger.info(f"Added {padding_needed} padding characters")
         
         # Decode base64
         import base64
         
         try:
             decoded_payload = base64.urlsafe_b64decode(payload).decode('utf-8')
+            logger.info(f"Successfully decoded payload, length: {len(decoded_payload)}")
         except Exception as decode_error:
-            logger.error(f"Base64 decode error: {decode_error}")
+            logger.error(f"Base64 decode error: {type(decode_error).__name__}: {decode_error}")
+            logger.error(f"Payload sample: {payload[:50]}...")
             raise HTTPException(status_code=401, detail="Invalid token encoding")
         
         try:
             token_data = json.loads(decoded_payload)
+            logger.info(f"Successfully parsed JSON. Available fields: {list(token_data.keys())}")
         except json.JSONDecodeError as json_error:
             logger.error(f"JSON decode error: {json_error}")
+            logger.error(f"Payload content: {decoded_payload[:200]}...")
             raise HTTPException(status_code=401, detail="Invalid token payload")
         
         # Extract user ID (usually 'sub' field in JWT)
         user_id = token_data.get('sub')
+        logger.info(f"Extracted user_id: {user_id}")
+        
         if not user_id:
-            logger.warning(f"User ID not found in token payload. Available fields: {list(token_data.keys())}")
+            logger.error(f"User ID not found in token payload. Available fields: {list(token_data.keys())}")
+            logger.error(f"Token data sample: {dict(list(token_data.items())[:5])}")
             raise HTTPException(status_code=401, detail="User ID not found in token")
         
         # Validate user_id format (should be UUID for Supabase)
         if not isinstance(user_id, str) or len(user_id.strip()) == 0:
-            logger.warning(f"Invalid user_id format: {user_id}")
+            logger.error(f"Invalid user_id format: {user_id} (type: {type(user_id)})")
             raise HTTPException(status_code=401, detail="Invalid user ID format")
         
         # Check token expiration
@@ -117,18 +137,24 @@ def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depen
         if exp:
             import time
             current_time = int(time.time())
+            logger.info(f"Token expiration check: current={current_time}, exp={exp}")
             if current_time > exp:
+                logger.error(f"Token expired: current time {current_time} > exp {exp}")
                 raise HTTPException(status_code=401, detail="Token has expired")
         
-        logger.debug(f"Successfully extracted user_id: {user_id[:8]}...")
+        logger.info(f"Successfully validated token for user: {user_id[:8]}...")
         return user_id.strip()
         
-    except HTTPException:
+    except HTTPException as http_ex:
+        logger.error(f"HTTP Exception in token validation: {http_ex.status_code} - {http_ex.detail}")
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
         logger.error(f"Unexpected token validation error: {type(e).__name__}: {e}")
-        raise HTTPException(status_code=401, detail="Authentication failed")
+        logger.error(f"Exception details: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Authentication processing failed: {type(e).__name__}")
 
 # Input validation schemas
 class EventIdSchema(BaseModel):

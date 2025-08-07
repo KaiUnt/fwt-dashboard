@@ -5,6 +5,7 @@ import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, Fil
 import { CommentatorInfo } from '@/types/athletes';
 import { useUpdateCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { useTranslation } from '@/hooks/useTranslation';
+import { debugAuthSession } from '@/lib/supabase';
 
 interface CommentatorInfoModalProps {
   athleteId: string;
@@ -91,6 +92,9 @@ export function CommentatorInfoModal({
     setIsSaving(true);
     setError(null);
     
+    // Debug auth session before making API call
+    await debugAuthSession();
+    
     try {
       await updateMutation.mutateAsync({
         athleteId,
@@ -107,24 +111,51 @@ export function CommentatorInfoModal({
     } catch (error: unknown) {
       console.error('Failed to save commentator info:', error);
       
-      // Extract meaningful error message
+      // Extract meaningful error message with enhanced auth handling
       let errorMessage = 'Failed to save commentator info.';
+      
+      console.error('Save error details:', {
+        error,
+        type: typeof error,
+        message: error instanceof Error ? error.message : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       
       if (error instanceof Error) {
         errorMessage = error.message;
+        
+        // Enhanced auth error detection
+        if (error.message.includes('Authentication') || 
+            error.message.includes('authorization') ||
+            error.message.includes('token') ||
+            error.message.includes('401')) {
+          errorMessage = 'Authentication required. Please log in and try again.';
+        }
       } else if (error && typeof error === 'object' && 'response' in error) {
         const responseError = error as { response?: { data?: { detail?: string }; status?: number } };
+        
+        console.error('Response error details:', {
+          status: responseError.response?.status,
+          detail: responseError.response?.data?.detail,
+          data: responseError.response?.data
+        });
+        
         if (responseError.response?.data?.detail) {
           errorMessage = responseError.response.data.detail;
         } else if (responseError.response?.status === 401) {
-          errorMessage = 'Authentication failed. Please refresh the page and try again.';
+          errorMessage = 'Authentication failed. Please refresh the page and log in again.';
         } else if (responseError.response?.status === 403) {
           errorMessage = 'You do not have permission to edit this information.';
         } else if (responseError.response?.status === 500) {
-          errorMessage = 'Server error. Please try again later.';
+          errorMessage = 'Server error occurred. Please check the browser console and try again.';
         }
       } else if (!navigator.onLine) {
         errorMessage = 'No internet connection. Changes will be saved when you come back online.';
+      }
+      
+      // Additional check for common auth issues
+      if (errorMessage.includes('Failed to update commentator info:') && !errorMessage.includes('Authentication')) {
+        errorMessage += ' This might be an authentication issue. Please refresh the page and try again.';
       }
       
       setError(errorMessage);
