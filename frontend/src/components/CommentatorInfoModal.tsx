@@ -97,7 +97,6 @@ export function CommentatorInfoModal({
     if (isOpen && initialData && !isSaving && !showSuccess) {
       console.log('=== MODAL DATA UPDATE DEBUG ===');
       console.log('Modal is open, updating with new data:', initialData);
-      console.log('Current form data before update:', formData);
       
       setFormData({
         homebase: initialData.homebase || '',
@@ -115,7 +114,7 @@ export function CommentatorInfoModal({
         },
       });
     }
-  }, [initialData, isOpen, isSaving, showSuccess, formData]);
+  }, [initialData, isOpen, isSaving, showSuccess]); // ✅ Removed formData dependency!
 
   const handleSave = async () => {
     if (isSaving) return; // Prevent double-clicks
