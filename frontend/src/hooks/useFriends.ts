@@ -6,11 +6,33 @@ import { createClient } from '@/lib/supabase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Helper function to get auth token
+// Helper function to get auth token with automatic refresh
 const getAuthToken = async (): Promise<string | null> => {
   const supabase = createClient();
+  
+  // Get current session
   const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+  
+  // If no session, try to refresh
+  if (!session) {
+    const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+    return refreshedSession?.access_token || null;
+  }
+  
+  // Check if token is about to expire (within 5 minutes)
+  if (session.expires_at) {
+    const expiresAt = new Date(session.expires_at).getTime();
+    const now = Date.now();
+    const fiveMinutes = 5 * 60 * 1000;
+    
+    if (expiresAt - now < fiveMinutes) {
+      // Token is about to expire, refresh it
+      const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+      return refreshedSession?.access_token || null;
+    }
+  }
+  
+  return session.access_token || null;
 };
 
 // Friends System API calls
