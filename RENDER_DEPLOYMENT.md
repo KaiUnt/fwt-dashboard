@@ -14,7 +14,7 @@ Start Command: uvicorn backend_api:app --host 0.0.0.0 --port $PORT --workers 1
 - Grund: pydantic 1.x + fastapi 0.104.x sind nicht kompatibel mit Python 3.13
 - Lösung: `runtime.txt` und `.python-version` Dateien setzen Version
 
-### Environment Variables
+### Environment Variable
 ```
 ENVIRONMENT=production
 BASIC_AUTH_USER=admin
