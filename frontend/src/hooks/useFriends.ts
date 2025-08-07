@@ -8,31 +8,45 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Helper function to get auth token with automatic refresh
 const getAuthToken = async (): Promise<string | null> => {
-  const supabase = createClient();
-  
-  // Get current session
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  // If no session, try to refresh
-  if (!session) {
-    const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-    return refreshedSession?.access_token || null;
-  }
-  
-  // Check if token is about to expire (within 5 minutes)
-  if (session.expires_at) {
-    const expiresAt = new Date(session.expires_at).getTime();
-    const now = Date.now();
-    const fiveMinutes = 5 * 60 * 1000;
+  try {
+    const supabase = createClient();
     
-    if (expiresAt - now < fiveMinutes) {
-      // Token is about to expire, refresh it
-      const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+    // Get current session
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // If no session, try to refresh
+    if (!session) {
+      console.log('No session found, attempting to refresh...');
+      const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+      if (error) {
+        console.error('Failed to refresh session:', error);
+        return null;
+      }
       return refreshedSession?.access_token || null;
     }
+    
+    // Check if token is about to expire (within 5 minutes)
+    if (session.expires_at) {
+      const expiresAt = new Date(session.expires_at).getTime();
+      const now = Date.now();
+      const fiveMinutes = 5 * 60 * 1000;
+      
+      if (expiresAt - now < fiveMinutes) {
+        console.log('Token expiring soon, refreshing...');
+        const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.error('Failed to refresh session:', error);
+          return session.access_token; // Return current token if refresh fails
+        }
+        return refreshedSession?.access_token || session.access_token;
+      }
+    }
+    
+    return session.access_token || null;
+  } catch (error) {
+    console.error('Error getting auth token:', error);
+    return null;
   }
-  
-  return session.access_token || null;
 };
 
 // Friends System API calls
@@ -69,66 +83,71 @@ const friendsApi = {
 
   // Send friend request
   sendFriendRequest: async (username: string): Promise<{ success: boolean; data: unknown; message: string }> => {
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    console.log(`Sending friend request to: ${username}`);
-    console.log(`API URL: ${API_BASE_URL}/api/friends/request`);
-    console.log(`Token available: ${!!token}`);
-    
-    const response = await fetch(`${API_BASE_URL}/api/friends/request`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ username }),
-    });
-    
-    console.log(`Response status: ${response.status}`);
-    console.log(`Response ok: ${response.ok}`);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-      console.error('Friend request error:', errorData);
-      
-      // Provide specific error messages based on status codes
-      let errorMessage = errorData.detail || 'Failed to send friend request';
-      
-      switch (response.status) {
-        case 400:
-          if (errorData.detail?.includes('yourself')) {
-            errorMessage = 'Cannot send friend request to yourself';
-          } else if (errorData.detail?.includes('Invalid email')) {
-            errorMessage = 'Invalid email format';
-          } else {
-            errorMessage = errorData.detail || 'Invalid request';
-          }
-          break;
-        case 401:
-          errorMessage = 'Please log in to send friend requests';
-          break;
-        case 404:
-          errorMessage = 'No user found with this username';
-          break;
-        case 409:
-          errorMessage = 'A friend request has already been sent to this user';
-          break;
-        case 503:
-          errorMessage = 'Service temporarily unavailable. Please try again later.';
-          break;
-        default:
-          errorMessage = errorData.detail || 'Failed to send friend request';
+    try {
+      const token = await getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
       
-      throw new Error(errorMessage);
+      console.log(`Sending friend request to: ${username}`);
+      console.log(`API URL: ${API_BASE_URL}/api/friends/request`);
+      console.log(`Token available: ${!!token}`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/friends/request`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ username }),
+      });
+      
+      console.log(`Response status: ${response.status}`);
+      console.log(`Response ok: ${response.ok}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        console.error('Friend request error:', errorData);
+        
+        // Provide specific error messages based on status codes
+        let errorMessage = errorData.detail || 'Failed to send friend request';
+        
+        switch (response.status) {
+          case 400:
+            if (errorData.detail?.includes('yourself')) {
+              errorMessage = 'Cannot send friend request to yourself';
+            } else if (errorData.detail?.includes('Invalid username')) {
+              errorMessage = 'Invalid username format';
+            } else {
+              errorMessage = errorData.detail || 'Invalid request';
+            }
+            break;
+          case 401:
+            errorMessage = 'Please log in to send friend requests';
+            break;
+          case 404:
+            errorMessage = 'No user found with this username';
+            break;
+          case 409:
+            errorMessage = 'A friend request has already been sent to this user';
+            break;
+          case 503:
+            errorMessage = 'Service temporarily unavailable. Please try again later.';
+            break;
+          default:
+            errorMessage = errorData.detail || 'Failed to send friend request';
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      const result = await response.json();
+      console.log('Friend request success:', result);
+      return result;
+    } catch (error) {
+      console.error('Error in sendFriendRequest:', error);
+      throw error;
     }
-    
-    const result = await response.json();
-    console.log('Friend request success:', result);
-    return result;
   },
 
   // Accept friend request
