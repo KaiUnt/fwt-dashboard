@@ -1134,14 +1134,22 @@ async def update_commentator_info(
         
         logger.info(f"Successfully updated commentator info for athlete {athlete_id}")
         
+        # Debug: Log what Supabase returned
+        logger.info(f"=== SUPABASE RESULT DEBUG ===")
+        logger.info(f"Result type: {type(result)}")
+        logger.info(f"Result length: {len(result) if result else 0}")
+        logger.info(f"Result content: {result}")
+        
         response_data = {
             "success": True,
             "data": result[0] if result else None,
             "message": "Commentator info updated successfully"
         }
         
-        logger.info(f"Returning response data: {response_data}")
-        logger.info(f"Result from Supabase: {result}")
+        logger.info(f"=== BACKEND RESPONSE DEBUG ===")
+        logger.info(f"Response data: {response_data}")
+        logger.info(f"Response data.data: {response_data.get('data')}")
+        logger.info(f"Response data type: {type(response_data.get('data'))}")
         
         return response_data
         

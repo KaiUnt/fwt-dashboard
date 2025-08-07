@@ -49,7 +49,11 @@ export function CommentatorInfoModal({
       setError(null); // Clear any previous errors
       setShowSuccess(false); // Clear success message
       
-      console.log('Modal initializing with data:', initialData);
+      console.log('=== MODAL INITIALIZATION DEBUG ===');
+      console.log('Modal opened for athlete:', athleteId);
+      console.log('Initial data received:', initialData);
+      console.log('Initial data type:', typeof initialData);
+      console.log('Has initial data:', !!initialData);
       
       if (initialData) {
         setFormData({
@@ -91,7 +95,10 @@ export function CommentatorInfoModal({
   // Also update form data when initialData changes while modal is open
   useEffect(() => {
     if (isOpen && initialData && !isSaving && !showSuccess) {
-      console.log('Updating form data with new initialData:', initialData);
+      console.log('=== MODAL DATA UPDATE DEBUG ===');
+      console.log('Modal is open, updating with new data:', initialData);
+      console.log('Current form data before update:', formData);
+      
       setFormData({
         homebase: initialData.homebase || '',
         team: initialData.team || '',
@@ -222,14 +229,20 @@ export function CommentatorInfoModal({
     if (!isOpen) return;
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Block all dashboard shortcuts when modal is open
-      if (e.key === 'j' || e.key === '/' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || 
-          e.key === 'h' || e.key === 'l' || e.key === 'Home' || e.key === 'End') {
-        e.preventDefault();
-        e.stopPropagation();
+      // Only prevent dashboard shortcuts when NOT in an input field
+      const target = e.target as HTMLElement;
+      const isInputField = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+      
+      if (!isInputField) {
+        // Block dashboard shortcuts when modal is open and not in input field
+        if (e.key === 'j' || e.key === '/' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || 
+            e.key === 'h' || e.key === 'l' || e.key === 'Home' || e.key === 'End') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       }
       
-      // Only allow Escape to close modal
+      // Always allow Escape to close modal
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();

@@ -20,7 +20,13 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
   const [showCommentatorModal, setShowCommentatorModal] = useState(false);
   
   // Fetch commentator info for this athlete
-  const { data: commentatorInfo } = useCommentatorInfo(athlete.id);
+  const { data: commentatorInfo, isLoading: commentatorInfoLoading, isFetching: commentatorInfoFetching } = useCommentatorInfo(athlete.id);
+  
+  // Debug logging for AthleteCard data
+  console.log(`=== ATHLETE CARD QUERY DEBUG (${athlete.id}) ===`);
+  console.log('Commentator Info Data:', commentatorInfo);
+  console.log('Loading:', commentatorInfoLoading);
+  console.log('Fetching:', commentatorInfoFetching);
 
   const getStatusBadge = (status: string) => {
     switch (status) {

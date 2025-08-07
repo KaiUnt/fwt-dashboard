@@ -174,14 +174,19 @@ const updateCommentatorInfo = async (athleteId: string, info: Partial<Commentato
   
   const data: CommentatorInfoResponse = await response.json();
   
-  console.log('Backend response for updateCommentatorInfo:', data);
-  console.log('data.data:', data.data);
+  console.log('=== FRONTEND API RESPONSE DEBUG ===');
+  console.log('Full backend response:', data);
+  console.log('Response success:', data.success);
+  console.log('Response data:', data.data);
+  console.log('Response data type:', typeof data.data);
+  console.log('Response message:', data.message);
   
   if (!data.data) {
-    console.error('No data in response:', data);
+    console.error('❌ No data in response:', data);
     throw new Error('Invalid response from server.');
   }
   
+  console.log('✅ Returning data to mutation:', data.data);
   return data.data;
 };
 
@@ -333,10 +338,22 @@ export function useUpdateCommentatorInfo() {
       return updatedInfo;
     },
     onSuccess: (data, variables) => {
+      console.log('=== MUTATION SUCCESS CALLBACK DEBUG ===');
+      console.log('Mutation success data:', data);
+      console.log('Variables (athleteId):', variables.athleteId);
+      console.log('Data type:', typeof data);
+      console.log('Data content:', data);
+      
       // Update React Query cache - this is what the AthleteCard uses
+      console.log('🔄 Setting query data in cache...');
       queryClient.setQueryData(['commentator-info', variables.athleteId], data);
       
+      // Check what's now in cache
+      const cacheData = queryClient.getQueryData(['commentator-info', variables.athleteId]);
+      console.log('📦 Data now in cache:', cacheData);
+      
       // Force refetch of the main query that AthleteCard uses
+      console.log('🔄 Invalidating queries...');
       queryClient.invalidateQueries({ queryKey: ['commentator-info', variables.athleteId] });
       
       // Invalidate all related queries to ensure UI consistency
@@ -348,7 +365,7 @@ export function useUpdateCommentatorInfo() {
       // Also update the basic commentator info query for backwards compatibility
       queryClient.invalidateQueries({ queryKey: ['commentator-info'] });
       
-      console.log('Cache invalidated for athlete:', variables.athleteId, 'Updated data:', data);
+      console.log('✅ Cache operations completed for athlete:', variables.athleteId);
     },
     onError: (error: unknown, variables) => {
       console.error('Failed to update commentator info for athlete:', variables.athleteId, error);
