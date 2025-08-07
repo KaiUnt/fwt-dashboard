@@ -9,9 +9,31 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Helper function to get auth token
 const getAuthToken = async (): Promise<string | null> => {
-  const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+  try {
+    const supabase = createClient();
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('❌ Supabase auth error:', error);
+      return null;
+    }
+    
+    if (!session) {
+      console.log('ℹ️ No active session found');
+      return null;
+    }
+    
+    if (!session.access_token) {
+      console.warn('⚠️ Session exists but no access token');
+      return null;
+    }
+    
+    console.log('✅ Auth token retrieved successfully');
+    return session.access_token;
+  } catch (error) {
+    console.error('❌ Error getting auth token:', error);
+    return null;
+  }
 };
 
 // Storage keys
@@ -72,9 +94,16 @@ const setSyncQueue = (queue: SyncQueueItem[]): void => {
 
 // Check if we're offline
 const useIsOffline = () => {
-  return typeof window !== 'undefined' && 
+  const isOffline = typeof window !== 'undefined' && 
          typeof navigator !== 'undefined' && 
          navigator.onLine === false;
+  
+  // Log offline status for debugging
+  if (typeof window !== 'undefined') {
+    console.log(`🌐 Online status: ${navigator.onLine ? 'Online' : 'Offline'}`);
+  }
+  
+  return isOffline;
 };
 
 // Online API functions
@@ -86,22 +115,49 @@ const fetchCommentatorInfo = async (athleteId: string): Promise<CommentatorInfo 
       headers['Authorization'] = `Bearer ${token}`;
     }
     
+    console.log(`🔍 Fetching commentator info for athlete ${athleteId}`);
+    console.log(`🔑 Token available: ${!!token}`);
+    console.log(`🔑 Token length: ${token ? token.length : 0}`);
+    console.log(`🌐 API URL: ${API_BASE_URL}/api/commentator-info/${athleteId}`);
+    console.log(`📤 Request headers:`, headers);
+    
     const response = await fetch(`${API_BASE_URL}/api/commentator-info/${athleteId}`, { headers });
+    
+    console.log(`📡 Response status: ${response.status}`);
+    console.log(`📡 Response ok: ${response.ok}`);
+    console.log(`📡 Response headers:`, Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
       // Handle expected cases where no commentator info exists
       if (response.status === 404 || response.status === 503) {
-        console.log(`No commentator info available for athlete ${athleteId} (${response.status})`);
+        console.log(`ℹ️ No commentator info available for athlete ${athleteId} (${response.status})`);
         return null;
       }
-      throw new Error(`Failed to fetch commentator info: ${response.status}`);
+      
+      // Log more details for other errors
+      const errorText = await response.text();
+      console.error(`❌ API Error for athlete ${athleteId}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        errorText: errorText
+      });
+      
+      throw new Error(`Failed to fetch commentator info: ${response.status} - ${errorText}`);
     }
     
     const data: CommentatorInfoResponse = await response.json();
+    console.log(`✅ Successfully fetched commentator info for athlete ${athleteId}:`, data);
+    
+    // Handle case where no commentator info exists (data.data is null)
+    if (data.data === null) {
+      console.log(`ℹ️ No commentator info found for athlete ${athleteId}`);
+      return null;
+    }
+    
     return data.data || null;
   } catch (error) {
     // Network errors, CORS, etc.
-    console.warn(`Commentator info fetch failed for athlete ${athleteId}:`, error);
+    console.warn(`⚠️ Commentator info fetch failed for athlete ${athleteId}:`, error);
     return null;
   }
 };
@@ -174,19 +230,9 @@ const updateCommentatorInfo = async (athleteId: string, info: Partial<Commentato
   
   const data: CommentatorInfoResponse = await response.json();
   
-  console.log('=== FRONTEND API RESPONSE DEBUG ===');
-  console.log('Full backend response:', data);
-  console.log('Response success:', data.success);
-  console.log('Response data:', data.data);
-  console.log('Response data type:', typeof data.data);
-  console.log('Response message:', data.message);
-  
   if (!data.data) {
-    console.error('❌ No data in response:', data);
     throw new Error('Invalid response from server.');
   }
-  
-  console.log('✅ Returning data to mutation:', data.data);
   return data.data;
 };
 
@@ -197,31 +243,45 @@ export function useCommentatorInfo(athleteId: string) {
   return useQuery({
     queryKey: ['commentator-info', athleteId],
     queryFn: async (): Promise<CommentatorInfo | null> => {
+      console.log(`🔄 Starting commentator info fetch for athlete ${athleteId}`);
+      console.log(`🌐 Offline mode: ${isOffline}`);
+      console.log(`🔄 Query function executing for athlete ${athleteId}`);
+      
       // Try online first if we have internet
       if (!isOffline) {
         try {
+          console.log(`🌐 Attempting online fetch for athlete ${athleteId}`);
           const onlineData = await fetchCommentatorInfo(athleteId);
+          
+          console.log(`📦 Online data received for athlete ${athleteId}:`, onlineData);
+          
           // Cache the result
           if (onlineData) {
+            console.log(`💾 Caching online data for athlete ${athleteId}`);
             const cache = getCommentatorInfoCache();
             cache[athleteId] = onlineData;
             setCommentatorInfoCache(cache);
           }
+          
+          console.log(`✅ Online fetch completed for athlete ${athleteId}:`, onlineData);
           return onlineData;
         } catch (error) {
-          console.warn('Online fetch failed, trying offline cache:', error);
+          console.warn(`⚠️ Online fetch failed for athlete ${athleteId}, trying offline cache:`, error);
           // Fall through to offline cache
         }
       }
       
       // Try offline cache first
+      console.log(`📦 Checking offline cache for athlete ${athleteId}`);
       const cache = getCommentatorInfoCache();
       if (cache[athleteId]) {
+        console.log(`✅ Found cached data for athlete ${athleteId}:`, cache[athleteId]);
         return cache[athleteId];
       }
       
       // If not in localStorage cache, try offline event storage
       try {
+        console.log(`📦 Checking offline event storage for athlete ${athleteId}`);
         // Import dynamically to avoid circular dependencies
         const { offlineStorage } = await import('@/utils/offlineStorage');
         const offlineEvents = await offlineStorage.getAllEvents();
@@ -230,6 +290,7 @@ export function useCommentatorInfo(athleteId: string) {
         for (const event of offlineEvents) {
           if (event.commentatorInfo && event.commentatorInfo[athleteId]) {
             const commentatorData = event.commentatorInfo[athleteId];
+            console.log(`✅ Found offline event data for athlete ${athleteId}:`, commentatorData);
             
             // Add to localStorage cache for faster access next time
             const cache = getCommentatorInfoCache();
@@ -246,9 +307,11 @@ export function useCommentatorInfo(athleteId: string) {
           }
         }
       } catch (error) {
-        console.warn('Failed to load from offline storage:', error);
+        console.warn(`⚠️ Failed to load from offline storage for athlete ${athleteId}:`, error);
       }
       
+      console.log(`ℹ️ No commentator info found for athlete ${athleteId}`);
+      console.log(`✅ Query function completed for athlete ${athleteId}, returning null`);
       return null;
     },
     retry: isOffline ? 0 : 0, // No retries to prevent infinite loops

@@ -60,16 +60,25 @@ def validate_environment():
 validate_environment()
 
 # Supabase configuration with validation
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")
+SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", ""))
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY", os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", ""))
 
 # JWT token security
-security = HTTPBearer()
+security = HTTPBearer(auto_error=True)
 
 def get_user_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """Extract raw user JWT token from credentials"""
+    logger.info(f"=== GET USER TOKEN DEBUG ===")
+    logger.info(f"Credentials provided: {bool(credentials)}")
+    logger.info(f"Credentials type: {type(credentials)}")
+    
     if not credentials or not credentials.credentials:
+        logger.error("No credentials provided")
         raise HTTPException(status_code=401, detail="Authorization token required")
+    
+    logger.info(f"Token length: {len(credentials.credentials)}")
+    logger.info(f"Token starts with: {credentials.credentials[:20]}...")
+    
     return credentials.credentials
 
 def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
@@ -199,6 +208,13 @@ class SupabaseClient:
             "Prefer": "return=representation"
         }
         
+        # Debug logging
+        logger.info(f"=== GET HEADERS DEBUG ===")
+        logger.info(f"User token provided: {bool(user_token)}")
+        logger.info(f"User token length: {len(user_token) if user_token else 0}")
+        if user_token:
+            logger.info(f"User token starts with: {user_token[:20]}...")
+        
         if user_token:
             # Use user JWT token for RLS-enabled operations
             headers["Authorization"] = f"Bearer {user_token}"
@@ -208,6 +224,7 @@ class SupabaseClient:
             headers["Authorization"] = f"Bearer {self.key}"
             logger.info("Using service key for Supabase request (no RLS)")
         
+        logger.info(f"Final headers: {headers}")
         return headers
     
     async def select(self, table: str, columns: str = "*", filters: dict = None, user_token: Optional[str] = None):
@@ -228,11 +245,29 @@ class SupabaseClient:
         
         headers = self._get_headers(user_token)
         
+        # Debug logging
+        logger.info(f"=== SUPABASE SELECT DEBUG ===")
+        logger.info(f"Table: {table}")
+        logger.info(f"Columns: {columns}")
+        logger.info(f"Filters: {filters}")
+        logger.info(f"URL: {url}")
+        logger.info(f"User token available: {bool(user_token)}")
+        logger.info(f"User token length: {len(user_token) if user_token else 0}")
+        logger.info(f"Headers: {headers}")
+        
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(url, headers=headers, params=params)
+                logger.info(f"Response status: {response.status_code}")
+                logger.info(f"Response headers: {dict(response.headers)}")
+                
+                if response.status_code != 200:
+                    logger.error(f"Supabase error response: {response.text}")
+                
                 response.raise_for_status()
-                return response.json()
+                result = response.json()
+                logger.info(f"Query result: {result}")
+                return result
         except httpx.TimeoutException:
             logger.error("Supabase request timeout")
             raise HTTPException(status_code=504, detail="Database request timeout")
@@ -1034,20 +1069,34 @@ async def get_multi_event_athletes(event_id1: str, event_id2: str):
 # Commentator Info API Endpoints
 
 @app.get("/api/commentator-info/{athlete_id}")
-async def get_commentator_info(athlete_id: str):
-    """Get commentator info for a specific athlete"""
+async def get_commentator_info(
+    athlete_id: str,
+    user_token: str = Depends(get_user_token)
+):
+    """Get commentator info for a specific athlete with user token"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        result = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id})
+        logger.info(f"=== GET COMMENTATOR INFO DEBUG ===")
+        logger.info(f"Athlete ID: {athlete_id}")
+        logger.info(f"User token available: {bool(user_token)}")
+        logger.info(f"User token length: {len(user_token) if user_token else 0}")
+        
+        # Use user token for RLS policy enforcement
+        result = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id}, user_token=user_token)
+        
+        logger.info(f"Supabase query result: {result}")
+        logger.info(f"Result count: {len(result) if result else 0}")
         
         if result:
+            logger.info(f"Found commentator info for athlete {athlete_id}")
             return {
                 "success": True,
                 "data": result[0]
             }
         else:
+            logger.info(f"No commentator info found for athlete {athlete_id}")
             return {
                 "success": True,
                 "data": None,
@@ -1056,6 +1105,8 @@ async def get_commentator_info(athlete_id: str):
             
     except Exception as e:
         logger.error(f"Error fetching commentator info for athlete {athlete_id}: {e}")
+        logger.error(f"Exception type: {type(e)}")
+        logger.error(f"Exception details: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
 
 @app.post("/api/commentator-info")
@@ -1513,9 +1564,10 @@ async def get_friends(current_user_id: str = Depends(extract_user_id_from_token)
 async def get_commentator_info_with_friends(
     athlete_id: str, 
     source: str = "mine",
-    current_user_id: str = Depends(extract_user_id_from_token)
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
 ):
-    """Get commentator info including friends' data"""
+    """Get commentator info including friends' data with user token"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
@@ -1526,7 +1578,8 @@ async def get_commentator_info_with_friends(
             result = await supabase_client.select(
                 "commentator_info", 
                 "*", 
-                {"athlete_id": athlete_id, "created_by": current_user_id}
+                {"athlete_id": athlete_id, "created_by": current_user_id},
+                user_token=user_token
             )
         elif source == "friends":
             # Get friends' data
@@ -1534,7 +1587,8 @@ async def get_commentator_info_with_friends(
             friends_result = await supabase_client.select(
                 "user_connections", 
                 "*", 
-                {"status": "accepted"}
+                {"status": "accepted"},
+                user_token=user_token
             )
             
             user_connections = [
@@ -1553,13 +1607,14 @@ async def get_commentator_info_with_friends(
                 friend_data = await supabase_client.select(
                     "commentator_info", 
                     "*", 
-                    {"athlete_id": athlete_id, "created_by": friend_id}
+                    {"athlete_id": athlete_id, "created_by": friend_id},
+                    user_token=user_token
                 )
                 if friend_data:
                     result.extend(friend_data)
         else:  # "all"
             # Get all data (own + friends) - this is handled by RLS policies
-            result = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id})
+            result = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id}, user_token=user_token)
         
         # Add authorship info
         enhanced_result = []
