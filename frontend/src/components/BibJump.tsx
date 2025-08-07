@@ -108,7 +108,7 @@ export function BibJump({ athletes, onJump, onClose }: BibJumpProps) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('search.examplePlaceholder')}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg text-gray-950 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 

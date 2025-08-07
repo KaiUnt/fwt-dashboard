@@ -49,12 +49,6 @@ export function CommentatorInfoModal({
       setError(null); // Clear any previous errors
       setShowSuccess(false); // Clear success message
       
-      console.log('=== MODAL INITIALIZATION DEBUG ===');
-      console.log('Modal opened for athlete:', athleteId);
-      console.log('Initial data received:', initialData);
-      console.log('Initial data type:', typeof initialData);
-      console.log('Has initial data:', !!initialData);
-      
       if (initialData) {
         setFormData({
           homebase: initialData.homebase || '',
@@ -95,9 +89,6 @@ export function CommentatorInfoModal({
   // Also update form data when initialData changes while modal is open
   useEffect(() => {
     if (isOpen && initialData && !isSaving && !showSuccess) {
-      console.log('=== MODAL DATA UPDATE DEBUG ===');
-      console.log('Modal is open, updating with new data:', initialData);
-      
       setFormData({
         homebase: initialData.homebase || '',
         team: initialData.team || '',
@@ -359,7 +350,7 @@ export function CommentatorInfoModal({
                     onChange={(e) => handleInputChange('homebase', e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={t('commentatorInfo.homebasePlaceholder')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-950"
                   />
                 </div>
 
@@ -375,7 +366,7 @@ export function CommentatorInfoModal({
                     onChange={(e) => handleInputChange('team', e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={t('commentatorInfo.teamPlaceholder')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-950"
                   />
                 </div>
 
@@ -390,7 +381,7 @@ export function CommentatorInfoModal({
                     onChange={(e) => handleInputChange('sponsors', e.target.value)}
                     placeholder={t('commentatorInfo.sponsorsPlaceholder')}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 resize-none"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-950 resize-none"
                   />
                 </div>
 
@@ -406,7 +397,7 @@ export function CommentatorInfoModal({
                     onChange={(e) => handleInputChange('favorite_trick', e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={t('commentatorInfo.favoriteTrickPlaceholder')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-950"
                   />
                 </div>
 
@@ -424,7 +415,7 @@ export function CommentatorInfoModal({
                         onChange={(e) => handleSocialMediaChange('instagram', e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={t('commentatorInfo.instagramPlaceholder')}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-950"
                       />
                     </div>
                     <div className="flex items-center space-x-2">
@@ -435,7 +426,7 @@ export function CommentatorInfoModal({
                         onChange={(e) => handleSocialMediaChange('youtube', e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={t('commentatorInfo.youtubePlaceholder')}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-950"
                       />
                     </div>
                     <div className="flex items-center space-x-2">

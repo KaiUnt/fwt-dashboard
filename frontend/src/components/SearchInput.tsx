@@ -23,7 +23,7 @@ export function SearchInput({ value, onChange, placeholder }: SearchInputProps) 
         className="
           w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl
           focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-          placeholder-gray-400 text-gray-900 
+          placeholder-gray-400 text-gray-950 
           bg-white shadow-sm transition-all duration-200
           hover:shadow-md focus:shadow-md
         "

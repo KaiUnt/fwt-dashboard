@@ -59,7 +59,7 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('search.athleteSearchPlaceholder')}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-950 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
       </div>

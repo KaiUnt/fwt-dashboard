@@ -219,7 +219,7 @@ export default function LoginPage() {
                   required={isSignUp}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-950"
                   placeholder="Enter your full name"
                 />
               </div>
@@ -239,7 +239,7 @@ export default function LoginPage() {
                   disabled={isLocked}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-950"
                   placeholder="Enter your email"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -262,7 +262,7 @@ export default function LoginPage() {
                   disabled={isLocked}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-950"
                   placeholder="Enter your password"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">

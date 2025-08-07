@@ -308,7 +308,7 @@ export default function SeriesRankingsPage() {
                       placeholder={t('seriesRankingsPage.searchSeries')}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-950"
                     />
                   </div>
 
@@ -317,7 +317,7 @@ export default function SeriesRankingsPage() {
                     <select
                       value={selectedYear}
                       onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 text-gray-950"
                     >
                       <option value="all">{t('seriesRankingsPage.allYears')}</option>
                       {availableYears.map(year => (
@@ -328,7 +328,7 @@ export default function SeriesRankingsPage() {
                     <select
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 text-gray-950"
                     >
                       <option value="all">{t('seriesRankingsPage.allCategories')}</option>
                       {availableCategories.map(category => (
@@ -441,14 +441,14 @@ export default function SeriesRankingsPage() {
                             placeholder={t('seriesRankingsPage.searchAthlete')}
                             value={athleteSearch}
                             onChange={(e) => setAthleteSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-950"
                           />
                         </div>
 
                         <select
                           value={selectedDivision}
                           onChange={(e) => setSelectedDivision(e.target.value)}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-950"
                         >
                           <option value="all">{t('seriesRankingsPage.allDivisions')}</option>
                           {availableDivisions.map(division => (

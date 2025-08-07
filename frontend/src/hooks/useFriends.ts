@@ -55,16 +55,58 @@ const friendsApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
+    console.log(`Sending friend request to: ${email}`);
+    console.log(`API URL: ${API_BASE_URL}/api/friends/request`);
+    console.log(`Token available: ${!!token}`);
+    
     const response = await fetch(`${API_BASE_URL}/api/friends/request`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ email }),
     });
+    
+    console.log(`Response status: ${response.status}`);
+    console.log(`Response ok: ${response.ok}`);
+    
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to send friend request');
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      console.error('Friend request error:', errorData);
+      
+      // Provide specific error messages based on status codes
+      let errorMessage = errorData.detail || 'Failed to send friend request';
+      
+      switch (response.status) {
+        case 400:
+          if (errorData.detail?.includes('yourself')) {
+            errorMessage = 'Cannot send friend request to yourself';
+          } else if (errorData.detail?.includes('Invalid email')) {
+            errorMessage = 'Invalid email format';
+          } else {
+            errorMessage = errorData.detail || 'Invalid request';
+          }
+          break;
+        case 401:
+          errorMessage = 'Please log in to send friend requests';
+          break;
+        case 404:
+          errorMessage = 'No user found with this email address';
+          break;
+        case 409:
+          errorMessage = 'A friend request has already been sent to this user';
+          break;
+        case 503:
+          errorMessage = 'Service temporarily unavailable. Please try again later.';
+          break;
+        default:
+          errorMessage = errorData.detail || 'Failed to send friend request';
+      }
+      
+      throw new Error(errorMessage);
     }
-    return response.json();
+    
+    const result = await response.json();
+    console.log('Friend request success:', result);
+    return result;
   },
 
   // Accept friend request

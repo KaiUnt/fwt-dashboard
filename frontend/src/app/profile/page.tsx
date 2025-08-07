@@ -257,7 +257,7 @@ export default function ProfilePage() {
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-950"
                       placeholder={t('profile.enterFullName')}
                     />
                     <User className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -291,7 +291,7 @@ export default function ProfilePage() {
                       type="text"
                       value={organization}
                       onChange={(e) => setOrganization(e.target.value)}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-950"
                       placeholder={t('profile.enterOrganization')}
                     />
                     <Building className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -338,7 +338,7 @@ export default function ProfilePage() {
                       type={showCurrentPassword ? 'text' : 'password'}
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-950"
                       placeholder={t('profile.enterCurrentPassword')}
                       required
                     />
@@ -363,7 +363,7 @@ export default function ProfilePage() {
                       type={showNewPassword ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-950"
                       placeholder={t('profile.enterNewPassword')}
                       required
                     />
@@ -388,7 +388,7 @@ export default function ProfilePage() {
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-950"
                       placeholder={t('profile.confirmNewPasswordPlaceholder')}
                       required
                     />
