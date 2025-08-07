@@ -133,6 +133,7 @@ export const useFriends = () => {
       try {
         return await friendsApi.getFriends();
       } catch (error) {
+        console.warn('Friends API failed:', error);
         // If friends API fails, return empty response to prevent UI crashes
         return { success: true, data: [], total: 0 };
       }
@@ -150,6 +151,7 @@ export const usePendingFriendRequests = () => {
       try {
         return await friendsApi.getPendingRequests();
       } catch (error) {
+        console.warn('Pending friend requests API failed:', error);
         // If friends API fails, return empty response to prevent UI crashes
         return { success: true, data: [], total: 0 };
       }
