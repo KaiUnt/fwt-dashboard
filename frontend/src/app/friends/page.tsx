@@ -43,7 +43,12 @@ export default function FriendsPage() {
   };
 
   const handleSendFriendRequest = async (e: React.FormEvent) => {
+    console.log('🔍 handleSendFriendRequest called');
     e.preventDefault();
+    
+    console.log('🔍 Username:', username);
+    console.log('🔍 Username trimmed:', username.trim());
+    console.log('🔍 Username error:', usernameError);
     
     // Clear previous messages
     setError('');
@@ -52,24 +57,29 @@ export default function FriendsPage() {
 
     // Validate username
     if (!username.trim()) {
+      console.log('🔍 Username is empty');
       setUsernameError(t('friends.usernameRequired'));
       return;
     }
 
     if (!validateUsername(username.trim())) {
+      console.log('🔍 Username validation failed');
       setUsernameError(t('friends.invalidUsername'));
       return;
     }
 
+    console.log('🔍 Starting friend request...');
     setIsSendingRequest(true);
     
     try {
+      console.log('🔍 Calling sendFriendRequest.mutateAsync...');
       await sendFriendRequest.mutateAsync(username.trim());
+      console.log('🔍 Friend request successful');
       setUsername('');
       setMessage(t('friends.requestSentSuccess'));
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      console.error('Failed to send friend request:', error);
+      console.error('🔍 Failed to send friend request:', error);
       
       // Handle specific error cases
       let errorMessage = t('friends.sendRequestError');
@@ -90,6 +100,7 @@ export default function FriendsPage() {
       setError(errorMessage);
       setTimeout(() => setError(''), 5000);
     } finally {
+      console.log('🔍 Setting isSendingRequest to false');
       setIsSendingRequest(false);
     }
   };
@@ -227,6 +238,7 @@ export default function FriendsPage() {
                     type="submit"
                     disabled={isSendingRequest || !username.trim() || !!usernameError}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    onClick={() => console.log('🔍 Button clicked!')}
                   >
                     {isSendingRequest ? (
                       <>
