@@ -1377,7 +1377,8 @@ async def check_username_availability(username: str):
 async def create_friend_request(
     request: Request, 
     friend_request: FriendRequestCreate,
-    current_user_id: str = Depends(extract_user_id_from_token)
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
 ):
     """Send a friend request to another user by username"""
     if not supabase_client:
@@ -1385,7 +1386,7 @@ async def create_friend_request(
     
     try:
         # Find user by username - now possible with RLS policy for username lookups
-        user_result = await supabase_client.select("user_profiles", "*", {"full_name": friend_request.username})
+        user_result = await supabase_client.select("user_profiles", "*", {"full_name": friend_request.username}, user_token)
         
         if not user_result:
             raise HTTPException(status_code=404, detail="User not found")
@@ -1402,7 +1403,8 @@ async def create_friend_request(
             {
                 "requester_id": current_user_id,
                 "addressee_id": target_user["id"]
-            }
+            },
+            user_token
         )
         
         if existing_connection:
@@ -1415,7 +1417,7 @@ async def create_friend_request(
             "status": "pending"
         }
         
-        result = await supabase_client.insert("user_connections", connection_data)
+        result = await supabase_client.insert("user_connections", connection_data, user_token)
         
         return {
             "success": True,
@@ -1430,7 +1432,10 @@ async def create_friend_request(
         raise HTTPException(status_code=500, detail=f"Failed to create friend request: {str(e)}")
 
 @app.get("/api/friends/pending")
-async def get_pending_friend_requests(current_user_id: str = Depends(extract_user_id_from_token)):
+async def get_pending_friend_requests(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
     """Get pending friend requests for current user"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -1443,13 +1448,14 @@ async def get_pending_friend_requests(current_user_id: str = Depends(extract_use
             {
                 "addressee_id": current_user_id,
                 "status": "pending"
-            }
+            },
+            user_token
         )
         
         # Get requester details - now possible with RLS policy
         pending_requests = []
         for connection in result:
-            requester = await supabase_client.select("user_profiles", "*", {"id": connection["requester_id"]})
+            requester = await supabase_client.select("user_profiles", "*", {"id": connection["requester_id"]}, user_token)
             if requester:
                 pending_requests.append({
                     **connection,
