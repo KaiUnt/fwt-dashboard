@@ -109,14 +109,14 @@ export default withPWA({
                 // Only cache successful responses
                 return response && response.status === 200 ? response : null;
               },
-              cacheDidUpdate: async ({ cacheName, request, response }) => {
+              cacheDidUpdate: async ({ cacheName, request }) => {
                 // Handle IndexedDB errors gracefully
                 try {
                   // This is a workaround for IndexedDB connection issues
-                  return response;
+                  return;
                 } catch (error) {
                   console.warn('IndexedDB error in service worker:', error);
-                  return response;
+                  return;
                 }
               },
             },
@@ -144,13 +144,13 @@ export default withPWA({
                 // Only cache successful responses
                 return response && response.status === 200 ? response : null;
               },
-              cacheDidUpdate: async ({ cacheName, request, response }) => {
+              cacheDidUpdate: async ({ cacheName, request }) => {
                 // Handle IndexedDB errors gracefully
                 try {
-                  return response;
+                  return;
                 } catch (error) {
                   console.warn('IndexedDB error in service worker:', error);
-                  return response;
+                  return;
                 }
               },
             },
@@ -175,12 +175,12 @@ export default withPWA({
               cacheWillUpdate: async ({ request, response }) => {
                 return response && response.status === 200 ? response : null;
               },
-              cacheDidUpdate: async ({ cacheName, request, response }) => {
+              cacheDidUpdate: async ({ cacheName, request }) => {
                 try {
-                  return response;
+                  return;
                 } catch (error) {
                   console.warn('IndexedDB error in service worker:', error);
-                  return response;
+                  return;
                 }
               },
             },
@@ -205,12 +205,12 @@ export default withPWA({
               cacheWillUpdate: async ({ request, response }) => {
                 return response && response.status === 200 ? response : null;
               },
-              cacheDidUpdate: async ({ cacheName, request, response }) => {
+              cacheDidUpdate: async ({ cacheName, request }) => {
                 try {
-                  return response;
+                  return;
                 } catch (error) {
                   console.warn('IndexedDB error in service worker:', error);
-                  return response;
+                  return;
                 }
               },
             },
@@ -235,12 +235,12 @@ export default withPWA({
               cacheWillUpdate: async ({ request, response }) => {
                 return response && response.status === 200 ? response : null;
               },
-              cacheDidUpdate: async ({ cacheName, request, response }) => {
+              cacheDidUpdate: async ({ cacheName, request }) => {
                 try {
-                  return response;
+                  return;
                 } catch (error) {
                   console.warn('IndexedDB error in service worker:', error);
-                  return response;
+                  return;
                 }
               },
             },
@@ -261,12 +261,12 @@ export default withPWA({
               cacheWillUpdate: async ({ request, response }) => {
                 return response && response.status === 200 ? response : null;
               },
-              cacheDidUpdate: async ({ cacheName, request, response }) => {
+              cacheDidUpdate: async ({ cacheName, request }) => {
                 try {
-                  return response;
+                  return;
                 } catch (error) {
                   console.warn('IndexedDB error in service worker:', error);
-                  return response;
+                  return;
                 }
               },
             },
