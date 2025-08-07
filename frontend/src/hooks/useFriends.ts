@@ -46,7 +46,7 @@ const friendsApi = {
   },
 
   // Send friend request
-  sendFriendRequest: async (email: string): Promise<{ success: boolean; data: unknown; message: string }> => {
+  sendFriendRequest: async (username: string): Promise<{ success: boolean; data: unknown; message: string }> => {
     const token = await getAuthToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -55,14 +55,14 @@ const friendsApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    console.log(`Sending friend request to: ${email}`);
+    console.log(`Sending friend request to: ${username}`);
     console.log(`API URL: ${API_BASE_URL}/api/friends/request`);
     console.log(`Token available: ${!!token}`);
     
     const response = await fetch(`${API_BASE_URL}/api/friends/request`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ username }),
     });
     
     console.log(`Response status: ${response.status}`);
@@ -89,7 +89,7 @@ const friendsApi = {
           errorMessage = 'Please log in to send friend requests';
           break;
         case 404:
-          errorMessage = 'No user found with this email address';
+          errorMessage = 'No user found with this username';
           break;
         case 409:
           errorMessage = 'A friend request has already been sent to this user';
@@ -162,6 +162,15 @@ const friendsApi = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Failed to remove friend');
+    }
+    return response.json();
+  },
+
+  // Check username availability
+  checkUsernameAvailability: async (username: string): Promise<{ available: boolean; reason: string }> => {
+    const response = await fetch(`${API_BASE_URL}/api/users/check-username/${encodeURIComponent(username)}`);
+    if (!response.ok) {
+      throw new Error('Failed to check username availability');
     }
     return response.json();
   },
@@ -254,5 +263,12 @@ export const useRemoveFriend = () => {
       // Invalidate and refetch friends list
       queryClient.invalidateQueries({ queryKey: ['friends'] });
     },
+  });
+};
+
+// Hook to check username availability
+export const useCheckUsernameAvailability = () => {
+  return useMutation({
+    mutationFn: friendsApi.checkUsernameAvailability,
   });
 }; 

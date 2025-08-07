@@ -146,13 +146,20 @@ class AthleteIdSchema(BaseModel):
 
 # Friends System Models
 class FriendRequestCreate(BaseModel):
-    email: str = Field(..., min_length=1, max_length=255)
+    username: str = Field(..., min_length=2, max_length=30)
     
-    @validator('email')
-    def validate_email(cls, v):
-        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
-            raise ValueError('Invalid email format')
-        return v.lower()
+    @validator('username')
+    def validate_username(cls, v):
+        # Username validation rules
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('Username can only contain letters, numbers, underscores, and hyphens')
+        if re.match(r'^[0-9]+$', v):
+            raise ValueError('Username cannot be only numbers')
+        if re.match(r'^[_-]', v) or re.match(r'[_-]$', v):
+            raise ValueError('Username cannot start or end with underscore or hyphen')
+        if v.lower() in ['admin', 'administrator', 'root', 'system', 'api', 'www', 'ftp', 'mail', 'test', 'user', 'guest', 'null', 'undefined']:
+            raise ValueError('This username is reserved')
+        return v.strip()
 
 class FriendRequestResponse(BaseModel):
     id: str
@@ -1329,6 +1336,42 @@ async def get_all_commentator_info():
 
 # Friends System APIs
 
+@app.get("/api/users/check-username/{username}")
+async def check_username_availability(username: str):
+    """Check if a username is available"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Validate username format
+        if len(username) < 2 or len(username) > 30:
+            return {"available": False, "reason": "Username must be between 2 and 30 characters"}
+        
+        if not re.match(r'^[a-zA-Z0-9_-]+$', username):
+            return {"available": False, "reason": "Username can only contain letters, numbers, underscores, and hyphens"}
+        
+        if re.match(r'^[0-9]+$', username):
+            return {"available": False, "reason": "Username cannot be only numbers"}
+        
+        if re.match(r'^[_-]', username) or re.match(r'[_-]$', username):
+            return {"available": False, "reason": "Username cannot start or end with underscore or hyphen"}
+        
+        reserved_names = ['admin', 'administrator', 'root', 'system', 'api', 'www', 'ftp', 'mail', 'test', 'user', 'guest', 'null', 'undefined']
+        if username.lower() in reserved_names:
+            return {"available": False, "reason": "This username is reserved"}
+        
+        # Check if username exists (case-insensitive)
+        existing_user = await supabase_client.select("user_profiles", "id", {"full_name": username})
+        
+        if existing_user:
+            return {"available": False, "reason": "Username is already taken"}
+        
+        return {"available": True, "reason": "Username is available"}
+        
+    except Exception as e:
+        logger.error(f"Error checking username availability: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check username availability")
+
 @app.post("/api/friends/request")
 @limiter.limit("10/minute")
 async def create_friend_request(
@@ -1336,13 +1379,13 @@ async def create_friend_request(
     friend_request: FriendRequestCreate,
     current_user_id: str = Depends(extract_user_id_from_token)
 ):
-    """Send a friend request to another user by email"""
+    """Send a friend request to another user by username"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        # Find user by email
-        user_result = await supabase_client.select("user_profiles", "*", {"email": friend_request.email})
+        # Find user by username - now possible with RLS policy for username lookups
+        user_result = await supabase_client.select("user_profiles", "*", {"full_name": friend_request.username})
         
         if not user_result:
             raise HTTPException(status_code=404, detail="User not found")
@@ -1352,7 +1395,7 @@ async def create_friend_request(
         if target_user["id"] == current_user_id:
             raise HTTPException(status_code=400, detail="Cannot send friend request to yourself")
         
-        # Check if connection already exists
+        # Check if connection already exists - use user token for user's own data
         existing_connection = await supabase_client.select(
             "user_connections", 
             "*", 
@@ -1403,7 +1446,7 @@ async def get_pending_friend_requests(current_user_id: str = Depends(extract_use
             }
         )
         
-        # Get requester details
+        # Get requester details - now possible with RLS policy
         pending_requests = []
         for connection in result:
             requester = await supabase_client.select("user_profiles", "*", {"id": connection["requester_id"]})
@@ -1537,7 +1580,7 @@ async def get_friends(current_user_id: str = Depends(extract_user_id_from_token)
             if conn["requester_id"] == current_user_id or conn["addressee_id"] == current_user_id
         ]
         
-        # Get friend details
+        # Get friend details - now possible with RLS policy
         friends = []
         for connection in user_connections:
             friend_id = connection["addressee_id"] if connection["requester_id"] == current_user_id else connection["requester_id"]

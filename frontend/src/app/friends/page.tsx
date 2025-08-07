@@ -2,23 +2,27 @@
 
 import { useState } from 'react';
 import { UserPlus, UserCheck, Mail, Check, X, Users, UserMinus, AlertCircle } from 'lucide-react';
-import { useFriends, usePendingFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useDeclineFriendRequest, useRemoveFriend } from '@/hooks/useFriends';
+import { useFriends, usePendingFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useDeclineFriendRequest, useRemoveFriend, useCheckUsernameAvailability } from '@/hooks/useFriends';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AppHeader } from '@/components/AppHeader';
 
-// Email validation function
-const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return emailRegex.test(email);
+// Username validation function
+const validateUsername = (username: string): boolean => {
+  if (username.length < 2 || username.length > 30) return false;
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) return false;
+  if (/^[0-9]+$/.test(username)) return false;
+  if (/^[_-]/.test(username) || /[_-]$/.test(username)) return false;
+  const reserved = ['admin', 'administrator', 'root', 'system', 'api', 'www', 'ftp', 'mail', 'test', 'user', 'guest', 'null', 'undefined'];
+  return !reserved.includes(username.toLowerCase());
 };
 
 export default function FriendsPage() {
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [isSendingRequest, setIsSendingRequest] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [emailError, setEmailError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
 
   // Friends System Hooks
   const { data: friends, isLoading: friendsLoading } = useFriends();
@@ -27,14 +31,15 @@ export default function FriendsPage() {
   const acceptFriendRequest = useAcceptFriendRequest();
   const declineFriendRequest = useDeclineFriendRequest();
   const removeFriend = useRemoveFriend();
+  const checkUsernameAvailability = useCheckUsernameAvailability();
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newEmail = e.target.value;
-    setEmail(newEmail);
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUsername = e.target.value;
+    setUsername(newUsername);
     
-    // Clear email error when user starts typing
-    if (emailError) {
-      setEmailError('');
+    // Clear username error when user starts typing
+    if (usernameError) {
+      setUsernameError('');
     }
   };
 
@@ -44,24 +49,24 @@ export default function FriendsPage() {
     // Clear previous messages
     setError('');
     setMessage('');
-    setEmailError('');
+    setUsernameError('');
 
-    // Validate email
-    if (!email.trim()) {
-      setEmailError(t('friends.emailRequired'));
+    // Validate username
+    if (!username.trim()) {
+      setUsernameError(t('friends.usernameRequired'));
       return;
     }
 
-    if (!validateEmail(email.trim())) {
-      setEmailError(t('friends.invalidEmail'));
+    if (!validateUsername(username.trim())) {
+      setUsernameError(t('friends.invalidUsername'));
       return;
     }
 
     setIsSendingRequest(true);
     
     try {
-      await sendFriendRequest.mutateAsync(email.trim());
-      setEmail('');
+      await sendFriendRequest.mutateAsync(username.trim());
+      setUsername('');
       setMessage(t('friends.requestSentSuccess'));
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -206,20 +211,22 @@ export default function FriendsPage() {
                 <div className="flex gap-3">
                   <div className="flex-1">
                     <input
-                      type="email"
-                      value={email}
-                      onChange={handleEmailChange}
-                      placeholder={t('friends.emailPlaceholder')}
+                      type="text"
+                      value={username}
+                      onChange={handleUsernameChange}
+                      placeholder={t('friends.usernamePlaceholder')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-950"
                       required
+                      maxLength={30}
+                      minLength={2}
                     />
-                    {emailError && (
-                      <p className="text-red-500 text-xs mt-1">{emailError}</p>
+                    {usernameError && (
+                      <p className="text-red-500 text-xs mt-1">{usernameError}</p>
                     )}
                   </div>
                   <button
                     type="submit"
-                    disabled={isSendingRequest || !email.trim() || !!emailError}
+                    disabled={isSendingRequest || !username.trim() || !!usernameError}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
                     {isSendingRequest ? (
