@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { UserPlus, UserCheck, Mail, Check, X, Users, UserMinus, AlertCircle } from 'lucide-react';
-import { useFriends, usePendingFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useDeclineFriendRequest, useRemoveFriend, useCheckUsernameAvailability } from '@/hooks/useFriends';
+import { useFriends, usePendingFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useDeclineFriendRequest, useRemoveFriend } from '@/hooks/useFriends';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AppHeader } from '@/components/AppHeader';
 
@@ -31,7 +31,6 @@ export default function FriendsPage() {
   const acceptFriendRequest = useAcceptFriendRequest();
   const declineFriendRequest = useDeclineFriendRequest();
   const removeFriend = useRemoveFriend();
-  const checkUsernameAvailability = useCheckUsernameAvailability();
 
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newUsername = e.target.value;
