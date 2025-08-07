@@ -117,8 +117,6 @@ export function CommentatorInfoModal({
     setIsSaving(true);
     setError(null);
     
-    // Debug auth session before making API call
-    await debugAuthSession();
     
     try {
       await updateMutation.mutateAsync({
