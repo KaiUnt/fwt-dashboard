@@ -351,8 +351,11 @@ export function useUpdateCommentatorInfo() {
       return updatedInfo;
     },
     onSuccess: (data, variables) => {
-      // Update React Query cache
+      // Update React Query cache - this is what the AthleteCard uses
       queryClient.setQueryData(['commentator-info', variables.athleteId], data);
+      
+      // Force refetch of the main query that AthleteCard uses
+      queryClient.invalidateQueries({ queryKey: ['commentator-info', variables.athleteId] });
       
       // Invalidate all related queries to ensure UI consistency
       queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId] });
@@ -362,6 +365,8 @@ export function useUpdateCommentatorInfo() {
       
       // Also update the basic commentator info query for backwards compatibility
       queryClient.invalidateQueries({ queryKey: ['commentator-info'] });
+      
+      console.log('Cache invalidated for athlete:', variables.athleteId, 'Updated data:', data);
     },
     onError: (error: unknown, variables) => {
       console.error('Failed to update commentator info for athlete:', variables.athleteId, error);

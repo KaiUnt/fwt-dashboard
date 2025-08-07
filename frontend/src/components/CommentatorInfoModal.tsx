@@ -49,6 +49,9 @@ export function CommentatorInfoModal({
     if (isOpen) {
       setError(null); // Clear any previous errors
       setShowSuccess(false); // Clear success message
+      
+      console.log('Modal initializing with data:', initialData);
+      
       if (initialData) {
         setFormData({
           homebase: initialData.homebase || '',
@@ -85,6 +88,28 @@ export function CommentatorInfoModal({
       }
     }
   }, [isOpen, initialData]);
+
+  // Also update form data when initialData changes while modal is open
+  useEffect(() => {
+    if (isOpen && initialData && !isSaving && !showSuccess) {
+      console.log('Updating form data with new initialData:', initialData);
+      setFormData({
+        homebase: initialData.homebase || '',
+        team: initialData.team || '',
+        sponsors: initialData.sponsors || '',
+        favorite_trick: initialData.favorite_trick || '',
+        achievements: initialData.achievements || '',
+        injuries: initialData.injuries || '',
+        fun_facts: initialData.fun_facts || '',
+        notes: initialData.notes || '',
+        social_media: {
+          instagram: initialData.social_media?.instagram || '',
+          youtube: initialData.social_media?.youtube || '',
+          website: initialData.social_media?.website || '',
+        },
+      });
+    }
+  }, [initialData, isOpen, isSaving, showSuccess]);
 
   const handleSave = async () => {
     if (isSaving) return; // Prevent double-clicks
