@@ -90,7 +90,7 @@ export function CommentatorInfoModal({
         });
       }
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, athleteId]);
 
   // Also update form data when initialData changes while modal is open
   useEffect(() => {
@@ -115,7 +115,7 @@ export function CommentatorInfoModal({
         },
       });
     }
-  }, [initialData, isOpen, isSaving, showSuccess]);
+  }, [initialData, isOpen, isSaving, showSuccess, formData]);
 
   const handleSave = async () => {
     if (isSaving) return; // Prevent double-clicks

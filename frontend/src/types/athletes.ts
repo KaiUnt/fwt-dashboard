@@ -52,6 +52,7 @@ export interface CommentatorInfoResponse {
   success: boolean;
   data?: CommentatorInfo;
   error?: string;
+  message?: string;
 }
 
 export interface CommentatorInfoListResponse {
