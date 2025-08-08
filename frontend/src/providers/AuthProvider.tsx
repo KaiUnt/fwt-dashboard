@@ -98,9 +98,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return result
     } catch (error) {
       console.error('Error in fetchProfile:', error)
+      // On timeout, return current profile to keep it stable
+      if (error instanceof Error && error.message === 'Profile fetch timeout') {
+        console.warn('Profile fetch timeout - keeping existing profile')
+        return profile // Return current profile instead of null
+      }
       return null
     }
-  }, [supabase])
+  }, [supabase, profile])
 
   const refreshProfile = async () => {
     if (user) {
@@ -137,7 +142,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (profileError) {
             console.error('Error fetching profile during init:', profileError)
             if (mounted) {
-              setProfile(null)
+              // Only set profile to null for non-timeout errors during init
+              if (!(profileError instanceof Error && profileError.message === 'Profile fetch timeout')) {
+                setProfile(null)
+              }
             }
           }
         } else {
@@ -187,27 +195,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cache auth state for offline use
         setOfflineAuthState(session?.user ?? null)
         
-        try {
-          if (session?.user) {
-            const profile = await fetchProfile(session.user.id)
-            if (mounted) {
-              setProfile(profile)
-              // Only set loading to false AFTER profile is set
-              setLoading(false)
-              isInitialLoad = false
+        // Only fetch profile on actual auth changes, not on token refreshes
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          try {
+            if (session?.user) {
+              const profile = await fetchProfile(session.user.id)
+              if (mounted) {
+                setProfile(profile)
+                // Only set loading to false AFTER profile is set
+                setLoading(false)
+                isInitialLoad = false
+              }
+            } else {
+              if (mounted) {
+                setProfile(null)
+                setLoading(false)
+                isInitialLoad = false
+              }
             }
-          } else {
+          } catch (error) {
+            console.error('Error handling auth state change:', error)
+            // Only set profile to null for non-timeout errors
             if (mounted) {
-              setProfile(null)
+              if (!(error instanceof Error && error.message === 'Profile fetch timeout')) {
+                setProfile(null)
+              }
               setLoading(false)
               isInitialLoad = false
             }
           }
-        } catch (error) {
-          console.error('Error handling auth state change:', error)
-          // Set profile to null on error to avoid hanging
-          if (mounted) {
-            setProfile(null)
+        } else {
+          // For token refreshes and other events, just update loading state if needed
+          if (isInitialLoad && mounted) {
             setLoading(false)
             isInitialLoad = false
           }
