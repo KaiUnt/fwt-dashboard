@@ -13,13 +13,23 @@ export function UserNav() {
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
 
+  console.log('🧭 [UserNav] Render state:', {
+    loading,
+    hasUser: !!user,
+    hasProfile: !!profile,
+    userEmail: user?.email,
+    profileName: profile?.full_name
+  })
+
   if (loading) {
+    console.log('🔄 [UserNav] Showing loading state')
     return (
       <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
     )
   }
 
   if (!user || !profile) {
+    console.log('❌ [UserNav] No user or profile, returning null')
     return null
   }
 
