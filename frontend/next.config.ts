@@ -81,22 +81,20 @@ export default withPWA({
   dest: "public",
   register: true,
   disable: process.env.NODE_ENV === "development",
+  // Use empty fallbacks object to avoid TypeScript error
+  fallbacks: {
+    document: '/offline',
+    image: '/offline-image.svg'
+  },
   workboxOptions: {
     disableDevLogs: true,
     skipWaiting: true,
     clientsClaim: true,
-    // Add error handling for IndexedDB operations
     cleanupOutdatedCaches: true,
-    // Add runtime caching with better error handling
+    // Disable default navigation handling
+    navigateFallback: undefined,
+    navigateFallbackDenylist: [/.*/],
     runtimeCaching: [
-      // Override the problematic start-url route first
-      {
-        urlPattern: "/",
-        handler: "NetworkFirst",
-        options: {
-          cacheName: "start-url-clean",
-        },
-      },
       {
         urlPattern: /^https?.*/, // Cache all external requests
         handler: "NetworkFirst",
