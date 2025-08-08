@@ -69,35 +69,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = useCallback(async (userId: string) => {
     console.log('🔍 [AuthProvider] fetchProfile called for userId:', userId)
     try {
-      // Simplified profile fetch without race condition
-      console.log('📡 [AuthProvider] Making profile query to supabase...')
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-      
-      console.log('📡 [AuthProvider] Profile query result:', {
-        hasData: !!data,
-        error: error?.message,
-        errorCode: error?.code,
-        data: data ? { role: data.role, full_name: data.full_name } : null
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
       })
       
-      if (error) {
-        // PGRST116 means no rows returned, which is OK for new users
-        if (error.code === 'PGRST116') {
-          console.log('ℹ️ [AuthProvider] No profile found (PGRST116), returning null')
+      const fetchPromise = (async () => {
+        console.log('📡 [AuthProvider] Making profile query to supabase...')
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
+        
+        console.log('📡 [AuthProvider] Profile query result:', {
+          hasData: !!data,
+          error: error?.message,
+          errorCode: error?.code,
+          data: data ? { role: data.role, full_name: data.full_name } : null
+        })
+        
+        if (error) {
+          // PGRST116 means no rows returned, which is OK for new users
+          if (error.code === 'PGRST116') {
+            console.log('ℹ️ [AuthProvider] No profile found (PGRST116), returning null')
+            return null
+          }
+          
+          // Log other errors but don't throw
+          console.error('❌ [AuthProvider] Error fetching profile:', error)
           return null
         }
-        
-        // Log other errors but don't throw
-        console.error('❌ [AuthProvider] Error fetching profile:', error)
-        return null
-      }
 
-      console.log('✅ [AuthProvider] Profile fetched successfully:', data?.full_name)
-      return data
+        console.log('✅ [AuthProvider] Profile fetched successfully:', data?.full_name)
+        return data
+      })()
+      
+      const result = await Promise.race([fetchPromise, timeoutPromise])
+      return result
     } catch (error) {
       console.error('💥 [AuthProvider] Exception in fetchProfile:', error)
       return null
@@ -234,11 +243,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             })
             if (mounted) {
               setProfile(profile)
+              // Only set loading to false AFTER profile is set
+              setLoading(false)
+              isInitialLoad = false
             }
           } else {
             console.log('❌ [AuthProvider] Auth change - no user, setting profile to null')
             if (mounted) {
               setProfile(null)
+              setLoading(false)
+              isInitialLoad = false
             }
           }
         } catch (error) {
@@ -246,11 +260,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Set profile to null on error to avoid hanging
           if (mounted) {
             setProfile(null)
-          }
-        } finally {
-          // Always set loading to false, even on errors
-          if (mounted) {
-            console.log('✅ [AuthProvider] Auth state change complete, setting loading to false')
             setLoading(false)
             isInitialLoad = false
           }

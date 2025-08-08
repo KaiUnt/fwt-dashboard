@@ -28,9 +28,24 @@ export function UserNav() {
     )
   }
 
-  if (!user || !profile) {
-    console.log('❌ [UserNav] No user or profile, returning null')
+  if (!user) {
+    console.log('❌ [UserNav] No user, returning null')
     return null
+  }
+
+  if (!profile) {
+    console.log('⚠️ [UserNav] No profile but user exists, showing fallback UI')
+    // Show a fallback UI when user exists but profile is missing
+    return (
+      <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700">
+        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+          {user.email?.charAt(0)?.toUpperCase() || 'U'}
+        </div>
+        <span className="hidden sm:block">
+          {user.email}
+        </span>
+      </div>
+    )
   }
 
   const handleSignOut = async () => {
