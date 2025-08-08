@@ -13,28 +13,17 @@ export function UserNav() {
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
 
-  console.log('🧭 [UserNav] Render state:', {
-    loading,
-    hasUser: !!user,
-    hasProfile: !!profile,
-    userEmail: user?.email,
-    profileName: profile?.full_name
-  })
-
   if (loading) {
-    console.log('🔄 [UserNav] Showing loading state')
     return (
       <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
     )
   }
 
   if (!user) {
-    console.log('❌ [UserNav] No user, returning null')
     return null
   }
 
   if (!profile) {
-    console.log('⚠️ [UserNav] No profile but user exists, showing fallback UI')
     // Show a fallback UI when user exists but profile is missing
     return (
       <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700">

@@ -67,7 +67,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
 
   const fetchProfile = useCallback(async (userId: string) => {
-    console.log('🔍 [AuthProvider] fetchProfile called for userId:', userId)
     try {
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise<null>((_, reject) => {
@@ -75,40 +74,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       
       const fetchPromise = (async () => {
-        console.log('📡 [AuthProvider] Making profile query to supabase...')
         const { data, error } = await supabase
           .from('user_profiles')
           .select('*')
           .eq('id', userId)
           .single()
         
-        console.log('📡 [AuthProvider] Profile query result:', {
-          hasData: !!data,
-          error: error?.message,
-          errorCode: error?.code,
-          data: data ? { role: data.role, full_name: data.full_name } : null
-        })
-        
         if (error) {
           // PGRST116 means no rows returned, which is OK for new users
           if (error.code === 'PGRST116') {
-            console.log('ℹ️ [AuthProvider] No profile found (PGRST116), returning null')
             return null
           }
           
           // Log other errors but don't throw
-          console.error('❌ [AuthProvider] Error fetching profile:', error)
+          console.error('Error fetching profile:', error)
           return null
         }
 
-        console.log('✅ [AuthProvider] Profile fetched successfully:', data?.full_name)
         return data
       })()
       
       const result = await Promise.race([fetchPromise, timeoutPromise])
       return result
     } catch (error) {
-      console.error('💥 [AuthProvider] Exception in fetchProfile:', error)
+      console.error('Error in fetchProfile:', error)
       return null
     }
   }, [supabase])
@@ -125,76 +114,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
 
     const initializeAuth = async () => {
-      console.log('🔄 [AuthProvider] Initializing auth...')
       try {
         // First, try to get current session
-        console.log('🔍 [AuthProvider] Getting current session...')
         const { data: { session }, error } = await supabase.auth.getSession()
         
-        console.log('📋 [AuthProvider] Session result:', {
-          hasSession: !!session,
-          hasUser: !!session?.user,
-          userId: session?.user?.id,
-          error: error?.message
-        })
-        
-        if (!mounted) {
-          console.log('⚠️ [AuthProvider] Component unmounted, aborting init')
-          return
-        }
+        if (!mounted) return
         
         if (error) {
-          console.error('❌ [AuthProvider] Error getting session:', error)
+          console.error('Error getting session:', error)
         }
 
         // Set user from current session if available
         if (session?.user) {
-          console.log('✅ [AuthProvider] Setting user from session:', session.user.email)
           setUser(session.user)
           setOfflineAuthState(session.user)
           
           try {
-            console.log('👤 [AuthProvider] Fetching profile for user:', session.user.id)
             const profile = await fetchProfile(session.user.id)
-            console.log('👤 [AuthProvider] Profile result:', {
-              hasProfile: !!profile,
-              profileRole: profile?.role,
-              profileName: profile?.full_name
-            })
             if (mounted) {
               setProfile(profile)
             }
           } catch (profileError) {
-            console.error('❌ [AuthProvider] Error fetching profile during init:', profileError)
+            console.error('Error fetching profile during init:', profileError)
             if (mounted) {
               setProfile(null)
             }
           }
         } else {
-          console.log('❌ [AuthProvider] No session found, checking offline auth...')
           // No session, check offline auth
           const offlineAuth = getOfflineAuthState()
-          console.log('💾 [AuthProvider] Offline auth state:', offlineAuth)
           if (offlineAuth.isValid && offlineAuth.userId) {
-            console.log('💾 [AuthProvider] Valid offline auth found, keeping auth null but not loading')
             // Keep user null but don't show as loading for offline
             setUser(null)
             setProfile(null)
           } else {
-            console.log('❌ [AuthProvider] No valid auth found, setting to null')
             setUser(null)
             setProfile(null)
           }
         }
       } catch (error) {
-        console.error('💥 [AuthProvider] Error initializing auth:', error)
+        console.error('Error initializing auth:', error)
         if (mounted) {
           setUser(null)
           setProfile(null)
         }
       } finally {
         if (mounted) {
-          console.log('✅ [AuthProvider] Auth initialization complete, setting loading to false')
           setLoading(false)
           isInitialLoad = false
         }
@@ -214,20 +179,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔔 [AuthProvider] Auth state change:', {
-          event,
-          hasUser: !!session?.user,
-          userId: session?.user?.id,
-          email: session?.user?.email
-        })
-        
-        if (!mounted) {
-          console.log('⚠️ [AuthProvider] Component unmounted, ignoring auth change')
-          return
-        }
+        if (!mounted) return
         
         // Set user immediately
-        console.log('👤 [AuthProvider] Setting user in state:', session?.user?.email || 'null')
         setUser(session?.user ?? null)
         
         // Cache auth state for offline use
@@ -235,12 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         try {
           if (session?.user) {
-            console.log('👤 [AuthProvider] Auth change - fetching profile...')
             const profile = await fetchProfile(session.user.id)
-            console.log('👤 [AuthProvider] Auth change - profile result:', {
-              hasProfile: !!profile,
-              profileRole: profile?.role
-            })
             if (mounted) {
               setProfile(profile)
               // Only set loading to false AFTER profile is set
@@ -248,7 +197,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               isInitialLoad = false
             }
           } else {
-            console.log('❌ [AuthProvider] Auth change - no user, setting profile to null')
             if (mounted) {
               setProfile(null)
               setLoading(false)
@@ -256,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } catch (error) {
-          console.error('❌ [AuthProvider] Error handling auth state change:', error)
+          console.error('Error handling auth state change:', error)
           // Set profile to null on error to avoid hanging
           if (mounted) {
             setProfile(null)
