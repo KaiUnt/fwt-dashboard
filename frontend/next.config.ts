@@ -89,6 +89,14 @@ export default withPWA({
     cleanupOutdatedCaches: true,
     // Add runtime caching with better error handling
     runtimeCaching: [
+      // Override the problematic start-url route first
+      {
+        urlPattern: "/",
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "start-url-clean",
+        },
+      },
       {
         urlPattern: /^https?.*/, // Cache all external requests
         handler: "NetworkFirst",
@@ -102,29 +110,9 @@ export default withPWA({
           cacheableResponse: {
             statuses: [0, 200],
           },
-          // Add error handling for IndexedDB
-          plugins: [
-            {
-              cacheWillUpdate: async ({ request, response }) => {
-                // Only cache successful responses
-                return response && response.status === 200 ? response : null;
-              },
-              cacheDidUpdate: async ({ cacheName, request }) => {
-                // Handle IndexedDB errors gracefully
-                try {
-                  // This is a workaround for IndexedDB connection issues
-                  return;
-                } catch (error) {
-                  console.warn('IndexedDB error in service worker:', error);
-                  return;
-                }
-              },
-            },
-          ],
         },
       },
       {
-        // Disable development API caching to prevent _ref errors
         urlPattern: /^http:\/\/localhost:8000\/api\//,
         handler: "NetworkFirst",
         options: {
@@ -137,24 +125,6 @@ export default withPWA({
           cacheableResponse: {
             statuses: [0, 200],
           },
-          // Add error handling for IndexedDB
-          plugins: [
-            {
-              cacheWillUpdate: async ({ request, response }) => {
-                // Only cache successful responses
-                return response && response.status === 200 ? response : null;
-              },
-              cacheDidUpdate: async ({ cacheName, request }) => {
-                // Handle IndexedDB errors gracefully
-                try {
-                  return;
-                } catch (error) {
-                  console.warn('IndexedDB error in service worker:', error);
-                  return;
-                }
-              },
-            },
-          ],
         },
       },
       {
@@ -169,22 +139,6 @@ export default withPWA({
           cacheableResponse: {
             statuses: [0, 200],
           },
-          // Add error handling for IndexedDB
-          plugins: [
-            {
-              cacheWillUpdate: async ({ request, response }) => {
-                return response && response.status === 200 ? response : null;
-              },
-              cacheDidUpdate: async ({ cacheName, request }) => {
-                try {
-                  return;
-                } catch (error) {
-                  console.warn('IndexedDB error in service worker:', error);
-                  return;
-                }
-              },
-            },
-          ],
         },
       },
       {
@@ -199,22 +153,6 @@ export default withPWA({
           cacheableResponse: {
             statuses: [0, 200],
           },
-          // Add error handling for IndexedDB
-          plugins: [
-            {
-              cacheWillUpdate: async ({ request, response }) => {
-                return response && response.status === 200 ? response : null;
-              },
-              cacheDidUpdate: async ({ cacheName, request }) => {
-                try {
-                  return;
-                } catch (error) {
-                  console.warn('IndexedDB error in service worker:', error);
-                  return;
-                }
-              },
-            },
-          ],
         },
       },
       {
@@ -229,22 +167,6 @@ export default withPWA({
           cacheableResponse: {
             statuses: [0, 200],
           },
-          // Add error handling for IndexedDB
-          plugins: [
-            {
-              cacheWillUpdate: async ({ request, response }) => {
-                return response && response.status === 200 ? response : null;
-              },
-              cacheDidUpdate: async ({ cacheName, request }) => {
-                try {
-                  return;
-                } catch (error) {
-                  console.warn('IndexedDB error in service worker:', error);
-                  return;
-                }
-              },
-            },
-          ],
         },
       },
       {
@@ -255,22 +177,6 @@ export default withPWA({
           cacheableResponse: {
             statuses: [0, 200],
           },
-          // Add error handling for IndexedDB
-          plugins: [
-            {
-              cacheWillUpdate: async ({ request, response }) => {
-                return response && response.status === 200 ? response : null;
-              },
-              cacheDidUpdate: async ({ cacheName, request }) => {
-                try {
-                  return;
-                } catch (error) {
-                  console.warn('IndexedDB error in service worker:', error);
-                  return;
-                }
-              },
-            },
-          ],
         },
       },
     ],
