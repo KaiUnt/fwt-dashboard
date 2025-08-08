@@ -102,10 +102,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let isInitialLoad = true
+    let mounted = true
+
+    const initializeAuth = async () => {
+      try {
+        // First, try to get current session
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (!mounted) return
+        
+        if (error) {
+          console.error('Error getting session:', error)
+        }
+
+        // Set user from current session if available
+        if (session?.user) {
+          setUser(session.user)
+          setOfflineAuthState(session.user)
+          
+          try {
+            const profile = await fetchProfile(session.user.id)
+            if (mounted) {
+              setProfile(profile)
+            }
+          } catch (profileError) {
+            console.error('Error fetching profile during init:', profileError)
+            if (mounted) {
+              setProfile(null)
+            }
+          }
+        } else {
+          // No session, check offline auth
+          const offlineAuth = getOfflineAuthState()
+          if (offlineAuth.isValid && offlineAuth.userId) {
+            // Keep user null but don't show as loading for offline
+            setUser(null)
+            setProfile(null)
+          } else {
+            setUser(null)
+            setProfile(null)
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+        if (mounted) {
+          setUser(null)
+          setProfile(null)
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false)
+          isInitialLoad = false
+        }
+      }
+    }
+
+    // Initialize auth immediately
+    initializeAuth()
 
     // Fallback timeout to prevent infinite loading
     const timeout = setTimeout(() => {
-      if (isInitialLoad) {
+      if (isInitialLoad && mounted) {
         setLoading(false)
         isInitialLoad = false
       }
@@ -113,6 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return
+        
         // Set user immediately
         setUser(session?.user ?? null)
         
@@ -122,23 +181,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           if (session?.user) {
             const profile = await fetchProfile(session.user.id)
-            setProfile(profile)
+            if (mounted) {
+              setProfile(profile)
+            }
           } else {
-            setProfile(null)
+            if (mounted) {
+              setProfile(null)
+            }
           }
         } catch (error) {
           console.error('Error handling auth state change:', error)
           // Set profile to null on error to avoid hanging
-          setProfile(null)
+          if (mounted) {
+            setProfile(null)
+          }
         } finally {
           // Always set loading to false, even on errors
-          setLoading(false)
-          isInitialLoad = false
+          if (mounted) {
+            setLoading(false)
+            isInitialLoad = false
+          }
         }
       }
     )
 
     return () => {
+      mounted = false
       clearTimeout(timeout)
       subscription.unsubscribe()
     }
