@@ -358,13 +358,14 @@ class SupabaseClient:
             logger.error(f"Supabase HTTP error: {e.response.status_code}")
             raise HTTPException(status_code=500, detail="Database error")
 
-    async def delete(self, table: str, filters: dict):
+    async def delete(self, table: str, filters: dict, user_token: Optional[str] = None):
         """Delete data from table with validation"""
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table):
             raise ValueError("Invalid table name")
         
         url = f"{self.url}/rest/v1/{table}"
         params = {}
+        headers = self._get_headers(user_token)
         
         if filters:
             for key, value in filters.items():
@@ -374,7 +375,7 @@ class SupabaseClient:
         
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.delete(url, headers=self.headers, params=params)
+                response = await client.delete(url, headers=headers, params=params)
                 response.raise_for_status()
                 return response.json()
         except httpx.TimeoutException:
