@@ -86,6 +86,11 @@ yarn-error.log*
 out/
 build
 
+# PWA generated files (should be generated fresh on each build)
+frontend/public/sw.js
+frontend/public/workbox-*.js
+frontend/public/fallback-*.js
+
 # Production
 dist
 
