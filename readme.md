@@ -10,6 +10,7 @@ A professional event management tool for Freeride World Tour commentators, built
 - **Real-time Data**: Live integration with LiveHeats API
 - **Fast Navigation**: Keyboard shortcuts and BIB jumping
 
+
 ### Athlete Information
 - **Comprehensive Profiles**: Complete athlete data from LiveHeats
 - **Event History**: Location-based historical performance tracking
