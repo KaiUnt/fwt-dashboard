@@ -422,6 +422,7 @@ export function EventsPage() {
                 isMultiMode={isMultiEventMode}
                 isSelected={selectedEventIds.includes(event.id)}
                 isSelectable={!isMultiEventMode || selectedEventIds.length < 2 || selectedEventIds.includes(event.id)}
+                showAccessStatus={true}
               />
             ))}
           </div>

@@ -1,0 +1,217 @@
+import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase'
+
+interface CreditTransaction {
+  id: string
+  transaction_type: string
+  amount: number
+  credits_before: number
+  credits_after: number
+  description: string
+  created_at: string
+  event_id?: string
+}
+
+interface CreditPackage {
+  package_type: string
+  credits: number
+  price_cents: number
+  price_display: string
+}
+
+export function useCredits() {
+  const [credits, setCredits] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([])
+  const [packages, setPackages] = useState<CreditPackage[]>([])
+
+  const fetchCredits = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        throw new Error('Not authenticated')
+      }
+
+      const response = await fetch('/api/credits/balance', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch credits')
+      }
+
+      const data = await response.json()
+      setCredits(data.credits || 0)
+    } catch (err) {
+      console.error('Error fetching credits:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load credits')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchTransactions = useCallback(async () => {
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) return
+
+      const response = await fetch('/api/credits/transactions', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setTransactions(data.data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching transactions:', err)
+    }
+  }, [])
+
+  const fetchPackages = useCallback(async () => {
+    try {
+      const response = await fetch('/api/credits/packages')
+      if (response.ok) {
+        const data = await response.json()
+        setPackages(data.packages || [])
+      }
+    } catch (err) {
+      console.error('Error fetching packages:', err)
+    }
+  }, [])
+
+  const purchaseEventAccess = useCallback(async (eventId: string, eventName?: string) => {
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        throw new Error('Not authenticated')
+      }
+
+      const response = await fetch(`/api/events/${eventId}/purchase`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event_id: eventId,
+          event_name: eventName
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          throw new Error('Nicht genügend Credits verfügbar')
+        } else if (response.status === 409) {
+          throw new Error('Du hast bereits Zugang zu diesem Event')
+        } else {
+          throw new Error(data.message || 'Fehler beim Kauf')
+        }
+      }
+
+      // Update credits after successful purchase
+      setCredits(data.credits_remaining || 0)
+      
+      // Refresh transactions to include the new purchase
+      await fetchTransactions()
+
+      return {
+        success: true,
+        message: data.message,
+        credits_remaining: data.credits_remaining
+      }
+    } catch (err) {
+      throw err
+    }
+  }, [fetchTransactions])
+
+  const checkEventAccess = useCallback(async (eventId: string) => {
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        return false
+      }
+
+      const response = await fetch(`/api/events/${eventId}/access`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        return data.has_access || false
+      }
+      
+      return false
+    } catch (err) {
+      console.error('Error checking event access:', err)
+      return false
+    }
+  }, [])
+
+  // Future: Stripe integration
+  const initiatePurchase = useCallback(async (packageType: string) => {
+    try {
+      // TODO: Implement Stripe Checkout Session creation
+      // This would redirect to Stripe checkout or open Stripe modal
+      
+      const selectedPackage = packages.find(p => p.package_type === packageType)
+      if (!selectedPackage) {
+        throw new Error('Package not found')
+      }
+
+      // For now, show a placeholder
+      alert(`Stripe-Integration für ${selectedPackage.price_display} kommt in Phase 2!`)
+      
+      return {
+        success: false,
+        message: 'Stripe integration not yet implemented'
+      }
+    } catch (err) {
+      throw err
+    }
+  }, [packages])
+
+  useEffect(() => {
+    fetchCredits()
+    fetchTransactions()
+    fetchPackages()
+  }, [fetchCredits, fetchTransactions, fetchPackages])
+
+  return {
+    credits,
+    loading,
+    error,
+    transactions,
+    packages,
+    fetchCredits,
+    fetchTransactions,
+    purchaseEventAccess,
+    checkEventAccess,
+    initiatePurchase
+  }
+}
+
+export default useCredits

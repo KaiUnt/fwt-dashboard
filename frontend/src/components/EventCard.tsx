@@ -1,8 +1,10 @@
 'use client';
 
-import { Calendar, MapPin, ArrowRight, Check, CheckCircle, Archive } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Check, CheckCircle, Archive, Lock, Coins, Clock } from 'lucide-react';
 import { FWTEvent } from '@/types/events';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase';
 
 interface EventCardProps {
   event: FWTEvent;
@@ -10,6 +12,7 @@ interface EventCardProps {
   isMultiMode?: boolean;
   isSelected?: boolean;
   isSelectable?: boolean;
+  showAccessStatus?: boolean;
 }
 
 export function EventCard({ 
@@ -17,9 +20,98 @@ export function EventCard({
   onClick, 
   isMultiMode = false, 
   isSelected = false, 
-  isSelectable = true 
+  isSelectable = true,
+  showAccessStatus = false
 }: EventCardProps) {
   const { t } = useTranslation();
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [loadingAccess, setLoadingAccess] = useState(false);
+
+  useEffect(() => {
+    if (showAccessStatus && !isEventFree()) {
+      checkAccess();
+    }
+  }, [event.id, showAccessStatus]);
+
+  const isEventFree = () => {
+    if (!event.date) return false;
+    
+    const eventDate = new Date(event.date);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    return eventDate < sevenDaysAgo;
+  };
+
+  const checkAccess = async () => {
+    try {
+      setLoadingAccess(true);
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        setHasAccess(false);
+        return;
+      }
+
+      const response = await fetch(`/api/events/${event.id}/access`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setHasAccess(data.has_access || false);
+      } else {
+        setHasAccess(false);
+      }
+    } catch (err) {
+      console.error('Error checking access:', err);
+      setHasAccess(false);
+    } finally {
+      setLoadingAccess(false);
+    }
+  };
+
+  const getAccessStatus = () => {
+    if (!showAccessStatus) return null;
+    
+    if (isEventFree()) {
+      return {
+        icon: <Clock className="h-4 w-4" />,
+        text: 'Kostenlos',
+        color: 'bg-green-100 text-green-800',
+        description: 'Event ist älter als 7 Tage'
+      };
+    }
+    
+    if (loadingAccess) {
+      return {
+        icon: <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />,
+        text: 'Prüfe...',
+        color: 'bg-gray-100 text-gray-600',
+        description: 'Überprüfe Zugang'
+      };
+    }
+    
+    if (hasAccess) {
+      return {
+        icon: <CheckCircle className="h-4 w-4" />,
+        text: 'Zugang',
+        color: 'bg-green-100 text-green-800',
+        description: 'Du hast Zugang zu diesem Event'
+      };
+    }
+    
+    return {
+      icon: <Lock className="h-4 w-4" />,
+      text: '1 Credit',
+      color: 'bg-red-100 text-red-800',
+      description: 'Benötigt 1 Credit für Zugang'
+    };
+  };
   
   // Extract event category from series name using same logic as AthleteSeriesRankings
   const getCategoryFromSeriesName = (seriesName: string): string => {
@@ -136,7 +228,7 @@ export function EventCard({
         
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
+            <div className="flex items-center space-x-2 mb-2 flex-wrap">
               <div className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${colors.badge}`}>
                 {eventType}
               </div>
@@ -146,6 +238,19 @@ export function EventCard({
                   <span>{t('events.completed')}</span>
                 </div>
               )}
+              {/* Access Status Badge */}
+              {(() => {
+                const accessStatus = getAccessStatus();
+                return accessStatus && (
+                  <div 
+                    className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${accessStatus.color}`}
+                    title={accessStatus.description}
+                  >
+                    {accessStatus.icon}
+                    <span>{accessStatus.text}</span>
+                  </div>
+                );
+              })()}
             </div>
             <h3 className={`font-bold text-lg leading-tight ${isPastEvent ? 'opacity-90' : ''}`}>
               {event.name}

@@ -1621,6 +1621,318 @@ async def get_friends(
         logger.error(f"Error fetching friends: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch friends: {str(e)}")
 
+# Credits System Models
+
+class CreditsBalanceResponse(BaseModel):
+    success: bool
+    credits: int
+    message: str
+
+class EventAccessResponse(BaseModel):
+    success: bool
+    has_access: bool
+    message: str
+
+class PurchaseEventAccessRequest(BaseModel):
+    event_id: str = Field(..., min_length=1, max_length=100, pattern=r'^[a-zA-Z0-9_-]+$')
+    event_name: Optional[str] = Field(None, max_length=500)
+
+class PurchaseEventAccessResponse(BaseModel):
+    success: bool
+    message: str
+    credits_remaining: Optional[int] = None
+    error: Optional[str] = None
+
+class CreditPackage(BaseModel):
+    package_type: str
+    credits: int
+    price_cents: int
+    price_display: str
+
+class CreditsTransactionResponse(BaseModel):
+    id: str
+    transaction_type: str
+    amount: int
+    credits_before: int
+    credits_after: int
+    description: str
+    created_at: str
+    event_id: Optional[str] = None
+
+# Credits System API Endpoints
+
+@app.get("/api/credits/balance", response_model=CreditsBalanceResponse)
+async def get_user_credits(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Get current user's credits balance"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Use RPC function to get/create user credits
+        result = await supabase_client.rpc("get_user_credits", {})
+        
+        return CreditsBalanceResponse(
+            success=True,
+            credits=result if result is not None else 0,
+            message="Credits balance retrieved successfully"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting user credits: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get credits balance: {str(e)}")
+
+@app.get("/api/credits/transactions")
+async def get_user_credit_transactions(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Get user's credit transaction history"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        result = await supabase_client.select(
+            "credit_transactions", 
+            "*", 
+            {"user_id": current_user_id},
+            user_token=user_token
+        )
+        
+        # Sort by created_at descending
+        transactions = sorted(result, key=lambda x: x.get("created_at", ""), reverse=True)
+        
+        return {
+            "success": True,
+            "data": transactions,
+            "total": len(transactions)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting credit transactions: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get transactions: {str(e)}")
+
+@app.get("/api/events/{event_id}/access", response_model=EventAccessResponse)
+async def check_event_access(
+    event_id: str,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Check if user has access to a specific event"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Use RPC function to check access
+        has_access = await supabase_client.rpc("check_event_access", {"event_id_param": event_id})
+        
+        return EventAccessResponse(
+            success=True,
+            has_access=has_access if has_access is not None else False,
+            message="Access checked successfully"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error checking event access: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to check event access: {str(e)}")
+
+@app.post("/api/events/{event_id}/purchase", response_model=PurchaseEventAccessResponse)
+async def purchase_event_access(
+    event_id: str,
+    request_data: PurchaseEventAccessRequest,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Purchase access to an event using credits"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Validate that URL param matches body param
+        if event_id != request_data.event_id:
+            raise HTTPException(status_code=400, detail="Event ID mismatch")
+        
+        # Use RPC function to purchase access
+        result = await supabase_client.rpc("purchase_event_access", {
+            "event_id_param": event_id,
+            "event_name_param": request_data.event_name
+        })
+        
+        if not result:
+            raise HTTPException(status_code=500, detail="No response from purchase function")
+        
+        # Parse result
+        success = result.get("success", False)
+        message = result.get("message", "Unknown error")
+        error = result.get("error")
+        credits_remaining = result.get("credits_remaining")
+        
+        if not success:
+            status_code = 400
+            if error == "insufficient_credits":
+                status_code = 402  # Payment required
+            elif error == "already_has_access":
+                status_code = 409  # Conflict
+                
+            raise HTTPException(status_code=status_code, detail=message)
+        
+        return PurchaseEventAccessResponse(
+            success=True,
+            message=message,
+            credits_remaining=credits_remaining
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error purchasing event access: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to purchase event access: {str(e)}")
+
+@app.get("/api/credits/packages")
+async def get_credit_packages():
+    """Get available credit packages for purchase"""
+    packages = [
+        CreditPackage(
+            package_type="single",
+            credits=1,
+            price_cents=1000,  # 10.00 EUR
+            price_display="10€"
+        ),
+        CreditPackage(
+            package_type="pack_5",
+            credits=5,
+            price_cents=4000,  # 40.00 EUR
+            price_display="40€"
+        ),
+        CreditPackage(
+            package_type="pack_10",
+            credits=10,
+            price_cents=7000,  # 70.00 EUR
+            price_display="70€"
+        )
+    ]
+    
+    return {
+        "success": True,
+        "packages": [package.dict() for package in packages],
+        "currency": "EUR",
+        "message": "Credit packages retrieved successfully"
+    }
+
+@app.get("/api/user/events")
+async def get_user_accessible_events(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Get all events that user has access to"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        result = await supabase_client.select(
+            "user_event_access", 
+            "*", 
+            {"user_id": current_user_id},
+            user_token=user_token
+        )
+        
+        return {
+            "success": True,
+            "data": result,
+            "total": len(result)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting user accessible events: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get accessible events: {str(e)}")
+
+# Admin Credits API Endpoints
+
+@app.post("/api/admin/credits/grant/{user_id}")
+@limiter.limit("20/minute")
+async def grant_credits_to_user(
+    request: Request,
+    user_id: str,
+    credits: int = Field(..., gt=0, le=100),
+    note: str = Field("Admin grant", max_length=500),
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Grant credits to a user (Admin only)"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Check if current user is admin - this is done in the RPC function
+        result = await supabase_client.rpc("grant_admin_credits", {
+            "target_user_id": user_id,
+            "credits_to_grant": credits,
+            "admin_note": note
+        })
+        
+        if not result:
+            raise HTTPException(status_code=500, detail="No response from grant function")
+        
+        success = result.get("success", False)
+        message = result.get("message", "Unknown error")
+        
+        if not success:
+            raise HTTPException(status_code=400, detail=message)
+        
+        return {
+            "success": True,
+            "message": message,
+            "credits_granted": result.get("credits_granted"),
+            "total_credits": result.get("credits_total")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error granting credits: {e}")
+        if "Admin privileges required" in str(e):
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        raise HTTPException(status_code=500, detail=f"Failed to grant credits: {str(e)}")
+
+@app.get("/api/admin/credits/stats")
+async def get_credits_statistics(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Get credits system statistics (Admin only)"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        # Check if user is admin
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        
+        # Get various statistics
+        total_users = await supabase_client.select("user_credits", "COUNT(*)", {})
+        total_credits_distributed = await supabase_client.select("user_credits", "SUM(credits)", {})
+        total_transactions = await supabase_client.select("credit_transactions", "COUNT(*)", {})
+        total_purchases = await supabase_client.select("credit_purchases", "COUNT(*)", {"payment_status": "completed"})
+        
+        return {
+            "success": True,
+            "stats": {
+                "total_users_with_credits": len(total_users) if total_users else 0,
+                "total_credits_in_system": total_credits_distributed[0].get("sum") if total_credits_distributed and total_credits_distributed[0] else 0,
+                "total_transactions": len(total_transactions) if total_transactions else 0,
+                "completed_purchases": len(total_purchases) if total_purchases else 0
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting credits statistics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
+
 # Enhanced Commentator Info APIs with Friends System
 
 @app.get("/api/commentator-info/{athlete_id}/friends")

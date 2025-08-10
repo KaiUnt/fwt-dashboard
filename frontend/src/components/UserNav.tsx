@@ -3,14 +3,18 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/providers/AuthProvider'
-import { User, LogOut, Settings, Shield, ChevronDown, Users } from 'lucide-react'
+import { User, LogOut, Settings, Shield, ChevronDown, Users, Coins } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslation } from '@/hooks/useTranslation'
+import CreditsBalance from './CreditsBalance'
+import CreditsModal from './CreditsModal'
 
 export function UserNav() {
   const { user, profile, signOut, isAdmin, loading } = useAuth()
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
+  const [showCreditsModal, setShowCreditsModal] = useState(false)
+  const [credits, setCredits] = useState(0)
   const router = useRouter()
 
   if (loading) {
@@ -75,22 +79,48 @@ export function UserNav() {
     }
   }
 
+  const handleCreditsUpdate = (newCredits: number) => {
+    setCredits(newCredits)
+  }
+
+  const openCreditsModal = () => {
+    setShowCreditsModal(true)
+    setIsOpen(false)
+  }
+
   return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
-            {profile.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
+    <>
+      <div className="relative flex items-center gap-3">
+        {/* Credits Display */}
+        {user && (
+          <button
+            onClick={openCreditsModal}
+            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors"
+            title="Credits verwalten"
+          >
+            <CreditsBalance 
+              onCreditsUpdate={handleCreditsUpdate}
+              showLabel={false}
+              className="text-yellow-400"
+            />
+          </button>
+        )}
+
+        {/* User Menu */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+              {profile.full_name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
+            </div>
+            <span className="hidden sm:block">
+              {profile.full_name || user.email}
+            </span>
           </div>
-          <span className="hidden sm:block">
-            {profile.full_name || user.email}
-          </span>
-        </div>
-        <ChevronDown className="h-4 w-4" />
-      </button>
+          <ChevronDown className="h-4 w-4" />
+        </button>
 
       {isOpen && (
         <>
@@ -150,6 +180,14 @@ export function UserNav() {
                 {t('profile.userNav.friends')}
               </Link>
 
+              <button
+                onClick={openCreditsModal}
+                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+              >
+                <Coins className="h-4 w-4" />
+                Credits verwalten
+              </button>
+
               {isAdmin && (
                 <Link
                   href="/admin"
@@ -186,6 +224,15 @@ export function UserNav() {
           </div>
         </>
       )}
-    </div>
+      </div>
+
+      {/* Credits Modal */}
+      <CreditsModal
+        isOpen={showCreditsModal}
+        onClose={() => setShowCreditsModal(false)}
+        currentCredits={credits}
+        onCreditsUpdate={handleCreditsUpdate}
+      />
+    </>
   )
 }
