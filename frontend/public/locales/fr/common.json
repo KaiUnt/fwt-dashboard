@@ -440,5 +440,38 @@
     "removeFriendError": "Échec de la suppression de l'ami",
     "friendRemoved": "Ami supprimé avec succès.",
     "noFriendsYet": "Pas encore d'amis. Envoyez des demandes d'ami pour commencer !"
-  }
+  },
+  "common": {
+    "cancel": "Annuler"
+  },
+  "purchase": {
+  "singleEventTitle": "Acheter l'événement",
+  "multiEventTitle": "Acheter les événements",
+  "eventLabel": "Événement",
+  "eventsLabel": "Événements",
+  "creditsSummary": "Résumé des crédits",
+  "currentCredits": "Crédits actuels",
+  "eventCost": "Coût de l'événement",
+  "totalCost": "Coût total",
+  "creditsAfter": "Crédits après",
+  "insufficientCredits": "Crédits insuffisants",
+  "needMoreCredits": "Vous avez besoin de {needed} crédits supplémentaires",
+  "benefitsTitle": "Ce que vous obtenez",
+  "permanentAccess": "Accès permanent à l'événement",
+  "offlineAvailable": "Disponibilité hors ligne",
+  "allFeatures": "Toutes les fonctionnalités du tableau de bord",
+  "multiEventAccess": "Accès aux deux événements",
+  "buyEvent": "Acheter l'événement",
+  "buyEvents": "Acheter {count} événements",
+  "processing": "Traitement...",
+  "offlineWarning": "Mode hors ligne",
+  "offlineDescription": "L'achat sera sauvegardé et traité lors de la restauration de la connexion internet",
+  "purchaseSuccessful": "Événement acheté avec succès !",
+  "multiPurchaseSuccessful": "{count} événements achetés avec succès !",
+  "purchaseFailed": "Échec de l'achat"
+},
+"credits": {
+  "credit": "Crédit",
+  "credits": "Crédits"
+}
 }

@@ -462,7 +462,10 @@
     "buyEvents": "Buy {count} Events",
     "processing": "Processing...",
     "offlineWarning": "Offline Mode",
-    "offlineDescription": "Purchase will be saved and processed when internet connection is restored"
+    "offlineDescription": "Purchase will be saved and processed when internet connection is restored",
+    "purchaseSuccessful": "Event purchased successfully!",
+    "multiPurchaseSuccessful": "{count} events purchased successfully!",
+    "purchaseFailed": "Purchase failed"
   },
   "credits": {
     "credit": "Credit",

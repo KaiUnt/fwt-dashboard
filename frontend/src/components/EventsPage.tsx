@@ -89,7 +89,7 @@ export function EventsPage() {
 
   // Batch Access Check for Performance
   const eventIds = useMemo(() => events.map(event => event.id), [events]);
-  const { accessStatus, loading: accessLoading } = useBatchEventAccess(eventIds);
+  const { accessStatus, loading: accessLoading, refetch: refetchAccessStatus } = useBatchEventAccess(eventIds);
 
   // Get unique years for filter
   const availableYears = useMemo(() => {
@@ -199,6 +199,9 @@ export function EventsPage() {
       
       // Auto-hide success message after 5 seconds
       setTimeout(() => setSuccessMessage(null), 5000);
+      
+      // Refetch access status to update EventCard status immediately
+      refetchAccessStatus();
       
     } catch (error) {
       console.error('Purchase failed:', error);

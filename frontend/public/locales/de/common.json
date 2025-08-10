@@ -465,7 +465,10 @@
     "buyEvents": "{count} Events kaufen",
     "processing": "Verarbeitung...",
     "offlineWarning": "Offline-Modus",
-    "offlineDescription": "Der Kauf wird gespeichert und bei der nächsten Internetverbindung verarbeitet"
+    "offlineDescription": "Der Kauf wird gespeichert und bei der nächsten Internetverbindung verarbeitet",
+    "purchaseSuccessful": "Event erfolgreich gekauft!",
+    "multiPurchaseSuccessful": "{count} Events erfolgreich gekauft!",
+    "purchaseFailed": "Kauf fehlgeschlagen"
   },
   "credits": {
     "credit": "Credit",
