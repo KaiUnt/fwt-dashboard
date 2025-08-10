@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useTranslation } from '@/hooks/useTranslation'
 import CreditsBalance from './CreditsBalance'
 import CreditsModal from './CreditsModal'
+import { isSupabaseConfigured } from '@/utils/supabase'
 
 export function UserNav() {
   const { user, profile, signOut, isAdmin, loading } = useAuth()
@@ -91,8 +92,8 @@ export function UserNav() {
   return (
     <>
       <div className="relative flex items-center gap-3">
-        {/* Credits Display */}
-        {user && (
+        {/* Credits Display - Only show if Supabase is configured */}
+        {user && isSupabaseConfigured() && (
           <button
             onClick={openCreditsModal}
             className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors"
@@ -180,13 +181,15 @@ export function UserNav() {
                 {t('profile.userNav.friends')}
               </Link>
 
-              <button
-                onClick={openCreditsModal}
-                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
-              >
-                <Coins className="h-4 w-4" />
-                Credits verwalten
-              </button>
+              {isSupabaseConfigured() && (
+                <button
+                  onClick={openCreditsModal}
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                >
+                  <Coins className="h-4 w-4" />
+                  Credits verwalten
+                </button>
+              )}
 
               {isAdmin && (
                 <Link

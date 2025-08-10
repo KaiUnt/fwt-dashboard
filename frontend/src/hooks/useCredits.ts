@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/utils/supabase'
 
 interface CreditTransaction {
   id: string
@@ -31,6 +31,13 @@ export function useCredits() {
       setLoading(true)
       setError(null)
       
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        setError('Credits system not available - Supabase not configured')
+        return
+      }
+      
+      const { createClient } = await import('@/lib/supabase')
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -61,6 +68,12 @@ export function useCredits() {
 
   const fetchTransactions = useCallback(async () => {
     try {
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        return
+      }
+      
+      const { createClient } = await import('@/lib/supabase')
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -96,6 +109,12 @@ export function useCredits() {
 
   const purchaseEventAccess = useCallback(async (eventId: string, eventName?: string) => {
     try {
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        throw new Error('Credits system not available - Supabase not configured')
+      }
+      
+      const { createClient } = await import('@/lib/supabase')
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -145,6 +164,12 @@ export function useCredits() {
 
   const checkEventAccess = useCallback(async (eventId: string) => {
     try {
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        return false
+      }
+      
+      const { createClient } = await import('@/lib/supabase')
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Coins, RefreshCw } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+
+import { isSupabaseConfigured } from '@/utils/supabase'
 
 interface CreditsBalanceProps {
   onCreditsUpdate?: (credits: number) => void
@@ -24,6 +25,13 @@ export default function CreditsBalance({
       setLoading(true)
       setError(null)
       
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        setError('Credits system not available - Supabase not configured')
+        return
+      }
+      
+      const { createClient } = await import('@/lib/supabase')
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       

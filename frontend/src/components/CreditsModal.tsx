@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Coins, CreditCard, Clock, TrendingUp, Gift, ShoppingCart } from 'lucide-react'
 import useCredits from '@/hooks/useCredits'
+import { isSupabaseConfigured } from '@/utils/supabase'
 
 // interface Transaction {
 //   id: string
@@ -69,6 +70,36 @@ export default function CreditsModal({
   }
 
   if (!isOpen) return null
+
+  // Check if Supabase is configured
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-900 rounded-lg max-w-md w-full p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Coins className="h-6 w-6 text-yellow-400" />
+              <h2 className="text-xl font-bold text-white">Credits-System</h2>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <div className="text-center">
+            <p className="text-gray-300 mb-4">
+              Das Credits-System ist derzeit nicht verfügbar, da Supabase nicht konfiguriert ist.
+            </p>
+            <p className="text-sm text-gray-400">
+              Bitte kontaktieren Sie den Administrator für weitere Informationen.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
