@@ -65,7 +65,7 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
         
         // If batch endpoint fails, fall back to parallel individual calls
         console.warn('Batch endpoint failed, falling back to individual calls')
-      } catch (batchError) {
+      } catch {
         console.warn('Batch endpoint not available, using parallel individual calls')
       }
 

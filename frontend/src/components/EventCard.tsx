@@ -3,8 +3,7 @@
 import { Calendar, MapPin, ArrowRight, Check, CheckCircle, Archive, Lock, Clock } from 'lucide-react';
 import { FWTEvent } from '@/types/events';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase';
+import React, { useCallback } from 'react';
 
 interface EventCardProps {
   event: FWTEvent;

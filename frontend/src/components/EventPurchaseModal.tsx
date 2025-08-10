@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Coins, Calendar, MapPin, Clock, AlertCircle, Loader2, CreditCard } from 'lucide-react';
+import { X, Coins, Calendar, MapPin, AlertCircle, Loader2, CreditCard, Wifi, WifiOff } from 'lucide-react';
 import { FWTEvent } from '@/types/events';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useIsOffline } from '@/hooks/useOfflineStorage';
@@ -98,7 +98,7 @@ export function EventPurchaseModal({
               {isMultiEvent ? t('purchase.eventsLabel') : t('purchase.eventLabel')}
             </h3>
             
-            {events.map((event, index) => (
+            {events.map((event) => (
               <div key={event.id} className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
