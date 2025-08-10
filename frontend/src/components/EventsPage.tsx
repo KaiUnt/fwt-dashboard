@@ -219,6 +219,15 @@ export function EventsPage() {
     setEventsToPurchase([]);
   };
 
+  // Multi-Event Purchase Handler
+  const handleMultiEventPurchase = () => {
+    if (selectedEventIds.length === 0) return;
+    
+    const selectedEvents = events.filter(event => selectedEventIds.includes(event.id));
+    setEventsToPurchase(selectedEvents);
+    setShowPurchaseModal(true);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -355,14 +364,36 @@ export function EventsPage() {
                 )}
               </div>
               
-              {selectedEventIds.length === 2 && (
-                <button
-                  onClick={handleMultiEventDashboard}
-                  className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Eye className="h-4 w-4" />
-                  <span>{t('buttons.multiEventDashboard')}</span>
-                </button>
+              {selectedEventIds.length > 0 && (
+                <div className="flex items-center space-x-3">
+                  {/* Multi-Event Purchase Button */}
+                  <button
+                    onClick={handleMultiEventPurchase}
+                    className="flex items-center space-x-2 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <span className="text-lg">💳</span>
+                    <span>
+                      {selectedEventIds.length === 1 
+                        ? t('purchase.buyEvent')
+                        : t('purchase.buyEvents', { count: selectedEventIds.length })
+                      }
+                    </span>
+                    <span className="bg-green-500 text-white px-2 py-1 rounded text-sm">
+                      {selectedEventIds.length} {selectedEventIds.length === 1 ? t('credits.credit') : t('credits.credits')}
+                    </span>
+                  </button>
+                  
+                  {/* Multi-Event Dashboard Button (only for 2 events) */}
+                  {selectedEventIds.length === 2 && (
+                    <button
+                      onClick={handleMultiEventDashboard}
+                      className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span>{t('buttons.multiEventDashboard')}</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}

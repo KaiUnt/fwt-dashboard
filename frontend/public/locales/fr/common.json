@@ -215,7 +215,6 @@
     "saveOffline": "Sauvegarder hors ligne",
     "loadingData": "Chargement des données...",
     "manageOfflineData": "Gérer les données hors ligne",
-    "offlineAvailable": "Disponible hors ligne",
     "offlineStale": "⚠️ Hors ligne (périmé)",
     "offlineAvailableCheck": "✅ Disponible hors ligne",
     "athletes": "Athlètes",
@@ -462,12 +461,12 @@
   "allFeatures": "Toutes les fonctionnalités du tableau de bord",
   "multiEventAccess": "Accès aux deux événements",
   "buyEvent": "Acheter l'événement",
-  "buyEvents": "Acheter {count} événements",
+  "buyEvents": "Acheter {{count}} événements",
   "processing": "Traitement...",
   "offlineWarning": "Mode hors ligne",
   "offlineDescription": "L'achat sera sauvegardé et traité lors de la restauration de la connexion internet",
   "purchaseSuccessful": "Événement acheté avec succès !",
-  "multiPurchaseSuccessful": "{count} événements achetés avec succès !",
+  "multiPurchaseSuccessful": "{{count}} événements achetés avec succès !",
   "purchaseFailed": "Échec de l'achat"
 },
 "credits": {

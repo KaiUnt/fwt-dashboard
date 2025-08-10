@@ -462,7 +462,7 @@
     "allFeatures": "Alle Dashboard-Funktionen",
     "multiEventAccess": "Zugriff auf beide Events",
     "buyEvent": "Event kaufen",
-    "buyEvents": "{count} Events kaufen",
+    "buyEvents": "{{count}} Events kaufen",
     "processing": "Verarbeitung...",
     "offlineWarning": "Offline-Modus",
     "offlineDescription": "Der Kauf wird gespeichert und bei der nächsten Internetverbindung verarbeitet",
