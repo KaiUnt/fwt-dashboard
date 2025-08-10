@@ -1815,6 +1815,8 @@ async def purchase_event_access(
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
+        logger.info(f"Single event purchase request for user {current_user_id}: {event_id}")
+        
         # Validate that URL param matches body param
         if event_id != request_data.event_id:
             raise HTTPException(status_code=400, detail="Event ID mismatch")
@@ -1862,14 +1864,15 @@ async def purchase_multiple_events(
     user_token: str = Depends(get_user_token)
 ):
     """Purchase access to multiple events using credits"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+        
     try:
         logger.info(f"Multi-event purchase request for user {current_user_id}: {request_data.event_ids}")
         
-        supabase_client = await get_supabase_client(user_token)
-        
         # Get current credits first
-        credits_result = await supabase_client.rpc("get_user_credits")
-        current_credits = credits_result.data if credits_result.data is not None else 0
+        credits_result = await supabase_client.rpc("get_user_credits", user_token=user_token)
+        current_credits = credits_result if credits_result is not None else 0
         
         event_ids = request_data.event_ids
         event_names = request_data.event_names or [None] * len(event_ids)
@@ -1895,21 +1898,20 @@ async def purchase_multiple_events(
                 result = await supabase_client.rpc("purchase_event_access", {
                     "event_id_param": event_id,
                     "event_name_param": event_name
-                })
+                }, user_token=user_token)
                 
-                if not result.data:
+                if not result:
                     logger.error(f"No response from purchase function for event {event_id}")
                     failed_events.append(event_id)
                     continue
                 
-                purchase_result = result.data
-                logger.info(f"Purchase result for event {event_id}: {purchase_result}")
+                logger.info(f"Purchase result for event {event_id}: {result}")
                 
-                if purchase_result.get("success"):
+                if result.get("success"):
                     purchased_events.append(event_id)
-                    remaining_credits = purchase_result.get("credits_remaining", remaining_credits - 1)
+                    remaining_credits = result.get("credits_remaining", remaining_credits - 1)
                 else:
-                    error_msg = purchase_result.get("error", "unknown_error")
+                    error_msg = result.get("error", "unknown_error")
                     if error_msg == "already_has_access":
                         # If user already has access, don't count as failure
                         purchased_events.append(event_id)
