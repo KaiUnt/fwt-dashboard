@@ -25,10 +25,28 @@ export default function EventAccessGuard({
   const [credits, setCredits] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    checkAccess()
-    fetchCredits()
-  }, [eventId, checkAccess, fetchCredits])
+  const fetchCredits = useCallback(async () => {
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) return
+
+      const response = await fetch('/api/credits/balance', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCredits(data.credits || 0)
+      }
+    } catch (err) {
+      console.error('Error fetching credits:', err)
+    }
+  }, [])
 
   const checkAccess = useCallback(async () => {
     try {
@@ -66,28 +84,10 @@ export default function EventAccessGuard({
     }
   }, [eventId, onAccessGranted])
 
-  const fetchCredits = useCallback(async () => {
-    try {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) return
-
-      const response = await fetch('/api/credits/balance', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setCredits(data.credits || 0)
-      }
-    } catch (err) {
-      console.error('Error fetching credits:', err)
-    }
-  }, [])
+  useEffect(() => {
+    checkAccess()
+    fetchCredits()
+  }, [eventId, checkAccess, fetchCredits])
 
   const purchaseAccess = async () => {
     try {

@@ -68,21 +68,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId)
+      
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000) // Longer timeout
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 15000) // Increased timeout
       })
       
       const fetchPromise = (async () => {
+        console.log('Making Supabase query for profile...')
         const { data, error } = await supabase
           .from('user_profiles')
           .select('*')
           .eq('id', userId)
           .single()
         
+        console.log('Supabase profile query result:', { data, error })
+        
         if (error) {
           // PGRST116 means no rows returned, which is OK for new users
           if (error.code === 'PGRST116') {
+            console.log('No profile found for user (PGRST116)')
             return null
           }
           
@@ -91,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return null
         }
 
+        console.log('Profile fetched successfully:', data)
         return data
       })()
       
@@ -98,10 +105,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return result
     } catch (error) {
       console.error('Error in fetchProfile:', error)
-      // On timeout, just return null - don't access profile here
+      // On timeout or any error, just return null - don't access profile here
       if (error instanceof Error && error.message === 'Profile fetch timeout') {
         console.warn('Profile fetch timeout - will keep existing profile state')
-        return null
       }
       return null
     }

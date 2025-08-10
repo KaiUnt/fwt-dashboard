@@ -103,6 +103,7 @@ export function UserNav() {
               onCreditsUpdate={handleCreditsUpdate}
               showLabel={false}
               className="text-yellow-400"
+              isInsideButton={true}
             />
           </button>
         )}

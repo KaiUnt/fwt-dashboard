@@ -338,17 +338,18 @@ class SupabaseClient:
                 raise HTTPException(status_code=401, detail="Database authentication failed - user token may be invalid")
             raise HTTPException(status_code=500, detail="Database error")
     
-    async def rpc(self, function_name: str, params: dict = None):
+    async def rpc(self, function_name: str, params: dict = None, user_token: Optional[str] = None):
         """Call RPC function with validation"""
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', function_name):
             raise ValueError("Invalid function name")
         
         url = f"{self.url}/rest/v1/rpc/{function_name}"
         sanitized_params = self._sanitize_data(params or {})
+        headers = self._get_headers(user_token)
         
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(url, headers=self.headers, json=sanitized_params)
+                response = await client.post(url, headers=headers, json=sanitized_params)
                 response.raise_for_status()
                 return response.json()
         except httpx.TimeoutException:
@@ -1672,7 +1673,7 @@ async def get_user_credits(
     
     try:
         # Use RPC function to get/create user credits
-        result = await supabase_client.rpc("get_user_credits", {})
+        result = await supabase_client.rpc("get_user_credits", {}, user_token=user_token)
         
         return CreditsBalanceResponse(
             success=True,
@@ -1726,7 +1727,7 @@ async def check_event_access(
     
     try:
         # Use RPC function to check access
-        has_access = await supabase_client.rpc("check_event_access", {"event_id_param": event_id})
+        has_access = await supabase_client.rpc("check_event_access", {"event_id_param": event_id}, user_token=user_token)
         
         return EventAccessResponse(
             success=True,
@@ -1758,7 +1759,7 @@ async def purchase_event_access(
         result = await supabase_client.rpc("purchase_event_access", {
             "event_id_param": event_id,
             "event_name_param": request_data.event_name
-        })
+        }, user_token=user_token)
         
         if not result:
             raise HTTPException(status_code=500, detail="No response from purchase function")

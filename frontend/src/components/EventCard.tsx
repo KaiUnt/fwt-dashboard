@@ -27,12 +27,6 @@ export function EventCard({
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [loadingAccess, setLoadingAccess] = useState(false);
 
-  useEffect(() => {
-    if (showAccessStatus && !isEventFree()) {
-      checkAccess();
-    }
-  }, [event.id, showAccessStatus, checkAccess, isEventFree]);
-
   const isEventFree = useCallback(() => {
     if (!event.date) return false;
     
@@ -74,6 +68,12 @@ export function EventCard({
       setLoadingAccess(false);
     }
   }, [event.id]);
+
+  useEffect(() => {
+    if (showAccessStatus && !isEventFree()) {
+      checkAccess();
+    }
+  }, [event.id, showAccessStatus, checkAccess, isEventFree]);
 
   const getAccessStatus = () => {
     if (!showAccessStatus) return null;
