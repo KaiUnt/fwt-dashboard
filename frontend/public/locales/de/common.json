@@ -333,7 +333,12 @@
     "toSave": "zum Speichern",
     "toClose": "zum Schließen",
     "save": "Speichern",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "tabs": {
+      "mine": "Meine Notizen",
+      "all": "Alle Infos"
+    },
+    "byAuthor": "Von {author}"
   },
   "errors": {
     "loadingFailed": "Fehler beim Laden",

@@ -333,7 +333,12 @@
     "toSave": "pour enregistrer",
     "toClose": "pour fermer",
     "save": "Enregistrer",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "tabs": {
+      "mine": "Mes Notes",
+      "all": "Toutes les Infos"
+    },
+    "byAuthor": "Par {author}"
   },
   "errors": {
     "loadingFailed": "Échec du chargement",

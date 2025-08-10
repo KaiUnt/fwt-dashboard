@@ -1171,8 +1171,11 @@ async def update_commentator_info(
     try:
         logger.info(f"Updating commentator info for athlete {athlete_id} with user token")
         
-        # Check if record exists (using user token for RLS)
-        existing = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id}, user_token=user_token)
+        # Check if record exists for this user specifically (not friends' data)
+        existing = await supabase_client.select("commentator_info", "*", {
+            "athlete_id": athlete_id, 
+            "created_by": current_user_id
+        }, user_token=user_token)
         
         if not existing:
             # Create new record if it doesn't exist
