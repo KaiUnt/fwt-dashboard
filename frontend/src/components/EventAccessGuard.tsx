@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Lock, Coins, Clock, Calendar, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
@@ -28,9 +28,9 @@ export default function EventAccessGuard({
   useEffect(() => {
     checkAccess()
     fetchCredits()
-  }, [eventId])
+  }, [eventId, checkAccess, fetchCredits])
 
-  const checkAccess = async () => {
+  const checkAccess = useCallback(async () => {
     try {
       setLoading(true)
       const supabase = createClient()
@@ -64,9 +64,9 @@ export default function EventAccessGuard({
     } finally {
       setLoading(false)
     }
-  }
+  }, [eventId, onAccessGranted])
 
-  const fetchCredits = async () => {
+  const fetchCredits = useCallback(async () => {
     try {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
@@ -87,7 +87,7 @@ export default function EventAccessGuard({
     } catch (err) {
       console.error('Error fetching credits:', err)
     }
-  }
+  }, [])
 
   const purchaseAccess = async () => {
     try {

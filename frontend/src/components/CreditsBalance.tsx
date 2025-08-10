@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Coins, RefreshCw } from 'lucide-react'
 
 import { isSupabaseConfigured } from '@/utils/supabase'
@@ -20,7 +20,7 @@ export default function CreditsBalance({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchCredits = async () => {
+  const fetchCredits = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -61,11 +61,11 @@ export default function CreditsBalance({
     } finally {
       setLoading(false)
     }
-  }
+  }, [onCreditsUpdate])
 
   useEffect(() => {
     fetchCredits()
-  }, [])
+  }, [fetchCredits])
 
   const handleRefresh = () => {
     fetchCredits()
