@@ -3,7 +3,7 @@
 import { Calendar, MapPin, ArrowRight, Check, CheckCircle, Archive, Lock, Clock } from 'lucide-react';
 import { FWTEvent } from '@/types/events';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 
 interface EventCardProps {
@@ -31,9 +31,9 @@ export function EventCard({
     if (showAccessStatus && !isEventFree()) {
       checkAccess();
     }
-  }, [event.id, showAccessStatus]);
+  }, [event.id, showAccessStatus, checkAccess, isEventFree]);
 
-  const isEventFree = () => {
+  const isEventFree = useCallback(() => {
     if (!event.date) return false;
     
     const eventDate = new Date(event.date);
@@ -41,9 +41,9 @@ export function EventCard({
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
     return eventDate < sevenDaysAgo;
-  };
+  }, [event.date]);
 
-  const checkAccess = async () => {
+  const checkAccess = useCallback(async () => {
     try {
       setLoadingAccess(true);
       const supabase = createClient();
@@ -73,7 +73,7 @@ export function EventCard({
     } finally {
       setLoadingAccess(false);
     }
-  };
+  }, [event.id]);
 
   const getAccessStatus = () => {
     if (!showAccessStatus) return null;

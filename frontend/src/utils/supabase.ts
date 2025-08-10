@@ -5,11 +5,11 @@ export function isSupabaseConfigured(): boolean {
   return !!(supabaseUrl && supabaseKey && supabaseUrl !== 'your-project-id.supabase.co' && supabaseKey !== 'your-anon-key-here')
 }
 
-export function getSupabaseClient() {
+export async function getSupabaseClient() {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase is not configured')
   }
   
-  const { createClient } = require('@/lib/supabase')
+  const { createClient } = await import('@/lib/supabase')
   return createClient()
 }
