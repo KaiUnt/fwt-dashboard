@@ -1855,9 +1855,7 @@ class GrantCreditsRequest(BaseModel):
     note: str = Field("Admin grant", max_length=500)
 
 @app.post("/api/admin/credits/grant/{user_id}")
-@limiter.limit("20/minute")
 async def grant_credits_to_user(
-    request: Request,
     user_id: str,
     grant_request: GrantCreditsRequest,
     current_user_id: str = Depends(extract_user_id_from_token),
