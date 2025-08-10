@@ -100,7 +100,7 @@ export default withPWA({
         handler: "NetworkFirst",
         options: {
           cacheName: "https-calls",
-          networkTimeoutSeconds: 15,
+          networkTimeoutSeconds: 10,
           expiration: {
             maxEntries: 150,
             maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
