@@ -495,35 +495,70 @@ export function useMergedCommentatorInfo(athleteId: string) {
   const mergedData = React.useMemo(() => {
     const allData = [...(myData || []), ...(friendsData || [])];
     
-    // Group by field and merge
+    // Create field-wise mapping with author information
+    const fieldMapping: Record<string, { value: string; author: string; isOwnData: boolean }> = {};
+    
+    // Process all data, preferring own data over friends' data
+    allData.forEach(item => {
+      const authorName = item.is_own_data ? 'You' : (item.author_name || 'Unknown');
+      
+      if (item.homebase && !fieldMapping.homebase) {
+        fieldMapping.homebase = { value: item.homebase, author: authorName, isOwnData: item.is_own_data };
+      }
+      if (item.team && !fieldMapping.team) {
+        fieldMapping.team = { value: item.team, author: authorName, isOwnData: item.is_own_data };
+      }
+      if (item.sponsors && !fieldMapping.sponsors) {
+        fieldMapping.sponsors = { value: item.sponsors, author: authorName, isOwnData: item.is_own_data };
+      }
+      if (item.favorite_trick && !fieldMapping.favorite_trick) {
+        fieldMapping.favorite_trick = { value: item.favorite_trick, author: authorName, isOwnData: item.is_own_data };
+      }
+      if (item.achievements && !fieldMapping.achievements) {
+        fieldMapping.achievements = { value: item.achievements, author: authorName, isOwnData: item.is_own_data };
+      }
+      if (item.injuries && !fieldMapping.injuries) {
+        fieldMapping.injuries = { value: item.injuries, author: authorName, isOwnData: item.is_own_data };
+      }
+      if (item.fun_facts && !fieldMapping.fun_facts) {
+        fieldMapping.fun_facts = { value: item.fun_facts, author: authorName, isOwnData: item.is_own_data };
+      }
+      if (item.notes && !fieldMapping.notes) {
+        fieldMapping.notes = { value: item.notes, author: authorName, isOwnData: item.is_own_data };
+      }
+      
+      // Handle social media fields
+      if (item.social_media?.instagram && !fieldMapping.instagram) {
+        fieldMapping.instagram = { value: item.social_media.instagram, author: authorName, isOwnData: item.is_own_data };
+      }
+      if (item.social_media?.youtube && !fieldMapping.youtube) {
+        fieldMapping.youtube = { value: item.social_media.youtube, author: authorName, isOwnData: item.is_own_data };
+      }
+      if (item.social_media?.website && !fieldMapping.website) {
+        fieldMapping.website = { value: item.social_media.website, author: authorName, isOwnData: item.is_own_data };
+      }
+    });
+    
+    // Convert back to CommentatorInfo format for compatibility
     const merged: CommentatorInfoWithAuthor = {
       athlete_id: athleteId,
       is_own_data: false,
-      homebase: '',
-      team: '',
-      sponsors: '',
-      favorite_trick: '',
-      achievements: '',
-      injuries: '',
-      fun_facts: '',
-      notes: '',
-      social_media: {},
+      homebase: fieldMapping.homebase?.value || '',
+      team: fieldMapping.team?.value || '',
+      sponsors: fieldMapping.sponsors?.value || '',
+      favorite_trick: fieldMapping.favorite_trick?.value || '',
+      achievements: fieldMapping.achievements?.value || '',
+      injuries: fieldMapping.injuries?.value || '',
+      fun_facts: fieldMapping.fun_facts?.value || '',
+      notes: fieldMapping.notes?.value || '',
+      social_media: {
+        instagram: fieldMapping.instagram?.value || '',
+        youtube: fieldMapping.youtube?.value || '',
+        website: fieldMapping.website?.value || '',
+      },
+      // Add field mapping for enhanced display
+      fieldAuthors: fieldMapping,
     };
-    
-    // Merge fields, preferring own data over friends' data
-    allData.forEach(item => {
-      if (item.homebase && !merged.homebase) merged.homebase = item.homebase;
-      if (item.team && !merged.team) merged.team = item.team;
-      if (item.sponsors && !merged.sponsors) merged.sponsors = item.sponsors;
-      if (item.favorite_trick && !merged.favorite_trick) merged.favorite_trick = item.favorite_trick;
-      if (item.achievements && !merged.achievements) merged.achievements = item.achievements;
-      if (item.injuries && !merged.injuries) merged.injuries = item.injuries;
-      if (item.fun_facts && !merged.fun_facts) merged.fun_facts = item.fun_facts;
-      if (item.notes && !merged.notes) merged.notes = item.notes;
-      if (item.social_media) {
-        merged.social_media = { ...merged.social_media, ...item.social_media };
-      }
-    });
     
     return merged;
   }, [myData, friendsData, athleteId]);

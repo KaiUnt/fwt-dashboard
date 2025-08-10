@@ -338,7 +338,8 @@
       "mine": "Mes Notes",
       "all": "Toutes les Infos"
     },
-    "byAuthor": "Par {author}"
+    "byAuthor": "Par {author}",
+    "you": "Vous"
   },
   "errors": {
     "loadingFailed": "Échec du chargement",

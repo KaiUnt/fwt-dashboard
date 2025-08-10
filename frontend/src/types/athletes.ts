@@ -107,6 +107,7 @@ export interface CommentatorInfoWithAuthor extends CommentatorInfo {
   created_by?: string;
   author_name?: string;
   is_own_data: boolean;
+  fieldAuthors?: Record<string, { value: string; author: string; isOwnData: boolean }>;
 }
 
 // Tab Data Interface

@@ -102,13 +102,54 @@ export function CommentatorInfoSection({
       );
     }
 
-    const info = data[0]; // For now, show first entry
+    const info = data[0];
     const isOwnData = info.is_own_data;
+    const hasFieldAuthors = info.fieldAuthors && Object.keys(info.fieldAuthors).length > 0;
+
+    // Helper function to render field with author attribution
+    const renderFieldWithAuthor = (
+      fieldKey: string, 
+      value: string, 
+      icon: React.ReactNode, 
+      label: string,
+      isTextArea: boolean = false
+    ) => {
+      if (!value) return null;
+      
+      const fieldAuthor = hasFieldAuthors ? info.fieldAuthors?.[fieldKey] : null;
+      const authorName = fieldAuthor 
+        ? (fieldAuthor.author === 'You' ? t('commentatorInfo.you') : fieldAuthor.author)
+        : (isOwnData ? t('commentatorInfo.you') : info.author_name || 'Unknown');
+      const authorIsOwn = fieldAuthor ? fieldAuthor.isOwnData : isOwnData;
+
+      return (
+        <div className="flex items-start space-x-2">
+          <div className="flex-shrink-0 mt-0.5">{icon}</div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-medium text-amber-800">{label}</p>
+              {hasFieldAuthors && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  authorIsOwn 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {authorName}
+                </span>
+              )}
+            </div>
+            <p className={`text-sm text-amber-700 ${isTextArea ? 'whitespace-pre-wrap' : ''}`}>
+              {value}
+            </p>
+          </div>
+        </div>
+      );
+    };
 
     return (
       <div className="space-y-4">
-        {/* Author attribution */}
-        {!isOwnData && info.author_name && (
+        {/* Author attribution for single-source data */}
+        {!hasFieldAuthors && !isOwnData && info.author_name && (
           <div className="flex items-center space-x-2 mb-3 p-2 bg-blue-50 rounded-lg">
             <Users className="h-4 w-4 text-blue-600" />
             <span className="text-sm text-blue-800 font-medium">
@@ -118,90 +159,50 @@ export function CommentatorInfoSection({
         )}
 
         {/* Basic Info Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {info?.homebase && (
-            <div className="flex items-center space-x-2">
-              <Home className="h-4 w-4 text-amber-600 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.homebase')}</p>
-                <p className="text-sm text-amber-700">{info.homebase}</p>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {renderFieldWithAuthor('homebase', info?.homebase || '', 
+            <Home className="h-4 w-4 text-amber-600" />, 
+            t('commentatorInfo.homebase')
           )}
 
-          {info?.team && (
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-amber-600 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.team')}</p>
-                <p className="text-sm text-amber-700">{info.team}</p>
-              </div>
-            </div>
+          {renderFieldWithAuthor('team', info?.team || '', 
+            <Users className="h-4 w-4 text-amber-600" />, 
+            t('commentatorInfo.team')
           )}
 
-          {info?.favorite_trick && (
-            <div className="flex items-center space-x-2">
-              <Heart className="h-4 w-4 text-amber-600 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.favoriteTrick')}</p>
-                <p className="text-sm text-amber-700">{info.favorite_trick}</p>
-              </div>
-            </div>
+          {renderFieldWithAuthor('favorite_trick', info?.favorite_trick || '', 
+            <Heart className="h-4 w-4 text-amber-600" />, 
+            t('commentatorInfo.favoriteTrick')
           )}
 
-          {info?.injuries && (
-            <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.injuries')}</p>
-                <p className="text-sm text-amber-700 line-clamp-2">{info.injuries}</p>
-              </div>
-            </div>
+          {renderFieldWithAuthor('injuries', info?.injuries || '', 
+            <AlertTriangle className="h-4 w-4 text-amber-600" />, 
+            t('commentatorInfo.injuries')
           )}
         </div>
 
         {/* Sponsors */}
-        {info?.sponsors && (
-          <div className="flex items-start space-x-2">
-            <Award className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.sponsors')}</p>
-              <p className="text-sm text-amber-700">{info.sponsors}</p>
-            </div>
-          </div>
+        {renderFieldWithAuthor('sponsors', info?.sponsors || '', 
+          <Award className="h-4 w-4 text-amber-600" />, 
+          t('commentatorInfo.sponsors'), true
         )}
 
         {/* Achievements */}
-        {info?.achievements && (
-          <div className="flex items-start space-x-2">
-            <Award className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.achievements')}</p>
-              <p className="text-sm text-amber-700">{info.achievements}</p>
-            </div>
-          </div>
+        {renderFieldWithAuthor('achievements', info?.achievements || '', 
+          <Award className="h-4 w-4 text-amber-600" />, 
+          t('commentatorInfo.achievements'), true
         )}
 
         {/* Fun Facts */}
-        {info?.fun_facts && (
-          <div className="flex items-start space-x-2">
-            <Lightbulb className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.funFacts')}</p>
-              <p className="text-sm text-amber-700">{info.fun_facts}</p>
-            </div>
-          </div>
+        {renderFieldWithAuthor('fun_facts', info?.fun_facts || '', 
+          <Lightbulb className="h-4 w-4 text-amber-600" />, 
+          t('commentatorInfo.funFacts'), true
         )}
 
         {/* Notes */}
-        {info?.notes && (
-          <div className="flex items-start space-x-2">
-            <FileText className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium text-amber-800">{t('commentatorInfo.notes')}</p>
-              <p className="text-sm text-amber-700">{info.notes}</p>
-            </div>
-          </div>
+        {renderFieldWithAuthor('notes', info?.notes || '', 
+          <FileText className="h-4 w-4 text-amber-600" />, 
+          t('commentatorInfo.notes'), true
         )}
 
         {/* Social Media */}
@@ -210,47 +211,86 @@ export function CommentatorInfoSection({
           info?.social_media?.website) && (
           <div className="pt-3 border-t border-amber-200">
             <p className="text-xs font-medium text-amber-800 mb-3">{t('commentatorInfo.socialMedia')}</p>
-            <div className="flex items-center space-x-4">
+            <div className="space-y-2">
               {info.social_media?.instagram && (
-                <a
-                  href={`https://instagram.com/${info.social_media.instagram}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg hover:from-pink-600 hover:to-rose-600 transition-all text-sm"
-                >
-                  <Instagram className="h-4 w-4" />
-                  <span>@{info.social_media.instagram}</span>
-                </a>
+                <div className="flex items-center justify-between">
+                  <a
+                    href={`https://instagram.com/${info.social_media.instagram}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg hover:from-pink-600 hover:to-rose-600 transition-all text-sm"
+                  >
+                    <Instagram className="h-4 w-4" />
+                    <span>@{info.social_media.instagram}</span>
+                  </a>
+                  {hasFieldAuthors && info.fieldAuthors?.instagram && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      info.fieldAuthors.instagram.isOwnData 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {info.fieldAuthors.instagram.author === 'You' 
+                        ? t('commentatorInfo.you') 
+                        : info.fieldAuthors.instagram.author}
+                    </span>
+                  )}
+                </div>
               )}
 
               {info.social_media?.youtube && (
-                <a
-                  href={info.social_media.youtube.startsWith('http') 
-                    ? info.social_media.youtube 
-                    : `https://${info.social_media.youtube}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all text-sm"
-                >
-                  <Youtube className="h-4 w-4" />
-                  <span>YouTube</span>
-                </a>
+                <div className="flex items-center justify-between">
+                  <a
+                    href={info.social_media.youtube.startsWith('http') 
+                      ? info.social_media.youtube 
+                      : `https://${info.social_media.youtube}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all text-sm"
+                  >
+                    <Youtube className="h-4 w-4" />
+                    <span>YouTube</span>
+                  </a>
+                  {hasFieldAuthors && info.fieldAuthors?.youtube && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      info.fieldAuthors.youtube.isOwnData 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {info.fieldAuthors.youtube.author === 'You' 
+                        ? t('commentatorInfo.you') 
+                        : info.fieldAuthors.youtube.author}
+                    </span>
+                  )}
+                </div>
               )}
 
               {info.social_media?.website && (
-                <a
-                  href={info.social_media.website.startsWith('http') 
-                    ? info.social_media.website 
-                    : `https://${info.social_media.website}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all text-sm"
-                >
-                  <Globe className="h-4 w-4" />
-                  <span>Website</span>
-                </a>
+                <div className="flex items-center justify-between">
+                  <a
+                    href={info.social_media.website.startsWith('http') 
+                      ? info.social_media.website 
+                      : `https://${info.social_media.website}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all text-sm"
+                  >
+                    <Globe className="h-4 w-4" />
+                    <span>Website</span>
+                  </a>
+                  {hasFieldAuthors && info.fieldAuthors?.website && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      info.fieldAuthors.website.isOwnData 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {info.fieldAuthors.website.author === 'You' 
+                        ? t('commentatorInfo.you') 
+                        : info.fieldAuthors.website.author}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </div>

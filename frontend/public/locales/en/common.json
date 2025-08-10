@@ -338,7 +338,8 @@
       "mine": "My Notes",
       "all": "All Info"
     },
-    "byAuthor": "By {author}"
+    "byAuthor": "By {author}",
+    "you": "You"
   },
   "errors": {
     "loadingFailed": "Loading failed",

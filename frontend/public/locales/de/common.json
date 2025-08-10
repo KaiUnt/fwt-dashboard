@@ -338,7 +338,8 @@
       "mine": "Meine Notizen",
       "all": "Alle Infos"
     },
-    "byAuthor": "Von {author}"
+    "byAuthor": "Von {author}",
+    "you": "Du"
   },
   "errors": {
     "loadingFailed": "Fehler beim Laden",
