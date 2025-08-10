@@ -215,7 +215,7 @@
     "saveOffline": "Offline speichern",
     "loadingData": "Lade Daten...",
     "manageOfflineData": "Offline-Daten verwalten",
-    "offlineAvailable": "Offline verfügbar",
+    "offlineAvailableStatus": "Offline verfügbar",
     "offlineStale": "⚠️ Offline (veraltet)",
     "offlineAvailableCheck": "✅ Offline verfügbar",
     "athletes": "Athleten",
@@ -440,5 +440,35 @@
     "removeFriendError": "Fehler beim Entfernen des Freundes",
     "friendRemoved": "Freund erfolgreich entfernt.",
     "noFriendsYet": "Noch keine Freunde. Sende Freundschaftsanfragen um zu beginnen!"
+  },
+  "common": {
+    "cancel": "Abbrechen"
+  },
+  "purchase": {
+    "singleEventTitle": "Event kaufen",
+    "multiEventTitle": "Events kaufen",
+    "eventLabel": "Event",
+    "eventsLabel": "Events",
+    "creditsSummary": "Credits-Übersicht",
+    "currentCredits": "Aktuelle Credits",
+    "eventCost": "Event-Kosten",
+    "totalCost": "Gesamtkosten",
+    "creditsAfter": "Credits danach",
+    "insufficientCredits": "Nicht genügend Credits",
+    "needMoreCredits": "Sie benötigen {needed} weitere Credits",
+    "benefitsTitle": "Was Sie erhalten",
+    "permanentAccess": "Dauerhafter Zugriff auf das Event",
+    "offlineAvailable": "Offline-Verfügbarkeit",
+    "allFeatures": "Alle Dashboard-Funktionen",
+    "multiEventAccess": "Zugriff auf beide Events",
+    "buyEvent": "Event kaufen",
+    "buyEvents": "{count} Events kaufen",
+    "processing": "Verarbeitung...",
+    "offlineWarning": "Offline-Modus",
+    "offlineDescription": "Der Kauf wird gespeichert und bei der nächsten Internetverbindung verarbeitet"
+  },
+  "credits": {
+    "credit": "Credit",
+    "credits": "Credits"
   }
 }

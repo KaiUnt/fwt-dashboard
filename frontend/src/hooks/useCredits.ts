@@ -107,8 +107,11 @@ export function useCredits() {
     }
   }, [])
 
-  const purchaseEventAccess = useCallback(async (eventId: string, eventName?: string) => {
+  const purchaseEventAccess = useCallback(async (eventIds: string | string[], eventNames?: string | string[]) => {
     try {
+      setLoading(true)
+      setError(null)
+      
       // Check if Supabase is configured
       if (!isSupabaseConfigured()) {
         throw new Error('Credits system not available - Supabase not configured')
@@ -122,16 +125,31 @@ export function useCredits() {
         throw new Error('Not authenticated')
       }
 
-      const response = await fetch(`/api/events/${eventId}/purchase`, {
+      // Normalize inputs to arrays
+      const eventIdArray = Array.isArray(eventIds) ? eventIds : [eventIds]
+      const eventNameArray = Array.isArray(eventNames) ? eventNames : (eventNames ? [eventNames] : [])
+      
+      // For multi-event purchases, use a different endpoint
+      const isMultiEvent = eventIdArray.length > 1
+      const endpoint = isMultiEvent ? '/api/events/purchase-multiple' : `/api/events/${eventIdArray[0]}/purchase`
+
+      const requestBody = isMultiEvent 
+        ? {
+            event_ids: eventIdArray,
+            event_names: eventNameArray
+          }
+        : {
+            event_id: eventIdArray[0],
+            event_name: eventNameArray[0]
+          }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          event_id: eventId,
-          event_name: eventName
-        })
+        body: JSON.stringify(requestBody)
       })
 
       const data = await response.json()
@@ -155,10 +173,13 @@ export function useCredits() {
       return {
         success: true,
         message: data.message,
-        credits_remaining: data.credits_remaining
+        credits_remaining: data.credits_remaining,
+        purchased_events: data.purchased_events || eventIdArray
       }
     } catch (err) {
       throw err
+    } finally {
+      setLoading(false)
     }
   }, [fetchTransactions])
 

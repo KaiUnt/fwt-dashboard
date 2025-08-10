@@ -1660,6 +1660,24 @@ class CreditsTransactionResponse(BaseModel):
     created_at: str
     event_id: Optional[str] = None
 
+class BatchEventAccessRequest(BaseModel):
+    event_ids: List[str] = Field(..., min_items=1, max_items=50)
+    
+    @validator('event_ids')
+    def validate_event_ids(cls, v):
+        # Validate each event ID
+        for event_id in v:
+            if not isinstance(event_id, str) or len(event_id.strip()) == 0:
+                raise ValueError('All event IDs must be non-empty strings')
+            if not re.match(r'^[a-zA-Z0-9_-]+$', event_id.strip()):
+                raise ValueError('Event IDs can only contain letters, numbers, underscores, and hyphens')
+        return [event_id.strip() for event_id in v]
+
+class BatchEventAccessResponse(BaseModel):
+    success: bool
+    access_status: Dict[str, bool]
+    message: str
+
 # Credits System API Endpoints
 
 @app.get("/api/credits/balance", response_model=CreditsBalanceResponse)
@@ -1738,6 +1756,40 @@ async def check_event_access(
     except Exception as e:
         logger.error(f"Error checking event access: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to check event access: {str(e)}")
+
+@app.post("/api/events/access-batch", response_model=BatchEventAccessResponse)
+async def check_batch_event_access(
+    request_data: BatchEventAccessRequest,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Check if user has access to multiple events in a single request"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        access_status = {}
+        
+        # Check access for each event ID
+        for event_id in request_data.event_ids:
+            try:
+                # Use RPC function to check access for each event
+                has_access = await supabase_client.rpc("check_event_access", {"event_id_param": event_id}, user_token=user_token)
+                access_status[event_id] = has_access if has_access is not None else False
+            except Exception as e:
+                logger.warning(f"Error checking access for event {event_id}: {e}")
+                # If individual check fails, assume no access
+                access_status[event_id] = False
+        
+        return BatchEventAccessResponse(
+            success=True,
+            access_status=access_status,
+            message=f"Batch access check completed for {len(request_data.event_ids)} events"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in batch event access check: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to check batch event access: {str(e)}")
 
 @app.post("/api/events/{event_id}/purchase", response_model=PurchaseEventAccessResponse)
 async def purchase_event_access(

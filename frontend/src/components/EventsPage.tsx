@@ -7,6 +7,10 @@ import { Search, Calendar, Loader2, ToggleLeft, ToggleRight, Eye, History, Clock
 import { EventCard } from './EventCard';
 import { SearchInput } from './SearchInput';
 import { FilterTabs } from './FilterTabs';
+import { useCredits } from '@/hooks/useCredits';
+import { EventPurchaseModal } from './EventPurchaseModal';
+import { isSupabaseConfigured } from '@/utils/supabase';
+import { useBatchEventAccess } from '@/hooks/useBatchEventAccess';
 
 import { useEvents } from '@/hooks/useEvents';
 import { FWTEvent } from '@/types/events';
@@ -14,7 +18,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from '@/hooks/useOfflineStorage';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AppHeader } from './AppHeader';
-
 
 export function EventsPage() {
   const { t } = useTranslation();
@@ -27,6 +30,18 @@ export function EventsPage() {
   const [isMultiEventMode, setIsMultiEventMode] = useState(false);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Purchase Modal State
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [eventsToPurchase, setEventsToPurchase] = useState<FWTEvent[]>([]);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  
+  // Success/Error Message State
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Credits functionality
+  const { credits, purchaseEventAccess } = useCredits();
   
   // Offline functionality
   const isOffline = useIsOffline();
@@ -72,6 +87,10 @@ export function EventsPage() {
 
   const events = eventsWithStatus;
 
+  // Batch Access Check for Performance
+  const eventIds = useMemo(() => events.map(event => event.id), [events]);
+  const { accessStatus, loading: accessLoading } = useBatchEventAccess(eventIds);
+
   // Get unique years for filter
   const availableYears = useMemo(() => {
     const years = [...new Set(events.map(event => event.year))].sort();
@@ -116,6 +135,86 @@ export function EventsPage() {
   useEffect(() => {
     setSelectedEventIds([]);
   }, [isMultiEventMode]);
+
+  // Event Access Check - now uses batch data for performance
+  const checkEventAccess = async (eventId: string): Promise<boolean> => {
+    // Use cached batch access data if available
+    if (accessStatus.hasOwnProperty(eventId)) {
+      return accessStatus[eventId] || false;
+    }
+    
+    // Fallback to individual check if not in batch (shouldn't happen normally)
+    try {
+      if (!isSupabaseConfigured()) return false;
+      
+      const { createClient } = await import('@/lib/supabase');
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) return false;
+
+      const response = await fetch(`/api/events/${eventId}/access`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.has_access || false;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error checking access:', err);
+      return false;
+    }
+  };
+
+  // Purchase Modal Handlers
+  const handleEventPurchase = (eventsToProcess: FWTEvent[]) => {
+    setEventsToPurchase(eventsToProcess);
+    setShowPurchaseModal(true);
+  };
+
+  const handlePurchaseConfirm = async (eventIds: string[]) => {
+    try {
+      setPurchaseLoading(true);
+      
+      // Get event names for the purchase
+      const eventNames = eventsToPurchase.map(event => event.name);
+      
+      // Call the purchase function
+      await purchaseEventAccess(eventIds, eventNames);
+      
+      // Close modal and reset state
+      setShowPurchaseModal(false);
+      setEventsToPurchase([]);
+      
+      // Show success message
+      setSuccessMessage(eventIds.length === 1 
+        ? t('purchase.purchaseSuccessful') 
+        : t('purchase.multiPurchaseSuccessful', { count: eventIds.length })
+      );
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+      
+    } catch (error) {
+      console.error('Purchase failed:', error);
+      setErrorMessage(error instanceof Error ? error.message : t('purchase.purchaseFailed'));
+      
+      // Auto-hide error message after 8 seconds
+      setTimeout(() => setErrorMessage(null), 8000);
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
+
+  const handlePurchaseCancel = () => {
+    setShowPurchaseModal(false);
+    setEventsToPurchase([]);
+  };
 
   if (isLoading) {
     return (
@@ -417,23 +516,96 @@ export function EventsPage() {
                 event={event}
                 onClick={() => isMultiEventMode 
                   ? toggleEventSelection(event.id)
-                  : handleEventSelect(event, router)
+                  : handleEventSelect(event, router, handleEventPurchase, checkEventAccess)
                 }
                 isMultiMode={isMultiEventMode}
                 isSelected={selectedEventIds.includes(event.id)}
                 isSelectable={!isMultiEventMode || selectedEventIds.length < 2 || selectedEventIds.includes(event.id)}
                 showAccessStatus={true}
+                hasAccess={accessStatus[event.id] || null}
+                accessLoading={accessLoading}
               />
             ))}
           </div>
         )}
       </div>
 
+      {/* Purchase Modal */}
+      <EventPurchaseModal
+        isOpen={showPurchaseModal}
+        events={eventsToPurchase}
+        currentCredits={credits}
+        onPurchase={handlePurchaseConfirm}
+        onClose={handlePurchaseCancel}
+        isLoading={purchaseLoading}
+      />
+
+      {/* Success Toast */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 animate-in slide-in-from-top-2">
+          <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
+            <span className="text-xs">✓</span>
+          </div>
+          <span className="font-medium">{successMessage}</span>
+          <button 
+            onClick={() => setSuccessMessage(null)}
+            className="ml-2 text-green-200 hover:text-white"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Error Toast */}
+      {errorMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 animate-in slide-in-from-top-2">
+          <div className="w-5 h-5 bg-red-600 rounded-full flex items-center justify-center">
+            <span className="text-xs">!</span>
+          </div>
+          <span className="font-medium">{errorMessage}</span>
+          <button 
+            onClick={() => setErrorMessage(null)}
+            className="ml-2 text-red-200 hover:text-white"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }
 
-function handleEventSelect(event: FWTEvent, router: AppRouterInstance) {
-  // Navigate to dashboard for selected event
-  router.push(`/dashboard/${event.id}`);
-} 
+async function handleEventSelect(event: FWTEvent, router: AppRouterInstance, onPurchase?: (events: FWTEvent[]) => void, checkAccess?: (eventId: string) => Promise<boolean>) {
+  // Check if event is free (older than 7 days)
+  const isEventFree = () => {
+    const eventDate = new Date(event.date);
+    const now = new Date();
+    const daysDifference = (now.getTime() - eventDate.getTime()) / (1000 * 60 * 60 * 24);
+    return daysDifference > 7;
+  };
+
+  // If event is free, navigate directly
+  if (isEventFree()) {
+    router.push(`/dashboard/${event.id}`);
+    return;
+  }
+
+  // Check if user already has access to this event
+  if (checkAccess) {
+    const hasAccess = await checkAccess(event.id);
+    if (hasAccess) {
+      // User has access, navigate directly to dashboard
+      router.push(`/dashboard/${event.id}`);
+      return;
+    }
+  }
+
+  // User needs to purchase access, open purchase modal
+  if (onPurchase) {
+    onPurchase([event]);
+  } else {
+    // Fallback: navigate to dashboard (shouldn't happen)
+    router.push(`/dashboard/${event.id}`);
+  }
+}

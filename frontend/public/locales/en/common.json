@@ -440,5 +440,32 @@
     "removeFriendError": "Failed to remove friend",
     "friendRemoved": "Friend removed successfully.",
     "noFriendsYet": "No friends yet. Send friend requests to get started!"
+  },
+  "purchase": {
+    "singleEventTitle": "Purchase Event",
+    "multiEventTitle": "Purchase Events",
+    "eventLabel": "Event",
+    "eventsLabel": "Events",
+    "creditsSummary": "Credits Summary",
+    "currentCredits": "Current Credits",
+    "eventCost": "Event Cost",
+    "totalCost": "Total Cost",
+    "creditsAfter": "Credits After",
+    "insufficientCredits": "Insufficient Credits",
+    "needMoreCredits": "You need {needed} more credits",
+    "benefitsTitle": "What You Get",
+    "permanentAccess": "Permanent access to the event",
+    "offlineAvailable": "Offline availability",
+    "allFeatures": "All dashboard features",
+    "multiEventAccess": "Access to both events",
+    "buyEvent": "Buy Event",
+    "buyEvents": "Buy {count} Events",
+    "processing": "Processing...",
+    "offlineWarning": "Offline Mode",
+    "offlineDescription": "Purchase will be saved and processed when internet connection is restored"
+  },
+  "credits": {
+    "credit": "Credit",
+    "credits": "Credits"
   }
 }

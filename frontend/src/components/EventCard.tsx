@@ -13,6 +13,8 @@ interface EventCardProps {
   isSelected?: boolean;
   isSelectable?: boolean;
   showAccessStatus?: boolean;
+  hasAccess?: boolean | null; // From batch access check
+  accessLoading?: boolean; // From batch access loading state
 }
 
 export function EventCard({ 
@@ -21,11 +23,11 @@ export function EventCard({
   isMultiMode = false, 
   isSelected = false, 
   isSelectable = true,
-  showAccessStatus = false
+  showAccessStatus = false,
+  hasAccess = null,
+  accessLoading = false
 }: EventCardProps) {
   const { t } = useTranslation();
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  const [loadingAccess, setLoadingAccess] = useState(false);
 
   const isEventFree = useCallback(() => {
     if (!event.date) return false;
@@ -37,43 +39,9 @@ export function EventCard({
     return eventDate < sevenDaysAgo;
   }, [event.date]);
 
-  const checkAccess = useCallback(async () => {
-    try {
-      setLoadingAccess(true);
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        setHasAccess(false);
-        return;
-      }
 
-      const response = await fetch(`/api/events/${event.id}/access`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setHasAccess(data.has_access || false);
-      } else {
-        setHasAccess(false);
-      }
-    } catch (err) {
-      console.error('Error checking access:', err);
-      setHasAccess(false);
-    } finally {
-      setLoadingAccess(false);
-    }
-  }, [event.id]);
-
-  useEffect(() => {
-    if (showAccessStatus && !isEventFree()) {
-      checkAccess();
-    }
-  }, [event.id, showAccessStatus, checkAccess, isEventFree]);
+  // Access status is now provided via props from batch check
 
   const getAccessStatus = () => {
     if (!showAccessStatus) return null;
@@ -87,7 +55,7 @@ export function EventCard({
       };
     }
     
-    if (loadingAccess) {
+    if (accessLoading) {
       return {
         icon: <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />,
         text: 'Prüfe...',
