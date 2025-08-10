@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000) // Longer timeout
       })
       
       const fetchPromise = (async () => {
@@ -98,19 +98,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return result
     } catch (error) {
       console.error('Error in fetchProfile:', error)
-      // On timeout, return current profile to keep it stable
+      // On timeout, just return null - don't access profile here
       if (error instanceof Error && error.message === 'Profile fetch timeout') {
-        console.warn('Profile fetch timeout - keeping existing profile')
-        return profile // Return current profile instead of null
+        console.warn('Profile fetch timeout - will keep existing profile state')
+        return null
       }
       return null
     }
-  }, [supabase, profile])
+  }, [supabase]) // ← REMOVED profile dependency!
 
   const refreshProfile = async () => {
     if (user) {
-      const profile = await fetchProfile(user.id)
-      setProfile(profile)
+      const fetchedProfile = await fetchProfile(user.id)
+      // Only update if we got a result (not timeout)
+      if (fetchedProfile !== null) {
+        setProfile(fetchedProfile)
+      }
     }
   }
 
@@ -135,17 +138,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setOfflineAuthState(session.user)
           
           try {
-            const profile = await fetchProfile(session.user.id)
+            const fetchedProfile = await fetchProfile(session.user.id)
             if (mounted) {
-              setProfile(profile)
+              // Only update profile if we got a result (not timeout)
+              if (fetchedProfile !== null) {
+                setProfile(fetchedProfile)
+              }
+              // On timeout (null), keep existing profile
             }
           } catch (profileError) {
             console.error('Error fetching profile during init:', profileError)
             if (mounted) {
-              // Only set profile to null for non-timeout errors during init
-              if (!(profileError instanceof Error && profileError.message === 'Profile fetch timeout')) {
-                setProfile(null)
-              }
+              setProfile(null)
             }
           }
         } else {
@@ -199,10 +203,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
           try {
             if (session?.user) {
-              const profile = await fetchProfile(session.user.id)
+              const fetchedProfile = await fetchProfile(session.user.id)
               if (mounted) {
-                setProfile(profile)
-                // Only set loading to false AFTER profile is set
+                // Only update profile if we got a result (not timeout)
+                if (fetchedProfile !== null) {
+                  setProfile(fetchedProfile)
+                }
+                // On timeout (null), keep existing profile
                 setLoading(false)
                 isInitialLoad = false
               }
@@ -215,11 +222,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           } catch (error) {
             console.error('Error handling auth state change:', error)
-            // Only set profile to null for non-timeout errors
             if (mounted) {
-              if (!(error instanceof Error && error.message === 'Profile fetch timeout')) {
-                setProfile(null)
-              }
+              setProfile(null)
               setLoading(false)
               isInitialLoad = false
             }
