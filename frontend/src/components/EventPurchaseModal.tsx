@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Coins, Calendar, MapPin, AlertCircle, Loader2, CreditCard, Wifi, WifiOff } from 'lucide-react';
+import { X, Coins, Calendar, MapPin, AlertCircle, Loader2, CreditCard } from 'lucide-react';
 import { FWTEvent } from '@/types/events';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useIsOffline } from '@/hooks/useOfflineStorage';
