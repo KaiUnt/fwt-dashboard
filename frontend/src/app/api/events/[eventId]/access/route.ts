@@ -4,8 +4,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const { eventId } = await params
   try {
     // Get the authorization header from the request
     const authHeader = request.headers.get('authorization')
@@ -18,7 +19,7 @@ export async function GET(
     }
 
     // Forward the request to the FastAPI backend
-    const response = await fetch(`${API_BASE_URL}/api/events/${params.eventId}/access`, {
+    const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/access`, {
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json'
