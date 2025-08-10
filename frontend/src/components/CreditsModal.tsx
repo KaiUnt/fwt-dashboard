@@ -4,23 +4,16 @@ import { useState, useEffect } from 'react'
 import { X, Coins, CreditCard, Clock, TrendingUp, Gift, ShoppingCart } from 'lucide-react'
 import useCredits from '@/hooks/useCredits'
 
-interface CreditPackage {
-  package_type: string
-  credits: number
-  price_cents: number
-  price_display: string
-}
-
-interface Transaction {
-  id: string
-  transaction_type: string
-  amount: number
-  credits_before: number
-  credits_after: number
-  description: string
-  created_at: string
-  event_id?: string
-}
+// interface Transaction {
+//   id: string
+//   transaction_type: string
+//   amount: number
+//   credits_before: number
+//   credits_after: number
+//   description: string
+//   created_at: string
+//   event_id?: string
+// }
 
 interface CreditsModalProps {
   isOpen: boolean
@@ -102,7 +95,7 @@ export default function CreditsModal({
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}
-              onClick={() => setActiveTab(key as any)}
+              onClick={() => setActiveTab(key as 'overview' | 'purchase' | 'history')}
               className={`flex-1 flex items-center justify-center space-x-2 py-4 px-6 transition-colors ${
                 activeTab === key
                   ? 'border-b-2 border-yellow-400 text-yellow-400 bg-gray-800'

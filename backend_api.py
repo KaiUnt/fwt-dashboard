@@ -1850,13 +1850,16 @@ async def get_user_accessible_events(
 
 # Admin Credits API Endpoints
 
+class GrantCreditsRequest(BaseModel):
+    credits: int = Field(..., gt=0, le=100)
+    note: str = Field("Admin grant", max_length=500)
+
 @app.post("/api/admin/credits/grant/{user_id}")
 @limiter.limit("20/minute")
 async def grant_credits_to_user(
     request: Request,
     user_id: str,
-    credits: int = Field(..., gt=0, le=100),
-    note: str = Field("Admin grant", max_length=500),
+    grant_request: GrantCreditsRequest,
     current_user_id: str = Depends(extract_user_id_from_token),
     user_token: str = Depends(get_user_token)
 ):
@@ -1868,8 +1871,8 @@ async def grant_credits_to_user(
         # Check if current user is admin - this is done in the RPC function
         result = await supabase_client.rpc("grant_admin_credits", {
             "target_user_id": user_id,
-            "credits_to_grant": credits,
-            "admin_note": note
+            "credits_to_grant": grant_request.credits,
+            "admin_note": grant_request.note
         })
         
         if not result:

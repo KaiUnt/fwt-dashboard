@@ -14,7 +14,6 @@ import { OfflineSaveButton } from './OfflineSaveButton';
 import { AthleteEventHistory } from './AthleteEventHistory';
 import { AppHeader } from './AppHeader';
 import { useTranslation } from '@/hooks/useTranslation';
-import EventAccessGuard from './EventAccessGuard';
 
 
 interface DashboardPageProps {
@@ -165,14 +164,8 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
         />
       </AppHeader>
 
-      {/* Event Access Guard */}
-      <EventAccessGuard
-        eventId={eventId}
-        eventName={athletesData.event.name}
-        eventDate={athletesData.event.date}
-      >
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Mobile Layout with specific order */}
         <div className="block lg:hidden space-y-6">
@@ -302,16 +295,14 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
         </div>
       </div>
 
-        {/* Modals */}
-        {showBibJump && (
-          <BibJump
-            athletes={athletes}
-            onJump={jumpToBib}
-            onClose={() => setShowBibJump(false)}
-          />
-        )}
-        </div>
-      </EventAccessGuard>
+      {/* Modals */}
+      {showBibJump && (
+        <BibJump
+          athletes={athletes}
+          onJump={jumpToBib}
+          onClose={() => setShowBibJump(false)}
+        />
+      )}
     </div>
   );
 } 

@@ -23,7 +23,7 @@ interface UserProfile {
 }
 
 export default function AdminCreditsPage() {
-  const { user, isAdmin, loading: authLoading } = useAuth()
+  const { isAdmin, loading: authLoading } = useAuth()
   const router = useRouter()
   const [stats, setStats] = useState<CreditStats | null>(null)
   const [loading, setLoading] = useState(true)
