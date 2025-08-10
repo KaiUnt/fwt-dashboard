@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect } from 'react'
 import { Coins, RefreshCw } from 'lucide-react'
-
-import { isSupabaseConfigured } from '@/utils/supabase'
+import { useCredits } from '@/hooks/useCredits'
 
 interface CreditsBalanceProps {
   onCreditsUpdate?: (credits: number) => void
@@ -18,68 +17,14 @@ export default function CreditsBalance({
   className = "",
   isInsideButton = false
 }: CreditsBalanceProps) {
-  const [credits, setCredits] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { credits, loading, error, fetchCredits } = useCredits()
 
-  const fetchCredits = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      console.log('CreditsBalance: Starting to fetch credits...')
-      
-      // Check if Supabase is configured
-      if (!isSupabaseConfigured()) {
-        console.log('CreditsBalance: Supabase not configured')
-        setError('Credits system not available - Supabase not configured')
-        return
-      }
-      
-      const { createClient } = await import('@/lib/supabase')
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      console.log('CreditsBalance: Session check result:', { hasSession: !!session, hasToken: !!session?.access_token })
-      
-      if (!session?.access_token) {
-        throw new Error('Not authenticated')
-      }
-
-      console.log('CreditsBalance: Making API request to /api/credits/balance')
-      const response = await fetch('/api/credits/balance', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      console.log('CreditsBalance: API response status:', response.status)
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('CreditsBalance: API error response:', errorData)
-        throw new Error(errorData.error || 'Failed to fetch credits')
-      }
-
-      const data = await response.json()
-      console.log('CreditsBalance: API success response:', data)
-      
-      const creditsValue = data.credits || 0
-      
-      setCredits(creditsValue)
-      onCreditsUpdate?.(creditsValue)
-    } catch (err) {
-      console.error('Error fetching credits:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load credits')
-    } finally {
-      setLoading(false)
-    }
-  }, [onCreditsUpdate])
-
+  // Notify parent component when credits change
   useEffect(() => {
-    fetchCredits()
-  }, [fetchCredits])
+    if (credits !== null && onCreditsUpdate) {
+      onCreditsUpdate(credits)
+    }
+  }, [credits, onCreditsUpdate])
 
   const handleRefresh = () => {
     fetchCredits()

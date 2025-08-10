@@ -1641,7 +1641,19 @@ class PurchaseEventAccessRequest(BaseModel):
 class PurchaseEventAccessResponse(BaseModel):
     success: bool
     message: str
-    credits_remaining: Optional[int] = None
+    credits_remaining: int
+    event_id: str
+
+class MultiEventPurchaseRequest(BaseModel):
+    event_ids: List[str]
+    event_names: Optional[List[str]] = None
+
+class MultiEventPurchaseResponse(BaseModel):
+    success: bool
+    message: str
+    credits_remaining: int
+    purchased_events: List[str]
+    failed_events: List[str] = []
     error: Optional[str] = None
 
 class CreditPackage(BaseModel):
@@ -1842,6 +1854,96 @@ async def purchase_event_access(
     except Exception as e:
         logger.error(f"Error purchasing event access: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to purchase event access: {str(e)}")
+
+@app.post("/api/events/purchase-multiple", response_model=MultiEventPurchaseResponse)
+async def purchase_multiple_events(
+    request_data: MultiEventPurchaseRequest,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Purchase access to multiple events using credits"""
+    try:
+        logger.info(f"Multi-event purchase request for user {current_user_id}: {request_data.event_ids}")
+        
+        supabase_client = await get_supabase_client(user_token)
+        
+        # Get current credits first
+        credits_result = await supabase_client.rpc("get_user_credits")
+        current_credits = credits_result.data if credits_result.data is not None else 0
+        
+        event_ids = request_data.event_ids
+        event_names = request_data.event_names or [None] * len(event_ids)
+        
+        # Check if user has enough credits for all events
+        total_cost = len(event_ids)  # 1 credit per event
+        if current_credits < total_cost:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient credits. Required: {total_cost}, Available: {current_credits}"
+            )
+        
+        purchased_events = []
+        failed_events = []
+        remaining_credits = current_credits
+        
+        # Process each event purchase
+        for i, event_id in enumerate(event_ids):
+            event_name = event_names[i] if i < len(event_names) else None
+            
+            try:
+                # Use RPC function to purchase access for each event
+                result = await supabase_client.rpc("purchase_event_access", {
+                    "event_id_param": event_id,
+                    "event_name_param": event_name
+                })
+                
+                if not result.data:
+                    logger.error(f"No response from purchase function for event {event_id}")
+                    failed_events.append(event_id)
+                    continue
+                
+                purchase_result = result.data
+                logger.info(f"Purchase result for event {event_id}: {purchase_result}")
+                
+                if purchase_result.get("success"):
+                    purchased_events.append(event_id)
+                    remaining_credits = purchase_result.get("credits_remaining", remaining_credits - 1)
+                else:
+                    error_msg = purchase_result.get("error", "unknown_error")
+                    if error_msg == "already_has_access":
+                        # If user already has access, don't count as failure
+                        purchased_events.append(event_id)
+                    else:
+                        failed_events.append(event_id)
+                        logger.warning(f"Failed to purchase event {event_id}: {error_msg}")
+                        
+            except Exception as e:
+                logger.error(f"Error purchasing event {event_id}: {e}")
+                failed_events.append(event_id)
+        
+        # Determine overall success
+        success = len(purchased_events) > 0
+        
+        if len(purchased_events) == len(event_ids):
+            message = f"Successfully purchased access to {len(purchased_events)} events"
+        elif len(purchased_events) > 0:
+            message = f"Purchased {len(purchased_events)} of {len(event_ids)} events"
+        else:
+            message = "Failed to purchase any events"
+        
+        return MultiEventPurchaseResponse(
+            success=success,
+            message=message,
+            credits_remaining=remaining_credits,
+            purchased_events=purchased_events,
+            failed_events=failed_events
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in multi-event purchase: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to purchase events: {str(e)}")
 
 @app.get("/api/credits/packages")
 async def get_credit_packages():

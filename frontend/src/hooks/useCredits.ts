@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { isSupabaseConfigured } from '@/utils/supabase'
+import { offlinePurchaseStorage, OfflinePurchaseData } from '@/utils/offlineStorage'
+import { useIsOffline } from '@/hooks/useOfflineStorage'
 
 interface CreditTransaction {
   id: string
@@ -25,6 +27,8 @@ export function useCredits() {
   const [error, setError] = useState<string | null>(null)
   const [transactions, setTransactions] = useState<CreditTransaction[]>([])
   const [packages, setPackages] = useState<CreditPackage[]>([])
+  const [initialized, setInitialized] = useState(false)
+  const isOffline = useIsOffline()
 
   const fetchCredits = useCallback(async () => {
     try {
@@ -112,6 +116,43 @@ export function useCredits() {
       setLoading(true)
       setError(null)
       
+      // Normalize inputs to arrays
+      const eventIdArray = Array.isArray(eventIds) ? eventIds : [eventIds]
+      const eventNameArray = Array.isArray(eventNames) ? eventNames : (eventNames ? [eventNames] : [])
+      
+      // If offline, save purchase for later sync
+      if (isOffline) {
+        const offlinePurchase: OfflinePurchaseData = {
+          id: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: new Date().toISOString(),
+          eventIds: eventIdArray,
+          eventNames: eventNameArray,
+          totalCost: eventIdArray.length,
+          userCredits: credits,
+          status: 'pending',
+          retryCount: 0
+        }
+        
+        // Check if user has enough credits
+        if (credits < eventIdArray.length) {
+          throw new Error('Nicht genügend Credits verfügbar')
+        }
+        
+        // Save to offline storage
+        await offlinePurchaseStorage.savePurchase(offlinePurchase)
+        
+        // Optimistically update credits
+        setCredits(credits - eventIdArray.length)
+        
+        return {
+          success: true,
+          message: 'Kauf wurde gespeichert und wird bei der nächsten Internetverbindung verarbeitet',
+          credits_remaining: credits - eventIdArray.length,
+          purchased_events: eventIdArray,
+          offline: true
+        }
+      }
+      
       // Check if Supabase is configured
       if (!isSupabaseConfigured()) {
         throw new Error('Credits system not available - Supabase not configured')
@@ -125,10 +166,6 @@ export function useCredits() {
         throw new Error('Not authenticated')
       }
 
-      // Normalize inputs to arrays
-      const eventIdArray = Array.isArray(eventIds) ? eventIds : [eventIds]
-      const eventNameArray = Array.isArray(eventNames) ? eventNames : (eventNames ? [eventNames] : [])
-      
       // For multi-event purchases, use a different endpoint
       const isMultiEvent = eventIdArray.length > 1
       const endpoint = isMultiEvent ? '/api/events/purchase-multiple' : `/api/events/${eventIdArray[0]}/purchase`
@@ -181,7 +218,7 @@ export function useCredits() {
     } finally {
       setLoading(false)
     }
-  }, [fetchTransactions])
+  }, [fetchTransactions, isOffline, credits])
 
   const checkEventAccess = useCallback(async (eventId: string) => {
     try {
@@ -240,11 +277,63 @@ export function useCredits() {
     }
   }, [packages])
 
+  // Sync offline purchases when coming back online
+  const syncOfflinePurchases = useCallback(async () => {
+    try {
+      const pendingPurchases = await offlinePurchaseStorage.getPendingPurchases()
+      
+      if (pendingPurchases.length === 0) return
+      
+      console.log(`Syncing ${pendingPurchases.length} offline purchases...`)
+      
+      for (const purchase of pendingPurchases) {
+        try {
+          // Attempt to process the offline purchase
+          const result = await purchaseEventAccess(purchase.eventIds, purchase.eventNames)
+          
+          if (result.success) {
+            // Mark as synced and remove from offline storage
+            await offlinePurchaseStorage.updatePurchaseStatus(purchase.id, 'synced')
+            await offlinePurchaseStorage.deletePurchase(purchase.id)
+            console.log(`Successfully synced purchase ${purchase.id}`)
+          } else {
+            // Mark as failed
+            await offlinePurchaseStorage.updatePurchaseStatus(purchase.id, 'failed', 'Sync failed')
+          }
+        } catch (error) {
+          console.error(`Failed to sync purchase ${purchase.id}:`, error)
+          await offlinePurchaseStorage.updatePurchaseStatus(
+            purchase.id, 
+            'failed', 
+            error instanceof Error ? error.message : 'Unknown error'
+          )
+        }
+      }
+      
+      // Refresh credits and transactions after sync
+      await fetchCredits()
+      await fetchTransactions()
+    } catch (error) {
+      console.error('Error syncing offline purchases:', error)
+    }
+  }, [purchaseEventAccess, fetchCredits, fetchTransactions])
+
+  // Only fetch on mount, not on every dependency change
   useEffect(() => {
-    fetchCredits()
-    fetchTransactions()
-    fetchPackages()
-  }, [fetchCredits, fetchTransactions, fetchPackages])
+    if (!initialized) {
+      fetchCredits()
+      fetchTransactions()
+      fetchPackages()
+      setInitialized(true)
+    }
+  }, [initialized, fetchCredits, fetchTransactions, fetchPackages])
+
+  // Sync offline purchases when coming back online
+  useEffect(() => {
+    if (!isOffline && initialized) {
+      syncOfflinePurchases()
+    }
+  }, [isOffline, initialized, syncOfflinePurchases])
 
   return {
     credits,

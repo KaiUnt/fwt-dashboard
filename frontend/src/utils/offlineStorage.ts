@@ -47,6 +47,19 @@ export interface OfflineEventData {
   estimatedSize: number; // in MB
 }
 
+export interface OfflinePurchaseData {
+  id: string;
+  timestamp: string;
+  eventIds: string[];
+  eventNames?: string[];
+  totalCost: number;
+  userCredits: number;
+  status: 'pending' | 'synced' | 'failed';
+  retryCount: number;
+  lastRetryAt?: string;
+  errorMessage?: string;
+}
+
 export interface OfflineStorageStats {
   totalEvents: number;
   totalSize: number; // in MB
@@ -216,6 +229,98 @@ class OfflineStorage {
 
 // Singleton instance
 export const offlineStorage = new OfflineStorage();
+
+class OfflinePurchaseStorage {
+  private dbName = 'FWTOfflinePurchases';
+  private version = 1;
+  private storeName = 'purchases';
+
+  private async openDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
+          store.createIndex('status', 'status', { unique: false });
+          store.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+      };
+    });
+  }
+
+  async savePurchase(purchase: OfflinePurchaseData): Promise<void> {
+    const db = await this.openDB();
+    const transaction = db.transaction([this.storeName], 'readwrite');
+    const store = transaction.objectStore(this.storeName);
+    await store.put(purchase);
+  }
+
+  async getPendingPurchases(): Promise<OfflinePurchaseData[]> {
+    const db = await this.openDB();
+    const transaction = db.transaction([this.storeName], 'readonly');
+    const store = transaction.objectStore(this.storeName);
+    const index = store.index('status');
+    
+    return new Promise((resolve, reject) => {
+      const request = index.getAll('pending');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async updatePurchaseStatus(id: string, status: 'synced' | 'failed', errorMessage?: string): Promise<void> {
+    const db = await this.openDB();
+    const transaction = db.transaction([this.storeName], 'readwrite');
+    const store = transaction.objectStore(this.storeName);
+    
+    return new Promise((resolve, reject) => {
+      const getRequest = store.get(id);
+      getRequest.onsuccess = () => {
+        const purchase = getRequest.result;
+        if (purchase) {
+          purchase.status = status;
+          purchase.lastRetryAt = new Date().toISOString();
+          if (status === 'failed') {
+            purchase.retryCount = (purchase.retryCount || 0) + 1;
+            purchase.errorMessage = errorMessage;
+          }
+          const putRequest = store.put(purchase);
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(putRequest.error);
+        } else {
+          resolve();
+        }
+      };
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  }
+
+  async deletePurchase(id: string): Promise<void> {
+    const db = await this.openDB();
+    const transaction = db.transaction([this.storeName], 'readwrite');
+    const store = transaction.objectStore(this.storeName);
+    await store.delete(id);
+  }
+
+  async getAllPurchases(): Promise<OfflinePurchaseData[]> {
+    const db = await this.openDB();
+    const transaction = db.transaction([this.storeName], 'readonly');
+    const store = transaction.objectStore(this.storeName);
+    
+    return new Promise((resolve, reject) => {
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+}
+
+export const offlinePurchaseStorage = new OfflinePurchaseStorage();
 
 // Helper functions
 export function createEventId(eventIds: string[]): string {
