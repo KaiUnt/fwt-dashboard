@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/providers/AuthProvider'
 import { User, LogOut, Settings, Shield, ChevronDown, Users, Coins } from 'lucide-react'
@@ -16,6 +16,9 @@ export function UserNav() {
   const [isOpen, setIsOpen] = useState(false)
   const [showCreditsModal, setShowCreditsModal] = useState(false)
   const [credits, setCredits] = useState(0)
+  const [menuPosition, setMenuPosition] = useState<'bottom' | 'top'>('bottom')
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
   if (loading) {
@@ -89,6 +92,24 @@ export function UserNav() {
     setIsOpen(false)
   }
 
+  // Calculate menu position based on available space
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect()
+      const viewportHeight = window.innerHeight
+      const menuHeight = 400 // Approximate menu height
+      const spaceBelow = viewportHeight - buttonRect.bottom
+      const spaceAbove = buttonRect.top
+      
+      // If there's not enough space below but enough space above, position menu above
+      if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+        setMenuPosition('top')
+      } else {
+        setMenuPosition('bottom')
+      }
+    }
+  }, [isOpen])
+
   return (
     <>
       <div className="relative flex items-center gap-3">
@@ -110,6 +131,7 @@ export function UserNav() {
 
         {/* User Menu */}
         <button
+          ref={buttonRef}
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
@@ -133,7 +155,12 @@ export function UserNav() {
           />
           
           {/* Menu */}
-          <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+          <div 
+            ref={menuRef}
+            className={`absolute right-0 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-20 ${
+              menuPosition === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+            }`}
+          >
             {/* User Info */}
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
