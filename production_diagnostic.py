@@ -11,8 +11,8 @@ import os
 from datetime import datetime
 
 # Production URLs
-PRODUCTION_API_URL = "https://fwt-dashboard.onrender.com"
-PRODUCTION_FRONTEND_URL = "https://fwt-dashboard-1.onrender.com"
+PRODUCTION_API_URL = os.getenv("NEXT_PUBLIC_API_URL", "https://fwt-dashboard.onrender.com")
+PRODUCTION_FRONTEND_URL = os.getenv("PRODUCTION_FRONTEND_URL", "https://fwt-dashboard-1.onrender.com")
 
 async def test_health_check():
     """Test if the backend is responding"""

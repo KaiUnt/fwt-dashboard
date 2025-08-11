@@ -6,9 +6,10 @@ Tests the commentator info endpoint directly
 import asyncio
 import httpx
 import json
+import os
 from datetime import datetime
 
-PRODUCTION_API_URL = "https://fwt-dashboard.onrender.com"
+PRODUCTION_API_URL = os.getenv("NEXT_PUBLIC_API_URL", "https://fwt-dashboard.onrender.com")
 
 async def test_commentator_info_endpoint():
     """Test the commentator info endpoint directly"""

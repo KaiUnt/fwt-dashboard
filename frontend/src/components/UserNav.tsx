@@ -21,6 +21,24 @@ export function UserNav() {
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
+  // Calculate menu position based on available space
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect()
+      const viewportHeight = window.innerHeight
+      const menuHeight = 400 // Approximate menu height
+      const spaceBelow = viewportHeight - buttonRect.bottom
+      const spaceAbove = buttonRect.top
+      
+      // If there's not enough space below but enough space above, position menu above
+      if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+        setMenuPosition('top')
+      } else {
+        setMenuPosition('bottom')
+      }
+    }
+  }, [isOpen])
+
   if (loading) {
     return (
       <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
@@ -91,24 +109,6 @@ export function UserNav() {
     setShowCreditsModal(true)
     setIsOpen(false)
   }
-
-  // Calculate menu position based on available space
-  useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const buttonRect = buttonRef.current.getBoundingClientRect()
-      const viewportHeight = window.innerHeight
-      const menuHeight = 400 // Approximate menu height
-      const spaceBelow = viewportHeight - buttonRect.bottom
-      const spaceAbove = buttonRect.top
-      
-      // If there's not enough space below but enough space above, position menu above
-      if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
-        setMenuPosition('top')
-      } else {
-        setMenuPosition('bottom')
-      }
-    }
-  }, [isOpen])
 
   return (
     <>
