@@ -179,7 +179,7 @@ export function EventPurchaseModal({
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">{t('purchase.currentCredits')}</span>
-                <span className="font-medium">{currentCredits}</span>
+                <span className="font-medium text-gray-900">{currentCredits}</span>
               </div>
               
               <div className="flex justify-between">
@@ -255,8 +255,8 @@ export function EventPurchaseModal({
               <>
                 <Coins className="w-4 h-4" />
                 <span>
-                  {isMultiEvent 
-                    ? t('purchase.buyEvents', { count: events.length })
+                  {eventsToPurchase.length > 1 
+                    ? t('purchase.buyEvents', { count: eventsToPurchase.length })
                     : t('purchase.buyEvent')
                   }
                 </span>
