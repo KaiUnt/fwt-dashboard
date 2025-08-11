@@ -1848,7 +1848,8 @@ async def purchase_event_access(
         return PurchaseEventAccessResponse(
             success=True,
             message=message,
-            credits_remaining=credits_remaining
+            credits_remaining=credits_remaining,
+            event_id=event_id
         )
         
     except HTTPException:

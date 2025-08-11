@@ -35,6 +35,8 @@ export function EventsPage() {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [eventsToPurchase, setEventsToPurchase] = useState<FWTEvent[]>([]);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [purchasedEventIds, setPurchasedEventIds] = useState<string[]>([]);
+  const [hasPurchasedSelectedEvents, setHasPurchasedSelectedEvents] = useState(false);
   
   // Success/Error Message State
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -187,6 +189,15 @@ export function EventsPage() {
       // Call the purchase function
       await purchaseEventAccess(eventIds, eventNames);
       
+      // Update purchased events state
+      setPurchasedEventIds(prev => [...new Set([...prev, ...eventIds])])
+      
+      // Check if all selected events are now purchased
+      const allSelectedPurchased = selectedEventIds.every(id => 
+        [...purchasedEventIds, ...eventIds].includes(id)
+      )
+      setHasPurchasedSelectedEvents(allSelectedPurchased)
+      
       // Close modal and reset state
       setShowPurchaseModal(false);
       setEventsToPurchase([]);
@@ -202,9 +213,7 @@ export function EventsPage() {
       
       // Refetch access status to update EventCard status immediately
       refetchAccessStatus();
-      
     } catch (error) {
-      console.error('Purchase failed:', error);
       setErrorMessage(error instanceof Error ? error.message : t('purchase.purchaseFailed'));
       
       // Auto-hide error message after 8 seconds
@@ -341,32 +350,30 @@ export function EventsPage() {
         </button>
       </AppHeader>
 
-      {/* Multi-Event Status */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {isMultiEventMode && (
-            <div className="py-4 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+      {/* Multi-Event Status - Sticky Purchase Bar */}
+      {isMultiEventMode && selectedEventIds.length > 0 && (
+        <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-4 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center space-x-3">
                 <div className="text-blue-700 font-medium">
                   {t('events.selectedEvents', { count: selectedEventIds.length })}
                 </div>
-                {selectedEventIds.length > 0 && (
-                  <div className="text-sm text-blue-600">
-                    {selectedEventIds.map((id) => {
-                      const event = events.find(e => e.id === id);
-                      return event ? (
-                        <span key={id} className="bg-blue-100 px-2 py-1 rounded mr-2">
-                          {event.name}
-                        </span>
-                      ) : null;
-                    })}
-                  </div>
-                )}
+                <div className="text-sm text-blue-600">
+                  {selectedEventIds.map((id) => {
+                    const event = events.find(e => e.id === id);
+                    return event ? (
+                      <span key={id} className="bg-blue-100 px-2 py-1 rounded mr-2">
+                        {event.name}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
               </div>
               
-              {selectedEventIds.length > 0 && (
-                <div className="flex items-center space-x-3">
-                  {/* Multi-Event Purchase Button */}
+              <div className="flex items-center space-x-3">
+                {/* Multi-Event Purchase Button - Only show if not all events are purchased */}
+                {!hasPurchasedSelectedEvents && (
                   <button
                     onClick={handleMultiEventPurchase}
                     className="flex items-center space-x-2 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -382,19 +389,37 @@ export function EventsPage() {
                       {selectedEventIds.length} {selectedEventIds.length === 1 ? t('credits.credit') : t('credits.credits')}
                     </span>
                   </button>
-                  
-                  {/* Multi-Event Dashboard Button (only for 2 events) */}
-                  {selectedEventIds.length === 2 && (
-                    <button
-                      onClick={handleMultiEventDashboard}
-                      className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Eye className="h-4 w-4" />
-                      <span>{t('buttons.multiEventDashboard')}</span>
-                    </button>
-                  )}
-                </div>
-              )}
+                )}
+                
+                {/* Multi-Event Dashboard Button (only for 2 events) */}
+                {selectedEventIds.length === 2 && (
+                  <button
+                    onClick={handleMultiEventDashboard}
+                    disabled={!hasPurchasedSelectedEvents}
+                    className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${
+                      hasPurchasedSelectedEvents
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Eye className="h-4 w-4" />
+                    <span>{t('buttons.multiEventDashboard')}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Regular Multi-Event Status for when no events selected */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {isMultiEventMode && selectedEventIds.length === 0 && (
+            <div className="py-4">
+              <div className="text-center text-gray-500">
+                <p>{t('events.selectEventsForMultiMode')}</p>
+              </div>
             </div>
           )}
         </div>
