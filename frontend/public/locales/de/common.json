@@ -468,7 +468,9 @@
     "offlineDescription": "Der Kauf wird gespeichert und bei der nächsten Internetverbindung verarbeitet",
     "purchaseSuccessful": "Event erfolgreich gekauft!",
     "multiPurchaseSuccessful": "{count} Events erfolgreich gekauft!",
-    "purchaseFailed": "Kauf fehlgeschlagen"
+    "purchaseFailed": "Kauf fehlgeschlagen",
+    "alreadyOwned": "Bereits im Besitz",
+    "free": "Kostenlos"
   },
   "credits": {
     "credit": "Credit",

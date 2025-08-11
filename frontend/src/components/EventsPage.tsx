@@ -612,6 +612,7 @@ export function EventsPage() {
         onPurchase={handlePurchaseConfirm}
         onClose={handlePurchaseCancel}
         isLoading={purchaseLoading}
+        accessStatus={accessStatus}
       />
 
       {/* Success Toast */}

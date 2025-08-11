@@ -13,6 +13,7 @@ interface EventPurchaseModalProps {
   currentCredits: number;
   onPurchase: (eventIds: string[]) => Promise<void>;
   isLoading?: boolean;
+  accessStatus?: { [eventId: string]: boolean }; // Access status for each event
 }
 
 export function EventPurchaseModal({
@@ -21,7 +22,8 @@ export function EventPurchaseModal({
   events,
   currentCredits,
   onPurchase,
-  isLoading = false
+  isLoading = false,
+  accessStatus = {}
 }: EventPurchaseModalProps) {
   const { t } = useTranslation();
   const isOffline = useIsOffline();
@@ -29,8 +31,12 @@ export function EventPurchaseModal({
 
   if (!isOpen) return null;
 
+  // Filter events that need to be purchased (don't already have access)
+  const eventsToPurchase = events.filter(event => !accessStatus[event.id]);
+  const eventsAlreadyOwned = events.filter(event => accessStatus[event.id]);
+  
   const isMultiEvent = events.length > 1;
-  const totalCost = events.length; // 1 credit per event
+  const totalCost = eventsToPurchase.length; // 1 credit per event that needs to be purchased
   const creditsAfterPurchase = currentCredits - totalCost;
   const hasInsufficientCredits = currentCredits < totalCost;
 
@@ -98,7 +104,8 @@ export function EventPurchaseModal({
               {isMultiEvent ? t('purchase.eventsLabel') : t('purchase.eventLabel')}
             </h3>
             
-            {events.map((event) => (
+            {/* Events to purchase */}
+            {eventsToPurchase.map((event) => (
               <div key={event.id} className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
@@ -121,6 +128,40 @@ export function EventPurchaseModal({
                     <div className="flex items-center space-x-1 text-sm font-medium text-blue-600">
                       <Coins className="w-4 h-4" />
                       <span>1 {t('credits.credit')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {/* Events already owned */}
+            {eventsAlreadyOwned.map((event) => (
+              <div key={event.id} className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-gray-900 flex items-center space-x-2">
+                      <span>{event.name}</span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                        {t('purchase.alreadyOwned')}
+                      </span>
+                    </h4>
+                    
+                    <div className="flex items-center text-sm text-gray-600 space-x-4">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>{formatEventDate(event.date)}</span>
+                      </div>
+                      
+                      <div className="flex items-center space-x-1">
+                        <MapPin className="w-4 h-4" />
+                        <span>{event.location}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className="flex items-center space-x-1 text-sm font-medium text-green-600">
+                      <span>✓ {t('purchase.free')}</span>
                     </div>
                   </div>
                 </div>
