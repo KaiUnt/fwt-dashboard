@@ -1878,21 +1878,58 @@ async def purchase_multiple_events(
         event_ids = request_data.event_ids
         event_names = request_data.event_names or [None] * len(event_ids)
         
-        # Check if user has enough credits for all events
-        total_cost = len(event_ids)  # 1 credit per event
-        if current_credits < total_cost:
+        # Check which events user already has access to
+        events_to_purchase = []
+        already_purchased = []
+        
+        for event_id in event_ids:
+            try:
+                access_result = await supabase_client.rpc("check_event_access", {
+                    "event_id_param": event_id
+                }, user_token=user_token)
+                
+                if access_result and access_result.get("has_access"):
+                    already_purchased.append(event_id)
+                    logger.info(f"User already has access to event {event_id}")
+                else:
+                    events_to_purchase.append(event_id)
+            except Exception as e:
+                logger.warning(f"Could not check access for event {event_id}: {e}")
+                # If we can't check access, assume we need to purchase
+                events_to_purchase.append(event_id)
+        
+        # Calculate actual cost (only for events not already purchased)
+        actual_cost = len(events_to_purchase)
+        
+        # If all events are already purchased, return success immediately
+        if actual_cost == 0:
+            return MultiEventPurchaseResponse(
+                success=True,
+                message=f"You already have access to all {len(event_ids)} events",
+                credits_remaining=current_credits,
+                purchased_events=event_ids,  # All events are considered "purchased"
+                failed_events=[]
+            )
+        
+        # Check if user has enough credits for events that need to be purchased
+        if current_credits < actual_cost:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Insufficient credits. Required: {total_cost}, Available: {current_credits}"
+                detail=f"Insufficient credits. Required: {actual_cost}, Available: {current_credits}"
             )
         
         purchased_events = []
         failed_events = []
         remaining_credits = current_credits
         
-        # Process each event purchase
-        for i, event_id in enumerate(event_ids):
-            event_name = event_names[i] if i < len(event_names) else None
+        # Add already purchased events to the purchased list
+        purchased_events.extend(already_purchased)
+        
+        # Process only events that need to be purchased
+        for event_id in events_to_purchase:
+            # Find the corresponding event name
+            event_index = event_ids.index(event_id)
+            event_name = event_names[event_index] if event_index < len(event_names) else None
             
             try:
                 # Use RPC function to purchase access for each event
@@ -1927,11 +1964,25 @@ async def purchase_multiple_events(
         # Determine overall success
         success = len(purchased_events) > 0
         
-        if len(purchased_events) == len(event_ids):
+        # Create detailed message based on what happened
+        if len(already_purchased) > 0 and len(events_to_purchase) > 0:
+            # Mixed scenario: some already purchased, some newly purchased
+            newly_purchased = len(purchased_events) - len(already_purchased)
+            if newly_purchased == len(events_to_purchase):
+                message = f"Successfully purchased {newly_purchased} new events. You already had access to {len(already_purchased)} events."
+            else:
+                message = f"Purchased {newly_purchased} of {len(events_to_purchase)} new events. You already had access to {len(already_purchased)} events."
+        elif len(already_purchased) > 0:
+            # All events were already purchased (handled earlier, but just in case)
+            message = f"You already have access to all {len(event_ids)} events"
+        elif len(purchased_events) == len(event_ids):
+            # All events newly purchased
             message = f"Successfully purchased access to {len(purchased_events)} events"
         elif len(purchased_events) > 0:
+            # Some events purchased, some failed
             message = f"Purchased {len(purchased_events)} of {len(event_ids)} events"
         else:
+            # No events purchased
             message = "Failed to purchase any events"
         
         return MultiEventPurchaseResponse(

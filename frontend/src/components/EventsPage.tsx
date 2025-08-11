@@ -35,7 +35,6 @@ export function EventsPage() {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [eventsToPurchase, setEventsToPurchase] = useState<FWTEvent[]>([]);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
-  const [purchasedEventIds, setPurchasedEventIds] = useState<string[]>([]);
   const [hasPurchasedSelectedEvents, setHasPurchasedSelectedEvents] = useState(false);
   
   // Success/Error Message State
@@ -138,6 +137,21 @@ export function EventsPage() {
     setSelectedEventIds([]);
   }, [isMultiEventMode]);
 
+  // Update hasPurchasedSelectedEvents based on current selection and access status
+  useEffect(() => {
+    if (selectedEventIds.length === 0) {
+      setHasPurchasedSelectedEvents(false);
+      return;
+    }
+
+    // Check if all selected events have access
+    const allHaveAccess = selectedEventIds.every(eventId => {
+      return accessStatus[eventId] === true;
+    });
+
+    setHasPurchasedSelectedEvents(allHaveAccess);
+  }, [selectedEventIds, accessStatus]);
+
   // Event Access Check - now uses batch data for performance
   const checkEventAccess = async (eventId: string): Promise<boolean> => {
     // Use cached batch access data if available
@@ -189,15 +203,6 @@ export function EventsPage() {
       // Call the purchase function
       await purchaseEventAccess(eventIds, eventNames);
       
-      // Update purchased events state
-      setPurchasedEventIds(prev => [...new Set([...prev, ...eventIds])])
-      
-      // Check if all selected events are now purchased
-      const allSelectedPurchased = selectedEventIds.every(id => 
-        [...purchasedEventIds, ...eventIds].includes(id)
-      )
-      setHasPurchasedSelectedEvents(allSelectedPurchased)
-      
       // Close modal and reset state
       setShowPurchaseModal(false);
       setEventsToPurchase([]);
@@ -212,6 +217,7 @@ export function EventsPage() {
       setTimeout(() => setSuccessMessage(null), 5000);
       
       // Refetch access status to update EventCard status immediately
+      // This will automatically trigger the useEffect that updates hasPurchasedSelectedEvents
       refetchAccessStatus();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t('purchase.purchaseFailed'));
