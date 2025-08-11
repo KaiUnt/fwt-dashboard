@@ -386,13 +386,22 @@ export function EventsPage() {
                   >
                     <span className="text-lg">💳</span>
                     <span>
-                      {selectedEventIds.length === 1 
-                        ? t('purchase.buyEvent')
-                        : t('purchase.buyEvents', { count: selectedEventIds.length })
-                      }
+                      {(() => {
+                        // Calculate how many events actually need to be purchased
+                        const eventsToPurchase = selectedEventIds.filter(eventId => !accessStatus[eventId]);
+                        const purchaseCount = eventsToPurchase.length;
+                        return purchaseCount === 1 
+                          ? t('purchase.buyEvent')
+                          : t('purchase.buyEvents', { count: purchaseCount });
+                      })()}
                     </span>
                     <span className="bg-green-500 text-white px-2 py-1 rounded text-sm">
-                      {selectedEventIds.length} {selectedEventIds.length === 1 ? t('credits.credit') : t('credits.credits')}
+                      {(() => {
+                        // Calculate how many events actually need to be purchased
+                        const eventsToPurchase = selectedEventIds.filter(eventId => !accessStatus[eventId]);
+                        const purchaseCount = eventsToPurchase.length;
+                        return `${purchaseCount} ${purchaseCount === 1 ? t('credits.credit') : t('credits.credits')}`;
+                      })()}
                     </span>
                   </button>
                 )}
