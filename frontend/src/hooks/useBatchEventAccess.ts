@@ -44,7 +44,7 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
 
       // Try batch endpoint first
       try {
-        const data = await apiFetch('/api/events/access-batch', {
+        const data = await apiFetch<{ access_status: Record<string, boolean> }>('/api/events/access-batch', {
           method: 'POST',
           body: { eventIds: ids },
           getAccessToken,
@@ -57,7 +57,7 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
       // Fallback: Make parallel individual calls
       const accessPromises = ids.map(async (eventId) => {
         try {
-          const data = await apiFetch(`/api/events/${eventId}/access`, { getAccessToken })
+          const data = await apiFetch<{ has_access: boolean }>(`/api/events/${eventId}/access`, { getAccessToken })
           return { eventId, hasAccess: data.has_access || false }
         } catch {
           return { eventId, hasAccess: false }
