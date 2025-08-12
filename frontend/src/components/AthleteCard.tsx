@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Calendar } from 'lucide-react';
 import Image from 'next/image';
 import { Athlete, EventInfo } from '@/types/athletes';
-import { useCommentatorInfo, useCommentatorInfoWithFriends } from '@/hooks/useCommentatorInfo';
+import { useCommentatorInfoWithFriends } from '@/hooks/useCommentatorInfo';
 import { CommentatorInfoSection } from './CommentatorInfoSection';
 import { CommentatorInfoModal } from './CommentatorInfoModal';
 import { getCountryFlag, getNationalityDisplay } from '@/utils/nationality';
@@ -18,9 +18,6 @@ interface AthleteCardProps {
 export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
   const { t } = useTranslation();
   const [showCommentatorModal, setShowCommentatorModal] = useState(false);
-  
-  // Fetch commentator info for this athlete (for display)
-  const { data: commentatorInfo } = useCommentatorInfo(athlete.id);
   
   // Fetch only own commentator info for editing
   const { data: myCommentatorInfo } = useCommentatorInfoWithFriends(athlete.id, 'mine');

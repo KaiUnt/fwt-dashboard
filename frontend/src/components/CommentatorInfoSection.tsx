@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, Edit, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe } from 'lucide-react';
 import { CommentatorInfo, CommentatorInfoWithAuthor, TabData } from '@/types/athletes';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useCommentatorInfoWithFriends, useMergedCommentatorInfo } from '@/hooks/useCommentatorInfo';
+import { useCommentatorInfoWithFriends } from '@/hooks/useCommentatorInfo';
 import { useFriends } from '@/hooks/useFriends';
 
 interface CommentatorInfoSectionProps {
@@ -28,7 +28,7 @@ export function CommentatorInfoSection({
   const { data: friends } = useFriends();
   const { data: myData } = useCommentatorInfoWithFriends(athleteId, 'mine');
   const { data: friendsData } = useCommentatorInfoWithFriends(athleteId, 'friends');
-  const { data: mergedData } = useMergedCommentatorInfo(athleteId);
+  // Merged view wird on-the-fly aus myData + friendsData erzeugt
 
   const countFields = (info: CommentatorInfo | null): number => {
     if (!info) return 0;
@@ -65,8 +65,13 @@ export function CommentatorInfoSection({
     {
       id: 'all',
       label: t('commentatorInfo.tabs.all'),
-      count: countFields(mergedData),
-      data: [...(myData || []), ...(friendsData || [])] // Show all individual entries, not just merged
+      count: countFields((() => {
+        const merged = [...(myData || []), ...(friendsData || [])]
+        // derive a simple count by creating a synthetic merged object like before
+        const first = merged[0] || null
+        return first as unknown as CommentatorInfo | null
+      })()),
+      data: [...(myData || []), ...(friendsData || [])]
     }
   ];
 

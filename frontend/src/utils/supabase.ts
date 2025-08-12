@@ -5,11 +5,4 @@ export function isSupabaseConfigured(): boolean {
   return !!(supabaseUrl && supabaseKey && supabaseUrl !== 'your-project-id.supabase.co' && supabaseKey !== 'your-anon-key-here')
 }
 
-export async function getSupabaseClient() {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase is not configured')
-  }
-  
-  const { createClient } = await import('@/lib/supabase')
-  return createClient()
-}
+// NOTE: getSupabaseClient is deprecated. Use AuthProvider + useAccessToken() and apiFetch instead.

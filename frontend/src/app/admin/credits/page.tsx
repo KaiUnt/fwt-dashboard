@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/providers/AuthProvider'
 import { AppHeader } from '@/components/AppHeader'
 import { Coins, Users, TrendingUp, DollarSign, Gift, AlertTriangle } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { useAccessToken } from '@/providers/AuthProvider'
+import { apiFetch } from '@/utils/api'
 import { useRouter } from 'next/navigation'
 
 interface CreditStats {
@@ -34,6 +35,7 @@ export default function AdminCreditsPage() {
   const [grantNote, setGrantNote] = useState('')
   const [users, setUsers] = useState<UserProfile[]>([])
   const [granting, setGranting] = useState(false)
+  const { getAccessToken } = useAccessToken()
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -51,24 +53,8 @@ export default function AdminCreditsPage() {
   const fetchStats = async () => {
     try {
       setLoading(true)
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) return
-
-      const response = await fetch('/api/admin/credits/stats', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data.stats)
-      } else {
-        setError('Failed to load stats')
-      }
+      const data = await apiFetch('/api/admin/credits/stats', { getAccessToken })
+      setStats(data.stats)
     } catch (err) {
       console.error('Error fetching stats:', err)
       setError('Failed to load stats')
@@ -79,20 +65,9 @@ export default function AdminCreditsPage() {
 
   const fetchUsers = async () => {
     try {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) return
-
-      // This would need to be implemented in the backend
-      const { data: usersData } = await supabase
-        .from('user_profiles')
-        .select('id, full_name, email, role, organization')
-        .order('full_name')
-
-      if (usersData) {
-        setUsers(usersData)
-      }
+      // Fetch users via backend API endpoint (assumes backend has an admin users list endpoint)
+      const data = await apiFetch('/api/admin/users', { getAccessToken })
+      if (data?.users) setUsers(data.users as UserProfile[])
     } catch (err) {
       console.error('Error fetching users:', err)
     }
@@ -103,39 +78,24 @@ export default function AdminCreditsPage() {
 
     try {
       setGranting(true)
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) return
-
-      const response = await fetch(`/api/admin/credits/grant/${selectedUser}`, {
+      const data = await apiFetch(`/api/admin/credits/grant/${selectedUser}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+        getAccessToken,
+        body: {
           credits: creditsToGrant,
           note: grantNote || 'Admin grant'
-        })
+        }
       })
-
-      if (response.ok) {
-        const data = await response.json()
-        alert(`Credits successfully granted: ${data.message}`)
+      alert(`Credits successfully granted: ${data.message}`)
         
-        // Reset form
-        setSelectedUser('')
-        setCreditsToGrant(1)
-        setGrantNote('')
-        setGrantCreditsMode(false)
-        
-        // Refresh stats
-        fetchStats()
-      } else {
-        const data = await response.json()
-        alert(`Error: ${data.detail || 'Failed to grant credits'}`)
-      }
+      // Reset form
+      setSelectedUser('')
+      setCreditsToGrant(1)
+      setGrantNote('')
+      setGrantCreditsMode(false)
+      
+      // Refresh stats
+      fetchStats()
     } catch (err) {
       console.error('Error granting credits:', err)
       alert('Failed to grant credits')

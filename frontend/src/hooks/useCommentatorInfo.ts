@@ -3,35 +3,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CommentatorInfo, CommentatorInfoResponse, CommentatorInfoWithAuthor } from '@/types/athletes';
 import React from 'react'; // Added for React.useMemo
-import { createClient } from '@/lib/supabase';
+import { useAccessToken } from '@/providers/AuthProvider';
+import { apiFetch, ApiError } from '@/utils/api';
+import { useIsOffline } from '@/hooks/useOfflineStorage';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Helper function to get auth token
-const getAuthToken = async (): Promise<string | null> => {
-  try {
-    const supabase = createClient();
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      console.error('❌ Supabase auth error:', error);
-      return null;
-    }
-    
-    if (!session) {
-      return null;
-    }
-    
-    if (!session.access_token) {
-      return null;
-    }
-    
-    return session.access_token;
-  } catch (error) {
-    console.error('❌ Error getting auth token:', error);
-    return null;
-  }
-};
+// Token is provided via useAccessToken() where needed
 
 // Storage keys
 const COMMENTATOR_INFO_STORAGE_KEY = 'commentator-info-cache';
@@ -89,46 +67,12 @@ const setSyncQueue = (queue: SyncQueueItem[]): void => {
   }
 };
 
-// Check if we're offline
-const useIsOffline = () => {
-  const isOffline = typeof window !== 'undefined' && 
-         typeof navigator !== 'undefined' && 
-         navigator.onLine === false;
-  
-
-  
-  return isOffline;
-};
+// Offline handled by shared hook useIsOffline
 
 // Online API functions
-const fetchCommentatorInfo = async (athleteId: string): Promise<CommentatorInfo | null> => {
+const fetchCommentatorInfo = async (athleteId: string, getAccessToken: () => Promise<string | null>): Promise<CommentatorInfo | null> => {
   try {
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(`${API_BASE_URL}/api/commentator-info/${athleteId}`, { headers });
-    
-    if (!response.ok) {
-      // Handle expected cases where no commentator info exists
-      if (response.status === 404 || response.status === 503) {
-        return null;
-      }
-      
-      // Log more details for other errors
-      const errorText = await response.text();
-      console.error(`❌ API Error for athlete ${athleteId}:`, {
-        status: response.status,
-        statusText: response.statusText,
-        errorText: errorText
-      });
-      
-      throw new Error(`Failed to fetch commentator info: ${response.status} - ${errorText}`);
-    }
-    
-    const data: CommentatorInfoResponse = await response.json();
+    const data: CommentatorInfoResponse = await apiFetch(`${API_BASE_URL}/api/commentator-info/${athleteId}`, { getAccessToken });
     
     // Handle case where no commentator info exists (data.data is null)
     if (data.data === null) {
@@ -143,83 +87,48 @@ const fetchCommentatorInfo = async (athleteId: string): Promise<CommentatorInfo 
   }
 };
 
-const _createCommentatorInfo = async (info: Omit<CommentatorInfo, 'id' | 'created_at' | 'updated_at'>): Promise<CommentatorInfo> => {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  const response = await fetch(`${API_BASE_URL}/api/commentator-info`, {
+const _createCommentatorInfo = async (info: Omit<CommentatorInfo, 'id' | 'created_at' | 'updated_at'>, getAccessToken: () => Promise<string | null>): Promise<CommentatorInfo> => {
+  const data: CommentatorInfoResponse = await apiFetch(`${API_BASE_URL}/api/commentator-info`, {
     method: 'POST',
-    headers,
-    body: JSON.stringify(info),
+    body: info,
+    getAccessToken,
   });
-  if (!response.ok) {
-    throw new Error(`Failed to create commentator info: ${response.status}`);
-  }
-  const data: CommentatorInfoResponse = await response.json();
   return data.data!;
 };
 
-const updateCommentatorInfo = async (athleteId: string, info: Partial<CommentatorInfo>): Promise<CommentatorInfo> => {
-  const token = await getAuthToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (!token) {
-    throw new Error('Authentication required. Please log in again.');
-  }
-  
-  headers['Authorization'] = `Bearer ${token}`;
-  
-  const response = await fetch(`${API_BASE_URL}/api/commentator-info/${athleteId}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(info),
-  });
-  
-  if (!response.ok) {
-    let errorMessage = `Failed to update commentator info: ${response.status}`;
-    
-    try {
-      const errorData = await response.json();
-      if (errorData.detail) {
-        errorMessage = errorData.detail;
+const updateCommentatorInfo = async (athleteId: string, info: Partial<CommentatorInfo>, getAccessToken: () => Promise<string | null>): Promise<CommentatorInfo> => {
+  try {
+    const data: CommentatorInfoResponse = await apiFetch(`${API_BASE_URL}/api/commentator-info/${athleteId}`, {
+      method: 'PUT',
+      body: info,
+      getAccessToken,
+    });
+    if (!data.data) {
+      throw new Error('Invalid response from server.');
+    }
+    return data.data;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      if (error.status === 401) {
+        throw new Error('Authentication failed. Please refresh the page and log in again.');
+      } else if (error.status === 403) {
+        throw new Error('You do not have permission to edit this athlete\'s information.');
+      } else if (error.status === 404) {
+        throw new Error('Athlete not found.');
+      } else if (error.status === 503) {
+        throw new Error('Service temporarily unavailable. Please try again later.');
       }
-    } catch (parseError) {
-      // If we can't parse the error response, use the default message
-      console.warn('Could not parse error response:', parseError);
+      const detail = (error.detail as any)?.detail;
+      if (detail) throw new Error(detail);
     }
-    
-    // Handle specific status codes
-    if (response.status === 401) {
-      throw new Error('Authentication failed. Please refresh the page and log in again.');
-    } else if (response.status === 403) {
-      throw new Error('You do not have permission to edit this athlete\'s information.');
-    } else if (response.status === 404) {
-      throw new Error('Athlete not found.');
-    } else if (response.status === 503) {
-      throw new Error('Service temporarily unavailable. Please try again later.');
-    }
-    
-    throw new Error(errorMessage);
+    throw error as Error;
   }
-  
-  const data: CommentatorInfoResponse = await response.json();
-  
-  if (!data.data) {
-    throw new Error('Invalid response from server.');
-  }
-  return data.data;
 };
 
 // Main hook for fetching commentator info
 export function useCommentatorInfo(athleteId: string) {
   const isOffline = useIsOffline();
+  const { getAccessToken } = useAccessToken();
 
   return useQuery({
     queryKey: ['commentator-info', athleteId],
@@ -227,7 +136,7 @@ export function useCommentatorInfo(athleteId: string) {
       // Try online first if we have internet
       if (!isOffline) {
         try {
-          const onlineData = await fetchCommentatorInfo(athleteId);
+          const onlineData = await fetchCommentatorInfo(athleteId, getAccessToken);
           
           // Cache the result
           if (onlineData) {
@@ -292,6 +201,7 @@ export function useCommentatorInfo(athleteId: string) {
 export function useUpdateCommentatorInfo() {
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
+  const { getAccessToken } = useAccessToken();
 
   return useMutation({
     mutationFn: async ({ athleteId, info }: { athleteId: string; info: Partial<CommentatorInfo> }) => {
@@ -303,7 +213,7 @@ export function useUpdateCommentatorInfo() {
       if (!isOffline) {
         try {
           // Try online update
-          const updatedInfo = await updateCommentatorInfo(athleteId, info);
+          const updatedInfo = await updateCommentatorInfo(athleteId, info, getAccessToken);
           
           // Update cache on successful online update
           const cache = getCommentatorInfoCache();
@@ -378,9 +288,6 @@ export function useUpdateCommentatorInfo() {
       queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId, 'mine'] });
       queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId, 'friends'] });
       queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId, 'all'] });
-      
-      // Also update the basic commentator info query for backwards compatibility
-      queryClient.invalidateQueries({ queryKey: ['commentator-info'] });
     },
     onError: (error: unknown, variables) => {
       console.error('Failed to update commentator info for athlete:', variables.athleteId, error);
@@ -435,6 +342,7 @@ export function useCommentatorInfoSyncStatus() {
 // Enhanced hook for Friends System
 export function useCommentatorInfoWithFriends(athleteId: string, source: 'mine' | 'friends' | 'all' = 'mine') {
   const isOffline = useIsOffline();
+  const { getAccessToken } = useAccessToken();
 
   return useQuery({
     queryKey: ['commentator-info-with-friends', athleteId, source],
@@ -442,23 +350,7 @@ export function useCommentatorInfoWithFriends(athleteId: string, source: 'mine' 
       // Try online first if we have internet
       if (!isOffline) {
         try {
-          const token = await getAuthToken();
-          const headers: Record<string, string> = {};
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-          }
-          
-          const response = await fetch(`${API_BASE_URL}/api/commentator-info/${athleteId}/friends?source=${source}`, { headers });
-          
-          if (!response.ok) {
-            if (response.status === 404 || response.status === 503) {
-              console.log(`No commentator info available for athlete ${athleteId} (${response.status})`);
-              return [];
-            }
-            throw new Error(`Failed to fetch commentator info: ${response.status}`);
-          }
-          
-          const data = await response.json();
+          const data = await apiFetch(`${API_BASE_URL}/api/commentator-info/${athleteId}/friends?source=${source}`, { getAccessToken });
           return data.data || [];
         } catch (error) {
           console.warn('Online fetch failed, trying offline cache:', error);

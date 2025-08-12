@@ -2143,6 +2143,71 @@ async def get_credits_statistics(
         logger.error(f"Error getting credits statistics: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
 
+# Admin users listing for frontend admin panel
+@app.get("/api/admin/users")
+async def get_admin_users(
+    search: str = "",
+    limit: int = 200,
+    offset: int = 0,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """List users for the admin panel (Admin only).
+    Returns: id, full_name, email, role, organization
+    Supports optional search (by name/email), pagination via limit/offset.
+    """
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Check admin role
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        # Fetch users - select minimal fields
+        # Note: Supabase client helper may not support complex filters/sorting; do it in Python
+        users = await supabase_client.select(
+            "user_profiles",
+            "id, full_name, email, role, organization",
+            {},
+            user_token=user_token,
+        )
+
+        if users is None:
+            users = []
+
+        # In-memory search filter
+        normalized_search = (search or "").strip().lower()
+        if normalized_search:
+            def match(u):
+                fn = (u.get("full_name") or "").lower()
+                em = (u.get("email") or "").lower()
+                return normalized_search in fn or normalized_search in em
+            users = [u for u in users if match(u)]
+
+        # Sort by full_name then email for stability
+        users.sort(key=lambda u: ((u.get("full_name") or "").lower(), (u.get("email") or "").lower()))
+
+        total = len(users)
+        # Pagination
+        start = max(offset, 0)
+        end = start + max(min(limit, 500), 0)  # cap limit to 500
+        page = users[start:end]
+
+        return {
+            "success": True,
+            "users": page,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing admin users: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list users: {str(e)}")
+
 # Enhanced Commentator Info APIs with Friends System
 
 @app.get("/api/commentator-info/{athlete_id}/friends")

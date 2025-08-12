@@ -152,39 +152,12 @@ export function EventsPage() {
     setHasPurchasedSelectedEvents(allHaveAccess);
   }, [selectedEventIds, accessStatus]);
 
-  // Event Access Check - now uses batch data for performance
+  // Event Access Check - relies on batch data; no network fallback here
   const checkEventAccess = async (eventId: string): Promise<boolean> => {
-    // Use cached batch access data if available
     if (accessStatus.hasOwnProperty(eventId)) {
       return accessStatus[eventId] || false;
     }
-    
-    // Fallback to individual check if not in batch (shouldn't happen normally)
-    try {
-      if (!isSupabaseConfigured()) return false;
-      
-      const { createClient } = await import('@/lib/supabase');
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) return false;
-
-      const response = await fetch(`/api/events/${eventId}/access`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.has_access || false;
-      }
-      return false;
-    } catch (err) {
-      console.error('Error checking access:', err);
-      return false;
-    }
+    return false;
   };
 
   // Purchase Modal Handlers

@@ -2,106 +2,39 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Friend, FriendRequest } from '@/types/athletes';
-import { createClient } from '@/lib/supabase';
+import { useAccessToken } from '@/providers/AuthProvider';
+import { apiFetch, ApiError } from '@/utils/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Helper function to get auth token with automatic refresh
-const getAuthToken = async (): Promise<string | null> => {
-  try {
-    const supabase = createClient();
-    
-    // Get current session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // If no session, return null immediately - don't try to refresh
-    if (!session) {
-      console.log('No session found');
-      return null;
-    }
-    
-    // Always return the current token - don't try to refresh automatically
-    // The user can refresh manually if needed
-    console.log('Token available, expires at:', session.expires_at);
-    return session.access_token || null;
-  } catch (error) {
-    console.error('Error getting auth token:', error);
-    return null;
-  }
-};
-
 // Friends System API calls
-const friendsApi = {
+const createFriendsApi = (getAccessToken: () => Promise<string | null>) => ({
   // Get list of accepted friends
   getFriends: async (): Promise<{ success: boolean; data: Friend[]; total: number }> => {
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(`${API_BASE_URL}/api/friends`, { headers });
-    if (!response.ok) {
-      throw new Error('Failed to fetch friends');
-    }
-    return response.json();
+    return await apiFetch(`${API_BASE_URL}/api/friends`, { getAccessToken });
   },
 
   // Get pending friend requests
   getPendingRequests: async (): Promise<{ success: boolean; data: FriendRequest[]; total: number }> => {
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(`${API_BASE_URL}/api/friends/pending`, { headers });
-    if (!response.ok) {
-      throw new Error('Failed to fetch pending requests');
-    }
-    return response.json();
+    return await apiFetch(`${API_BASE_URL}/api/friends/pending`, { getAccessToken });
   },
 
   // Send friend request
   sendFriendRequest: async (username: string): Promise<{ success: boolean; data: unknown; message: string }> => {
     try {
-      const token = await getAuthToken();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      console.log(`Sending friend request to: ${username}`);
-      console.log(`API URL: ${API_BASE_URL}/api/friends/request`);
-      console.log(`Token available: ${!!token}`);
-      
-      const response = await fetch(`${API_BASE_URL}/api/friends/request`, {
+      return await apiFetch(`${API_BASE_URL}/api/friends/request`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ username }),
+        getAccessToken,
+        body: { username },
       });
-      
-      console.log(`Response status: ${response.status}`);
-      console.log(`Response ok: ${response.ok}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-        console.error('Friend request error:', errorData);
-        
-        // Provide specific error messages based on status codes
-        let errorMessage = errorData.detail || 'Failed to send friend request';
-        
-        switch (response.status) {
+    } catch (error: unknown) {
+      if (error instanceof ApiError) {
+        const detail = (error.detail as any)?.detail;
+        let errorMessage = detail || 'Failed to send friend request';
+        switch (error.status) {
           case 400:
-            if (errorData.detail?.includes('yourself')) {
-              errorMessage = 'Cannot send friend request to yourself';
-            } else if (errorData.detail?.includes('Invalid username')) {
-              errorMessage = 'Invalid username format';
-            } else {
-              errorMessage = errorData.detail || 'Invalid request';
-            }
+            if (detail?.includes?.('yourself')) errorMessage = 'Cannot send friend request to yourself';
+            else if (detail?.includes?.('Invalid username')) errorMessage = 'Invalid username format';
             break;
           case 401:
             errorMessage = 'Please log in to send friend requests';
@@ -115,91 +48,47 @@ const friendsApi = {
           case 503:
             errorMessage = 'Service temporarily unavailable. Please try again later.';
             break;
-          default:
-            errorMessage = errorData.detail || 'Failed to send friend request';
         }
-        
         throw new Error(errorMessage);
       }
-      
-      const result = await response.json();
-      console.log('Friend request success:', result);
-      return result;
-    } catch (error) {
-      console.error('Error in sendFriendRequest:', error);
       throw error;
     }
   },
 
   // Accept friend request
   acceptFriendRequest: async (connectionId: string): Promise<{ success: boolean; data: unknown; message: string }> => {
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(`${API_BASE_URL}/api/friends/accept/${connectionId}`, {
+    return await apiFetch(`${API_BASE_URL}/api/friends/accept/${connectionId}`, {
       method: 'PUT',
-      headers,
+      getAccessToken,
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to accept friend request');
-    }
-    return response.json();
   },
 
   // Decline friend request
   declineFriendRequest: async (connectionId: string): Promise<{ success: boolean; data: unknown; message: string }> => {
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(`${API_BASE_URL}/api/friends/decline/${connectionId}`, {
+    return await apiFetch(`${API_BASE_URL}/api/friends/decline/${connectionId}`, {
       method: 'PUT',
-      headers,
+      getAccessToken,
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to decline friend request');
-    }
-    return response.json();
   },
 
   // Remove friend
   removeFriend: async (connectionId: string): Promise<{ success: boolean; message: string }> => {
-    const token = await getAuthToken();
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    const response = await fetch(`${API_BASE_URL}/api/friends/${connectionId}`, {
+    return await apiFetch(`${API_BASE_URL}/api/friends/${connectionId}`, {
       method: 'DELETE',
-      headers,
+      getAccessToken,
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to remove friend');
-    }
-    return response.json();
   },
 
   // Check username availability
   checkUsernameAvailability: async (username: string): Promise<{ available: boolean; reason: string }> => {
-    const response = await fetch(`${API_BASE_URL}/api/users/check-username/${encodeURIComponent(username)}`);
-    if (!response.ok) {
-      throw new Error('Failed to check username availability');
-    }
-    return response.json();
+    return await apiFetch(`${API_BASE_URL}/api/users/check-username/${encodeURIComponent(username)}`);
   },
-};
+});
 
 // Hook to get friends list
 export const useFriends = () => {
+  const { getAccessToken } = useAccessToken();
+  const friendsApi = createFriendsApi(getAccessToken);
   return useQuery({
     queryKey: ['friends'],
     queryFn: async () => {
@@ -218,6 +107,8 @@ export const useFriends = () => {
 
 // Hook to get pending friend requests
 export const usePendingFriendRequests = () => {
+  const { getAccessToken } = useAccessToken();
+  const friendsApi = createFriendsApi(getAccessToken);
   return useQuery({
     queryKey: ['pending-friend-requests'],
     queryFn: async () => {
@@ -236,6 +127,8 @@ export const usePendingFriendRequests = () => {
 
 // Hook to send friend request
 export const useSendFriendRequest = () => {
+  const { getAccessToken } = useAccessToken();
+  const friendsApi = createFriendsApi(getAccessToken);
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -250,6 +143,8 @@ export const useSendFriendRequest = () => {
 
 // Hook to accept friend request
 export const useAcceptFriendRequest = () => {
+  const { getAccessToken } = useAccessToken();
+  const friendsApi = createFriendsApi(getAccessToken);
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -264,6 +159,8 @@ export const useAcceptFriendRequest = () => {
 
 // Hook to decline friend request
 export const useDeclineFriendRequest = () => {
+  const { getAccessToken } = useAccessToken();
+  const friendsApi = createFriendsApi(getAccessToken);
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -277,6 +174,8 @@ export const useDeclineFriendRequest = () => {
 
 // Hook to remove friend
 export const useRemoveFriend = () => {
+  const { getAccessToken } = useAccessToken();
+  const friendsApi = createFriendsApi(getAccessToken);
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -290,7 +189,9 @@ export const useRemoveFriend = () => {
 
 // Hook to check username availability
 export const useCheckUsernameAvailability = () => {
+  const { getAccessToken } = useAccessToken();
+  const friendsApi = createFriendsApi(getAccessToken);
   return useMutation({
     mutationFn: friendsApi.checkUsernameAvailability,
   });
-}; 
+};

@@ -56,6 +56,10 @@ interface AuthContextType {
   // Offline auth helpers
   getOfflineAuthState: () => { isValid: boolean; userId?: string }
   isOfflineAuthValid: boolean
+  // Access token helpers
+  accessToken: string | null
+  accessTokenExpiresAt: number | null
+  getAccessToken: () => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -64,6 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [accessTokenExpiresAt, setAccessTokenExpiresAt] = useState<number | null>(null)
   const supabase = createClient()
 
   const fetchProfile = useCallback(async (userId: string) => {
@@ -142,6 +148,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setUser(session.user)
           setOfflineAuthState(session.user)
+          // Initialize token cache
+          setAccessToken(session.access_token ?? null)
+          // Supabase returns expires_at in seconds; convert to ms
+          setAccessTokenExpiresAt(session.expires_at ? session.expires_at * 1000 : null)
           
           try {
             const fetchedProfile = await fetchProfile(session.user.id)
@@ -169,12 +179,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(null)
             setProfile(null)
           }
+          // Clear token cache when no session
+          setAccessToken(null)
+          setAccessTokenExpiresAt(null)
         }
       } catch (error) {
         console.error('Error initializing auth:', error)
         if (mounted) {
           setUser(null)
           setProfile(null)
+          setAccessToken(null)
+          setAccessTokenExpiresAt(null)
         }
       } finally {
         if (mounted) {
@@ -204,6 +219,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Cache auth state for offline use
         setOfflineAuthState(session?.user ?? null)
+        // Update token cache on any auth change
+        setAccessToken(session?.access_token ?? null)
+        setAccessTokenExpiresAt(session?.expires_at ? session.expires_at * 1000 : null)
         
         // Only fetch profile on actual auth changes, not on token refreshes
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
@@ -259,6 +277,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Clear offline auth state
     setOfflineAuthState(null)
+    // Clear token cache
+    setAccessToken(null)
+    setAccessTokenExpiresAt(null)
   }
 
   const isAdmin = profile?.role === 'admin'
@@ -267,6 +288,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check offline auth validity
   const offlineAuth = getOfflineAuthState()
   const isOfflineAuthValid = offlineAuth.isValid
+
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const safetyWindowMs = 60_000 // 60 seconds
+      const now = Date.now()
+      if (accessToken && accessTokenExpiresAt && now < (accessTokenExpiresAt - safetyWindowMs)) {
+        return accessToken
+      }
+      // Ask Supabase for the current session (this may refresh token if needed)
+      const { data: { session }, error } = await supabase.auth.getSession()
+      if (error) {
+        console.error('Error refreshing session for access token:', error)
+      }
+      const newToken = session?.access_token ?? null
+      const newExpiry = session?.expires_at ? session.expires_at * 1000 : null
+      setAccessToken(newToken)
+      setAccessTokenExpiresAt(newExpiry)
+      return newToken
+    } catch (err) {
+      console.error('Failed to get access token:', err)
+      return null
+    }
+  }, [accessToken, accessTokenExpiresAt, supabase.auth])
 
   const value = {
     user,
@@ -277,7 +321,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isCommentator,
     refreshProfile,
     getOfflineAuthState,
-    isOfflineAuthValid
+    isOfflineAuthValid,
+    accessToken,
+    accessTokenExpiresAt,
+    getAccessToken,
   }
 
   return (
@@ -293,4 +340,10 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
+}
+
+// Convenience hook to access a fresh access token with in-memory caching
+export function useAccessToken() {
+  const { getAccessToken, accessToken } = useAuth()
+  return { getAccessToken, accessToken }
 }

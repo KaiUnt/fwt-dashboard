@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { isSupabaseConfigured } from '@/utils/supabase'
+import { apiFetch } from '@/utils/api'
+import { useAccessToken } from '@/providers/AuthProvider'
 
 interface BatchAccessResult {
   [eventId: string]: boolean
@@ -16,6 +18,7 @@ interface UseBatchEventAccessResult {
 
 export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResult {
   const [error, setError] = useState<string | null>(null)
+  const { getAccessToken } = useAccessToken()
 
   // Use React Query for caching and background refetching
   const {
@@ -39,51 +42,23 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
         throw new Error('Supabase not configured')
       }
 
-      const { createClient } = await import('@/lib/supabase')
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) {
-        throw new Error('Not authenticated')
-      }
-
       // Try batch endpoint first
       try {
-        const response = await fetch('/api/events/access-batch', {
+        const data = await apiFetch('/api/events/access-batch', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ eventIds: ids })
+          body: { eventIds: ids },
+          getAccessToken,
         })
-
-        if (response.ok) {
-          const data = await response.json()
-          return data.access_status || {}
-        }
-        
-        // If batch endpoint fails, fall back to parallel individual calls
-        console.warn('Batch endpoint failed, falling back to individual calls')
+        return data.access_status || {}
       } catch {
-        console.warn('Batch endpoint not available, using parallel individual calls')
+        console.warn('Batch endpoint failed, falling back to individual calls')
       }
 
-      // Fallback: Make parallel individual calls for better performance than sequential
+      // Fallback: Make parallel individual calls
       const accessPromises = ids.map(async (eventId) => {
         try {
-          const response = await fetch(`/api/events/${eventId}/access`, {
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json'
-            }
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            return { eventId, hasAccess: data.has_access || false }
-          }
-          return { eventId, hasAccess: false }
+          const data = await apiFetch(`/api/events/${eventId}/access`, { getAccessToken })
+          return { eventId, hasAccess: data.has_access || false }
         } catch {
           return { eventId, hasAccess: false }
         }
@@ -91,11 +66,9 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
 
       const results = await Promise.all(accessPromises)
       const batchResult: BatchAccessResult = {}
-      
       results.forEach(({ eventId, hasAccess }) => {
         batchResult[eventId] = hasAccess
       })
-
       return batchResult
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'

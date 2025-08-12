@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Lock, Coins, Clock, Calendar, AlertCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
+import { useCredits } from '@/hooks/useCredits'
 
 interface EventAccessGuardProps {
   eventId: string
@@ -22,58 +22,16 @@ export default function EventAccessGuard({
   const [hasAccess, setHasAccess] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(false)
-  const [credits, setCredits] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
-
-  const fetchCredits = useCallback(async () => {
-    try {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) return
-
-      const response = await fetch('/api/credits/balance', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setCredits(data.credits || 0)
-      }
-    } catch (err) {
-      console.error('Error fetching credits:', err)
-    }
-  }, [])
+  const { credits, checkEventAccess, purchaseEventAccess } = useCredits()
 
   const checkAccess = useCallback(async () => {
     try {
       setLoading(true)
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const allowed = await checkEventAccess(eventId)
+      setHasAccess(allowed)
       
-      if (!session?.access_token) {
-        setHasAccess(false)
-        return
-      }
-
-      const response = await fetch(`/api/events/${eventId}/access`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to check access')
-      }
-
-      const data = await response.json()
-      setHasAccess(data.has_access || false)
-      
-      if (data.has_access && onAccessGranted) {
+      if (allowed && onAccessGranted) {
         onAccessGranted()
       }
     } catch (err) {
@@ -86,50 +44,17 @@ export default function EventAccessGuard({
 
   useEffect(() => {
     checkAccess()
-    fetchCredits()
-  }, [eventId, checkAccess, fetchCredits])
+  }, [eventId, checkAccess])
 
   const purchaseAccess = async () => {
     try {
       setPurchasing(true)
       setError(null)
       
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session?.access_token) {
-        throw new Error('Not authenticated')
-      }
-
-      const response = await fetch(`/api/events/${eventId}/purchase`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          event_id: eventId,
-          event_name: eventName
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        if (response.status === 402) {
-          setError('Nicht genügend Credits verfügbar')
-        } else if (response.status === 409) {
-          setError('Du hast bereits Zugang zu diesem Event')
-          setHasAccess(true)
-        } else {
-          setError(data.message || 'Fehler beim Kauf')
-        }
-        return
-      }
+      const result = await purchaseEventAccess(eventId, eventName)
 
       // Success
       setHasAccess(true)
-      setCredits(data.credits_remaining || 0)
       
       if (onAccessGranted) {
         onAccessGranted()
