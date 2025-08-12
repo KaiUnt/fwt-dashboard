@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useAuth } from '@/providers/AuthProvider'
+import { useCheckUsernameAvailability } from '@/hooks/useFriends'
 import { Mail, Eye, EyeOff, Loader2, Mountain, AlertTriangle } from 'lucide-react'
 
 // Rate limiting configuration
@@ -31,6 +32,7 @@ export default function LoginPage() {
   const router = useRouter()
   const { user } = useAuth()
   const supabase = createClient()
+  const checkUsernameAvailability = useCheckUsernameAvailability()
 
   // Check for existing lockout on component mount
   useEffect(() => {
@@ -122,14 +124,38 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
+        // Client-side validations
+        const trimmedName = fullName.trim()
+        const desiredName = trimmedName || email.split('@')[0]
+
+        if (desiredName.length < 3) {
+          setError('Full name must be at least 3 characters')
+          setLoading(false)
+          return
+        }
+
+        // Pre-check username availability (non-auth endpoint)
+        try {
+          const availability = await checkUsernameAvailability.mutateAsync(desiredName)
+          if (!availability.available) {
+            setError('This name is already taken. Please choose another one.')
+            setLoading(false)
+            return
+          }
+        } catch (e) {
+          // If availability check fails, still attempt signup but show soft warning
+          console.warn('Username availability check failed:', e)
+        }
+
+        // Only include full_name in metadata if provided (avoid empty string in raw_user_meta_data)
+        const signUpOptions = trimmedName
+          ? { data: { full_name: trimmedName } }
+          : undefined
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              full_name: fullName
-            }
-          }
+          options: signUpOptions
         })
         
         if (error) throw error
@@ -147,7 +173,17 @@ export default function LoginPage() {
         
         if (error) {
           recordLoginAttempt(false)
-          throw error
+          // Map duplicate/validation errors to friendly message
+          const msg = (error?.message || '').toLowerCase()
+          if (msg.includes('duplicate key') || msg.includes('unique') || msg.includes('already exists')) {
+            setError('This name is already taken. Please choose another one.')
+          } else if (msg.includes('username is required') || msg.includes('full_name')) {
+            setError('Please provide a valid full name (3-50 characters).')
+          } else {
+            throw error
+          }
+          setLoading(false)
+          return
         }
         
         recordLoginAttempt(true)
