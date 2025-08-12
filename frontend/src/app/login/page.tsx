@@ -28,6 +28,7 @@ export default function LoginPage() {
   const [isLocked, setIsLocked] = useState(false)
   const [lockoutTime, setLockoutTime] = useState<number>(0)
   const [remainingAttempts, setRemainingAttempts] = useState(MAX_LOGIN_ATTEMPTS)
+  const [message, setMessage] = useState('')
   
   const router = useRouter()
   const { user } = useAuth()
@@ -75,6 +76,12 @@ export default function LoginPage() {
       router.push('/')
     }
   }, [user, router])
+
+  // Reset alerts when switching between Sign In / Sign Up
+  useEffect(() => {
+    setError('')
+    setMessage('')
+  }, [isSignUp])
 
   const recordLoginAttempt = (success: boolean) => {
     const now = Date.now()
@@ -161,7 +168,7 @@ export default function LoginPage() {
         if (error) throw error
         
         if (data.user) {
-          setError('User created successfully! Check your email for confirmation.')
+          setMessage('User created successfully! Check your email for confirmation.')
         } else {
           setError('User creation failed - no user returned')
         }
@@ -224,7 +231,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {isLocked && (
+        {!isSignUp && isLocked && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4">
             <div className="flex">
               <AlertTriangle className="h-5 w-5 text-red-400" />
@@ -243,6 +250,11 @@ export default function LoginPage() {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
+            {message && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                <p className="text-sm text-green-800">{message}</p>
+              </div>
+            )}
             {isSignUp && (
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
@@ -314,7 +326,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {!isLocked && remainingAttempts < MAX_LOGIN_ATTEMPTS && (
+          {!isSignUp && !isLocked && remainingAttempts < MAX_LOGIN_ATTEMPTS && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
               <p className="text-sm text-yellow-800">
                 ⚠️ {remainingAttempts} login attempts remaining
@@ -340,12 +352,45 @@ export default function LoginPage() {
                 <span>{isSignUp ? 'Create Account' : 'Sign in'}</span>
               )}
             </button>
+            {!isSignUp && (
+              <div className="mt-3 text-center">
+                <button
+                  type="button"
+                  className="text-sm text-blue-600 hover:text-blue-500"
+                  onClick={async () => {
+                    setError(''); setMessage('')
+                    const targetEmail = email.trim()
+                    if (!targetEmail) {
+                      setError('Please enter your email to receive a reset link.')
+                      return
+                    }
+                    try {
+                      setLoading(true)
+                      await supabase.auth.resetPasswordForEmail(targetEmail, {
+                        redirectTo: `${window.location.origin}/auth/update-password`
+                      })
+                      setMessage('If an account exists, we have sent a password reset link to your email.')
+                  } catch {
+                      setError('Failed to send reset email. Please try again later.')
+                    } finally {
+                      setLoading(false)
+                    }
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="text-center">
             <button
               type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                setIsSignUp(!isSignUp)
+                setError('')
+                setMessage('')
+              }}
               className="text-sm text-blue-600 hover:text-blue-500"
             >
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
