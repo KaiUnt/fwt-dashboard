@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export async function POST(request: NextRequest, { params }: { params: { userId: string } }) {
+export async function POST(request: Request, { params }: { params: { userId: string } }) {
   try {
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
