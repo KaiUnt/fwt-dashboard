@@ -66,6 +66,9 @@ export function useCredits() {
     enabled: initialized,
   })
 
+  // Stable reference for packages to satisfy hook dependencies
+  const packages = packagesQuery.data?.packages ?? []
+
   const purchaseEventAccess = useCallback(async (eventIds: string | string[], eventNames?: string | string[]) => {
     try {
       // Normalize inputs to arrays
@@ -165,7 +168,7 @@ export function useCredits() {
       // TODO: Implement Stripe Checkout Session creation
       // This would redirect to Stripe checkout or open Stripe modal
       
-      const selectedPackage = (packagesQuery.data?.packages || []).find((p: CreditPackage) => p.package_type === packageType)
+      const selectedPackage = packages.find((p: CreditPackage) => p.package_type === packageType)
       if (!selectedPackage) {
         throw new Error('Package not found')
       }
@@ -180,7 +183,7 @@ export function useCredits() {
     } catch (err) {
       throw err
     }
-  }, [])
+  }, [packages])
 
   // Sync offline purchases when coming back online
   const syncOfflinePurchases = useCallback(async () => {

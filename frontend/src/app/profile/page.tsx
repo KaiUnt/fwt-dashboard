@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 export const dynamic = 'force-dynamic'
 import { useAuth } from '@/providers/AuthProvider'
 import { createClient } from '@/lib/supabase'
+import { apiFetch } from '@/utils/api'
 import { AppHeader } from '@/components/AppHeader'
 import { User, Mail, Shield, Building, Calendar, Key, Save, Eye, EyeOff, Check, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
@@ -49,16 +50,13 @@ export default function ProfilePage() {
     setMessage('')
 
     try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({
-          full_name: fullName,
-          organization: organization,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
-
-      if (error) throw error
+      await apiFetch<{ success: boolean; message: string }>(
+        '/api/profile/update',
+        {
+          method: 'POST',
+          body: { full_name: fullName, organization },
+        }
+      )
 
       await refreshProfile()
       setMessage(t('profile.messages.profileUpdated'))

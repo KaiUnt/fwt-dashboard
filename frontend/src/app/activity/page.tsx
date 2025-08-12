@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 import { useAuth } from '@/providers/AuthProvider'
-import { createClient } from '@/lib/supabase'
+import { apiFetch } from '@/utils/api'
 import { AppHeader } from '@/components/AppHeader'
 import { Activity, Clock, Eye, User, Calendar, RefreshCw } from 'lucide-react'
 import type { UserAction, LoginActivity } from '@/types/supabase'
@@ -26,75 +26,30 @@ export default function ActivityPage() {
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all') // 'all', 'today', 'week'
 
-  const supabase = createClient()
-
   const fetchActivityData = useCallback(async () => {
     if (!user) return
 
     try {
       setLoading(true)
+      const overview = await apiFetch<{
+        success: boolean
+        data: {
+          actions: UserAction[]
+          login_activity: LoginActivity[]
+          stats: ActivityStats
+        }
+      }>(`/api/activity/overview?filter=${encodeURIComponent(filter)}`)
 
-      // Date filters
-      const now = new Date()
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-
-      let actionFilter = ''
-      if (filter === 'today') {
-        actionFilter = today.toISOString()
-      } else if (filter === 'week') {
-        actionFilter = weekAgo.toISOString()
-      }
-
-      // Fetch user actions
-      let actionsQuery = supabase
-        .from('user_actions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('timestamp', { ascending: false })
-        .limit(50)
-
-      if (actionFilter) {
-        actionsQuery = actionsQuery.gte('timestamp', actionFilter)
-      }
-
-      const { data: actionsData, error: actionsError } = await actionsQuery
-
-      if (actionsError) throw actionsError
-
-      // Fetch login activity
-      const { data: loginData, error: loginError } = await supabase
-        .from('user_login_activity')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('login_timestamp', { ascending: false })
-        .limit(20)
-
-      if (loginError) throw loginError
-
-      // Calculate stats
-      const totalActions = actionsData?.length || 0
-      const todayActions = actionsData?.filter(action => 
-        new Date(action.timestamp) >= today
-      ).length || 0
-
-      const lastLogin = loginData?.[0]?.login_timestamp || null
-
-      setActions(actionsData || [])
-      setLoginActivity(loginData || [])
-      setStats({
-        totalActions: filter === 'all' ? totalActions : actionsData?.length || 0,
-        todayActions,
-        totalSessions: loginData?.length || 0,
-        lastLogin
-      })
+      setActions(overview.data.actions)
+      setLoginActivity(overview.data.login_activity)
+      setStats(overview.data.stats)
 
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
-  }, [user, filter, supabase])
+  }, [user, filter])
 
   useEffect(() => {
     if (!authLoading && user) {

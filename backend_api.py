@@ -16,6 +16,7 @@ from typing import List, Dict, Any, Optional
 import asyncio
 from api.client import LiveheatsClient
 from datetime import datetime
+from datetime import timedelta
 import uvicorn
 import logging
 import httpx
@@ -2207,6 +2208,161 @@ async def get_admin_users(
     except Exception as e:
         logger.error(f"Error listing admin users: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list users: {str(e)}")
+
+# Admin overview endpoint to replace direct frontend Supabase reads
+@app.get("/api/admin/overview")
+async def get_admin_overview(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Check admin role
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        # Users
+        users = await supabase_client.select("user_profiles", "*", {}, user_token)
+
+        # Active sessions
+        sessions = await supabase_client.select("active_sessions", "*", {}, user_token)
+
+        # Recent actions (last 24h)
+        since_iso = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+        actions = await supabase_client.select("user_actions", "*", {}, user_token)
+        recent_actions = [a for a in (actions or []) if a.get("timestamp", "") >= since_iso]
+
+        # Login activity today
+        today_str = datetime.utcnow().strftime("%Y-%m-%d")
+        login_activity = await supabase_client.select("user_login_activity", "*", {}, user_token)
+        today_logins = [x for x in (login_activity or []) if x.get("login_timestamp", "").startswith(today_str)]
+
+        # Actions count today
+        today_actions = [x for x in (actions or []) if x.get("timestamp", "").startswith(today_str)]
+
+        # Failed login attempts (last 24h)
+        failed_attempts = await supabase_client.select("failed_login_attempts", "*", {}, user_token)
+        failed_last_24h = [x for x in (failed_attempts or []) if x.get("attempt_timestamp", "") >= since_iso]
+
+        return {
+            "success": True,
+            "data": {
+                "users": users or [],
+                "active_sessions": sessions or [],
+                "recent_actions": recent_actions,
+                "today_logins_count": len(today_logins),
+                "today_actions_count": len(today_actions),
+                "failed_attempts": failed_last_24h,
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error building admin overview: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get admin overview: {str(e)}")
+
+# Activity overview endpoint for a user
+@app.get("/api/activity/overview")
+async def get_activity_overview(
+    filter: str = "all",
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Time range
+        now = datetime.utcnow()
+        today = datetime(now.year, now.month, now.day)
+        week_ago = now - timedelta(days=7)
+        since = None
+        if filter == "today":
+            since = today.isoformat()
+        elif filter == "week":
+            since = week_ago.isoformat()
+
+        # User actions
+        actions = await supabase_client.select("user_actions", "*", {"user_id": current_user_id}, user_token)
+        if since:
+            actions = [a for a in (actions or []) if a.get("timestamp", "") >= since]
+        actions_sorted = sorted(actions or [], key=lambda a: a.get("timestamp", ""), reverse=True)[:50]
+
+        # Login activity
+        logins = await supabase_client.select("user_login_activity", "*", {"user_id": current_user_id}, user_token)
+        logins_sorted = sorted(logins or [], key=lambda a: a.get("login_timestamp", ""), reverse=True)[:20]
+
+        # Stats
+        total_actions = len(actions_sorted)
+        today_actions = len([a for a in (actions or []) if a.get("timestamp", "").startswith(today.strftime("%Y-%m-%d"))])
+        last_login = logins_sorted[0].get("login_timestamp") if logins_sorted else None
+
+        return {
+            "success": True,
+            "data": {
+                "actions": actions_sorted,
+                "login_activity": logins_sorted,
+                "stats": {
+                    "totalActions": total_actions,
+                    "todayActions": today_actions,
+                    "totalSessions": len(logins_sorted),
+                    "lastLogin": last_login,
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error building activity overview: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get activity overview: {str(e)}")
+
+# Profile update endpoints
+class ProfileUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    organization: Optional[str] = None
+
+class PasswordChangeRequest(BaseModel):
+    password: str
+
+class VerifyPasswordRequest(BaseModel):
+    email: str
+    password: str
+
+@app.post("/api/profile/update")
+async def update_profile(
+    req: ProfileUpdateRequest,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    try:
+        update_data: Dict[str, Any] = {"updated_at": datetime.utcnow().isoformat()}
+        if req.full_name is not None:
+            update_data["full_name"] = req.full_name
+        if req.organization is not None:
+            update_data["organization"] = req.organization
+
+        await supabase_client.update("user_profiles", update_data, {"id": current_user_id}, user_token)
+        return {"success": True, "message": "Profile updated"}
+    except Exception as e:
+        logger.error(f"Error updating profile: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
+
+@app.post("/api/profile/verify-password")
+async def verify_password(
+    req: VerifyPasswordRequest,
+):
+    # Placeholder: Implement Supabase Auth verification if needed
+    return {"success": False}
+
+@app.post("/api/profile/change-password")
+async def change_password(
+    req: PasswordChangeRequest,
+):
+    # Placeholder: Implement Supabase Auth password change if needed
+    return {"success": False, "message": "Not implemented"}
 
 # Enhanced Commentator Info APIs with Friends System
 

@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from 'react'
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 import { useAuth } from '@/providers/AuthProvider'
-import { createClient } from '@/lib/supabase'
+import { apiFetch } from '@/utils/api'
 import type { UserProfile, ActiveSession, UserAction } from '@/types/supabase'
 import { AppHeader } from '@/components/AppHeader'
 import { Users, Activity, Clock, Eye, AlertTriangle, Shield, Lock, AlertCircle } from 'lucide-react'
@@ -56,104 +56,33 @@ export default function AdminDashboard() {
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'users'>('overview')
 
-  const supabase = createClient()
-
   const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true)
-
-      // Fetch all users
-      const { data: users, error: usersError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (usersError) throw usersError
-
-      // Fetch active sessions
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('active_sessions')
-        .select('*')
-
-      if (sessionsError) throw sessionsError
-
-      // Fetch recent actions (last 24 hours) - separate queries to avoid JOIN issues
-      const { data: actions, error: actionsError } = await supabase
-        .from('user_actions')
-        .select('*')
-        .gte('timestamp', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .order('timestamp', { ascending: false })
-        .limit(50)
-
-      if (actionsError) throw actionsError
-
-      // Fetch user profiles for actions (if we have actions)
-      let actionsWithProfiles = actions || []
-      if (actions && actions.length > 0) {
-        const userIds = [...new Set(actions.map(action => action.user_id).filter(Boolean))]
-        
-        if (userIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('user_profiles')
-            .select('id, full_name, email')
-            .in('id', userIds)
-          
-          // Combine actions with profile data
-          actionsWithProfiles = actions.map(action => ({
-            ...action,
-            user_profiles: profiles?.find(profile => profile.id === action.user_id) || null
-          }))
+      const overview = await apiFetch<{
+        success: boolean,
+        data: {
+          users: UserProfile[]
+          active_sessions: ActiveSession[]
+          recent_actions: UserAction[]
+          today_logins_count: number
+          today_actions_count: number
+          failed_attempts: FailedLoginAttempt[]
         }
-      }
+      }>('/api/admin/overview')
 
-      // Fetch login activity for today
-      const today = new Date().toISOString().split('T')[0]
-      const { data: todayLogins, error: loginsError } = await supabase
-        .from('user_login_activity')
-        .select('id')
-        .gte('login_timestamp', `${today}T00:00:00.000Z`)
-        .lte('login_timestamp', `${today}T23:59:59.999Z`)
-
-      if (loginsError) throw loginsError
-
-      // Count total actions today
-      const { data: todayActions, error: actionsCountError } = await supabase
-        .from('user_actions')
-        .select('id')
-        .gte('timestamp', `${today}T00:00:00.000Z`)
-        .lte('timestamp', `${today}T23:59:59.999Z`)
-
-      if (actionsCountError) throw actionsCountError
-
-      // Fetch failed login attempts (last 24 hours)
-      const { data: failedAttemptsData, error: failedAttemptsError } = await supabase
-        .from('failed_login_attempts')
-        .select('*')
-        .gte('attempt_timestamp', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .order('attempt_timestamp', { ascending: false })
-        .limit(100)
-
-      if (failedAttemptsError) throw failedAttemptsError
-
-      // Generate security alerts
+      // minimal client-side enrichment for alerts
       const alerts: SecurityAlert[] = []
-      
-      // Group failed attempts by IP and email
       const ipAttempts: { [key: string]: FailedLoginAttempt[] } = {}
       const emailAttempts: { [key: string]: FailedLoginAttempt[] } = {}
-      
-      failedAttemptsData?.forEach(attempt => {
+      overview.data.failed_attempts.forEach(attempt => {
         const ip = attempt.ip_address || 'unknown'
         const email = attempt.email || 'unknown'
-        
         if (!ipAttempts[ip]) ipAttempts[ip] = []
         if (!emailAttempts[email]) emailAttempts[email] = []
-        
         ipAttempts[ip].push(attempt)
         emailAttempts[email].push(attempt)
       })
-
-      // Generate alerts for suspicious IPs
       Object.entries(ipAttempts).forEach(([ip, attempts]) => {
         if (attempts.length > 5) {
           alerts.push({
@@ -165,8 +94,6 @@ export default function AdminDashboard() {
           })
         }
       })
-
-      // Generate alerts for suspicious emails
       Object.entries(emailAttempts).forEach(([email, attempts]) => {
         if (attempts.length > 3) {
           alerts.push({
@@ -179,18 +106,18 @@ export default function AdminDashboard() {
         }
       })
 
-      setAllUsers(users || [])
-      setActiveSessions(sessions || [])
-      setRecentActions(actionsWithProfiles || [])
+      setAllUsers(overview.data.users)
+      setActiveSessions(overview.data.active_sessions)
+      setRecentActions(overview.data.recent_actions)
       setSecurityAlerts(alerts)
-      setFailedAttempts(failedAttemptsData || [])
+      setFailedAttempts(overview.data.failed_attempts)
       setStats({
-        totalUsers: users?.length || 0,
-        activeUsers: sessions?.length || 0,
-        todayLogins: todayLogins?.length || 0,
-        totalActions: todayActions?.length || 0,
+        totalUsers: overview.data.users.length,
+        activeUsers: overview.data.active_sessions.length,
+        todayLogins: overview.data.today_logins_count,
+        totalActions: overview.data.today_actions_count,
         securityAlerts: alerts.length,
-        failedAttempts: failedAttemptsData?.length || 0
+        failedAttempts: overview.data.failed_attempts.length
       })
 
     } catch (err: unknown) {
@@ -198,7 +125,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
