@@ -125,7 +125,11 @@ export function useCredits() {
             event_name: eventNameArray[0]
           }
 
-      const data = await apiFetch(endpoint, { method: 'POST', body: requestBody, getAccessToken })
+      const data = await apiFetch<{
+        message: string;
+        credits_remaining: number;
+        purchased_events?: string[];
+      }>(endpoint, { method: 'POST', body: requestBody, getAccessToken })
 
       // Invalidate queries after successful purchase
       await Promise.all([
@@ -147,7 +151,7 @@ export function useCredits() {
   const checkEventAccess = useCallback(async (eventId: string) => {
     try {
       if (!isSupabaseConfigured()) return false
-      const data = await apiFetch(`/api/events/${eventId}/access`, { getAccessToken })
+      const data = await apiFetch<{ has_access: boolean }>(`/api/events/${eventId}/access`, { getAccessToken })
       return data.has_access || false
     } catch (err) {
       console.error('Error checking event access:', err)
@@ -161,7 +165,7 @@ export function useCredits() {
       // TODO: Implement Stripe Checkout Session creation
       // This would redirect to Stripe checkout or open Stripe modal
       
-      const selectedPackage = packages.find(p => p.package_type === packageType)
+      const selectedPackage = (packagesQuery.data?.packages || []).find((p: CreditPackage) => p.package_type === packageType)
       if (!selectedPackage) {
         throw new Error('Package not found')
       }
