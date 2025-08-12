@@ -46,8 +46,11 @@ export default function AdminCreditsPage() {
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await apiFetch('/api/admin/credits/stats', { getAccessToken })
-      setStats(data.stats)
+      const data = await apiFetch<{ success: boolean; stats: CreditStats }>(
+        '/api/admin/credits/stats',
+        { getAccessToken }
+      )
+      setStats(data.stats as CreditStats)
     } catch (err) {
       console.error('Error fetching stats:', err)
       setError('Failed to load stats')
@@ -59,8 +62,11 @@ export default function AdminCreditsPage() {
   const fetchUsers = useCallback(async () => {
     try {
       // Fetch users via backend API endpoint (assumes backend has an admin users list endpoint)
-      const data = await apiFetch('/api/admin/users', { getAccessToken })
-      if (data?.users) setUsers(data.users as UserProfile[])
+      const data = await apiFetch<{ success: boolean; users: UserProfile[]; total: number }>(
+        '/api/admin/users',
+        { getAccessToken }
+      )
+      if (data?.users) setUsers(data.users)
     } catch (err) {
       console.error('Error fetching users:', err)
     }
@@ -78,7 +84,7 @@ export default function AdminCreditsPage() {
 
     try {
       setGranting(true)
-      const data = await apiFetch(`/api/admin/credits/grant/${selectedUser}`, {
+      const data = await apiFetch<{ success: boolean; message: string }>(`/api/admin/credits/grant/${selectedUser}`, {
         method: 'POST',
         getAccessToken,
         body: {

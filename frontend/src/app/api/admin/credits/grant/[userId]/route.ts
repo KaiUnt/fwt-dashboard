@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export async function POST(request: Request, context: any) {
+export async function POST(request: Request) {
   try {
-    const { userId } = (context?.params || {}) as { userId: string }
+    const url = new URL(request.url)
+    const segments = url.pathname.split('/')
+    const userId = segments[segments.length - 1]
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 })
