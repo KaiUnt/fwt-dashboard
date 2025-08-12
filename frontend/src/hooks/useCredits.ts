@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { isSupabaseConfigured } from '@/utils/supabase'
 import { offlinePurchaseStorage, OfflinePurchaseData } from '@/utils/offlineStorage'
@@ -67,7 +67,7 @@ export function useCredits() {
   })
 
   // Stable reference for packages to satisfy hook dependencies
-  const packages = packagesQuery.data?.packages ?? []
+  const packages = useMemo(() => packagesQuery.data?.packages ?? [], [packagesQuery.data])
 
   const purchaseEventAccess = useCallback(async (eventIds: string | string[], eventNames?: string | string[]) => {
     try {
