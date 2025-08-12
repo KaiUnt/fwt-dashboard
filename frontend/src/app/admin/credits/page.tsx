@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/providers/AuthProvider'
 import { AppHeader } from '@/components/AppHeader'
 import { Coins, Users, TrendingUp, DollarSign, Gift, AlertTriangle } from 'lucide-react'
@@ -43,14 +43,7 @@ export default function AdminCreditsPage() {
     }
   }, [isAdmin, authLoading, router])
 
-  useEffect(() => {
-    if (isAdmin) {
-      fetchStats()
-      fetchUsers()
-    }
-  }, [isAdmin])
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true)
       const data = await apiFetch('/api/admin/credits/stats', { getAccessToken })
@@ -61,9 +54,9 @@ export default function AdminCreditsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [getAccessToken])
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       // Fetch users via backend API endpoint (assumes backend has an admin users list endpoint)
       const data = await apiFetch('/api/admin/users', { getAccessToken })
@@ -71,7 +64,14 @@ export default function AdminCreditsPage() {
     } catch (err) {
       console.error('Error fetching users:', err)
     }
-  }
+  }, [getAccessToken])
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchStats()
+      fetchUsers()
+    }
+  }, [isAdmin, fetchStats, fetchUsers])
 
   const grantCredits = async () => {
     if (!selectedUser || creditsToGrant <= 0) return

@@ -29,7 +29,7 @@ const createFriendsApi = (getAccessToken: () => Promise<string | null>) => ({
       });
     } catch (error: unknown) {
       if (error instanceof ApiError) {
-        const detail = (error.detail as any)?.detail;
+        const detail = (error.detail as unknown as { detail?: string })?.detail;
         let errorMessage = detail || 'Failed to send friend request';
         switch (error.status) {
           case 400:

@@ -142,7 +142,7 @@ export function useCredits() {
     } catch (err) {
       throw err
     }
-  }, [fetchTransactions, isOffline, credits])
+  }, [isOffline, balanceQuery.data?.credits, getAccessToken, queryClient])
 
   const checkEventAccess = useCallback(async (eventId: string) => {
     try {
@@ -153,7 +153,7 @@ export function useCredits() {
       console.error('Error checking event access:', err)
       return false
     }
-  }, [])
+  }, [getAccessToken])
 
   // Future: Stripe integration
   const initiatePurchase = useCallback(async (packageType: string) => {
@@ -176,7 +176,7 @@ export function useCredits() {
     } catch (err) {
       throw err
     }
-  }, [packages])
+  }, [])
 
   // Sync offline purchases when coming back online
   const syncOfflinePurchases = useCallback(async () => {

@@ -34,7 +34,7 @@ export class ApiError extends Error {
  * - Automatically attaches Authorization header if `getAccessToken` is provided and header is not already set.
  * - Serializes JSON body and parses JSON responses when possible.
  */
-export async function apiFetch<T = any>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptions = {}): Promise<T> {
   const {
     method = 'GET',
     headers = {},
@@ -55,7 +55,6 @@ export async function apiFetch<T = any>(path: string, options: ApiFetchOptions =
       }
     } catch (err) {
       // Non-fatal: continue without auth header
-      // eslint-disable-next-line no-console
       console.warn('apiFetch: failed to resolve access token:', err);
     }
   }
@@ -129,8 +128,8 @@ export async function apiFetch<T = any>(path: string, options: ApiFetchOptions =
     // For non-JSON responses, return as text
     const text = await response.text();
     return text as unknown as T;
-  } catch (err: any) {
-    if (err?.name === 'AbortError') {
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === 'AbortError') {
       throw new ApiError('Request timeout', 0);
     }
     throw err;

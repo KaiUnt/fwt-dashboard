@@ -86,7 +86,7 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
       setError(errorMessage)
       return {}
     }
-  }, [])
+  }, [fetchBatchAccess])
 
   return {
     accessStatus,

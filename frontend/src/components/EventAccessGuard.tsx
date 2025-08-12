@@ -40,7 +40,7 @@ export default function EventAccessGuard({
     } finally {
       setLoading(false)
     }
-  }, [eventId, onAccessGranted])
+  }, [eventId, onAccessGranted, checkEventAccess])
 
   useEffect(() => {
     checkAccess()

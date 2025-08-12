@@ -118,7 +118,7 @@ const updateCommentatorInfo = async (athleteId: string, info: Partial<Commentato
       } else if (error.status === 503) {
         throw new Error('Service temporarily unavailable. Please try again later.');
       }
-      const detail = (error.detail as any)?.detail;
+      const detail = (error.detail as unknown as { detail?: string })?.detail;
       if (detail) throw new Error(detail);
     }
     throw error as Error;
