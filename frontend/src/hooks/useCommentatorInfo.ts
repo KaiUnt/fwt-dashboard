@@ -298,6 +298,7 @@ export function useUpdateCommentatorInfo() {
 // Hook for syncing offline changes when back online
 export function useSyncCommentatorInfo() {
   const queryClient = useQueryClient();
+  const { getAccessToken } = useAccessToken();
 
   return useMutation({
     mutationFn: async () => {
@@ -307,7 +308,7 @@ export function useSyncCommentatorInfo() {
       for (const item of queue) {
         try {
           if (item.action === 'update' || item.action === 'create') {
-            await updateCommentatorInfo(item.athleteId, item.data || {});
+            await updateCommentatorInfo(item.athleteId, item.data || {}, getAccessToken);
           }
           syncResults.success++;
         } catch (error) {
