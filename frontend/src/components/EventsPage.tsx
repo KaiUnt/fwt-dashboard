@@ -9,7 +9,6 @@ import { SearchInput } from './SearchInput';
 import { FilterTabs } from './FilterTabs';
 import { useCredits } from '@/hooks/useCredits';
 import { EventPurchaseModal } from './EventPurchaseModal';
-import { isSupabaseConfigured } from '@/utils/supabase';
 import { useBatchEventAccess } from '@/hooks/useBatchEventAccess';
 
 import { useEvents } from '@/hooks/useEvents';

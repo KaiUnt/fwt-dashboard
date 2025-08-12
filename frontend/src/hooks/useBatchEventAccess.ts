@@ -36,7 +36,7 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
     retry: 2
   })
 
-  const fetchBatchAccess = async (ids: string[]): Promise<BatchAccessResult> => {
+  const fetchBatchAccess = useCallback(async (ids: string[]): Promise<BatchAccessResult> => {
     try {
       if (!isSupabaseConfigured()) {
         throw new Error('Supabase not configured')
@@ -75,7 +75,7 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
       setError(errorMessage)
       throw err
     }
-  }
+  }, [getAccessToken])
 
   const checkBatchAccess = useCallback(async (ids: string[]): Promise<BatchAccessResult> => {
     try {

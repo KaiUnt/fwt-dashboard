@@ -51,7 +51,7 @@ export default function EventAccessGuard({
       setPurchasing(true)
       setError(null)
       
-      const result = await purchaseEventAccess(eventId, eventName)
+      await purchaseEventAccess(eventId, eventName)
 
       // Success
       setHasAccess(true)
