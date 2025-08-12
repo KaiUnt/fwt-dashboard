@@ -66,7 +66,7 @@ export function CommentatorInfoSection({
       id: 'all',
       label: t('commentatorInfo.tabs.all'),
       count: countFields(mergedData),
-      data: [mergedData]
+      data: [...(myData || []), ...(friendsData || [])] // Show all individual entries, not just merged
     }
   ];
 
@@ -102,7 +102,24 @@ export function CommentatorInfoSection({
       );
     }
 
-    const info = data[0];
+    // For "all" tab, show all individual entries
+    if (activeTab === 'all' && data.length > 1) {
+      return (
+        <div className="space-y-6">
+          {data.map((info, index) => (
+            <div key={`${info.athlete_id}-${info.created_by || 'own'}-${index}`} className="border-b border-amber-200 last:border-b-0 pb-4 last:pb-0">
+              {renderSingleCommentatorInfo(info)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // For single entries or other tabs, show just the first item
+    return renderSingleCommentatorInfo(data[0]);
+  };
+
+  const renderSingleCommentatorInfo = (info: CommentatorInfoWithAuthor) => {
     const isOwnData = info.is_own_data;
     const hasFieldAuthors = info.fieldAuthors && Object.keys(info.fieldAuthors).length > 0;
 
