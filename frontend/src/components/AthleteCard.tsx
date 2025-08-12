@@ -209,7 +209,6 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
         <CommentatorInfoSection
           athleteId={athlete.id}
           athleteName={athlete.name}
-          commentatorInfo={commentatorInfo}
           onEdit={() => setShowCommentatorModal(true)}
         />
       </div>
