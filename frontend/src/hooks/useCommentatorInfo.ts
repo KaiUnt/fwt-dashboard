@@ -351,7 +351,10 @@ export function useCommentatorInfoWithFriends(athleteId: string, source: 'mine' 
       // Try online first if we have internet
       if (!isOffline) {
         try {
-          const data = await apiFetch(`${API_BASE_URL}/api/commentator-info/${athleteId}/friends?source=${source}`, { getAccessToken });
+          const data = await apiFetch<{ data: CommentatorInfoWithAuthor[] }>(
+            `${API_BASE_URL}/api/commentator-info/${athleteId}/friends?source=${source}`,
+            { getAccessToken }
+          );
           return data.data || [];
         } catch (error) {
           console.warn('Online fetch failed, trying offline cache:', error);
