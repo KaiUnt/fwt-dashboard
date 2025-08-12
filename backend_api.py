@@ -2354,15 +2354,68 @@ async def update_profile(
 async def verify_password(
     req: VerifyPasswordRequest,
 ):
-    # Placeholder: Implement Supabase Auth verification if needed
-    return {"success": False}
+    """Verify user's current password by attempting a password grant with Supabase Auth."""
+    supabase_url = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", ""))
+    anon_key = os.getenv("SUPABASE_ANON_KEY", os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", ""))
+    if not supabase_url or not anon_key:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{supabase_url}/auth/v1/token?grant_type=password",
+                headers={
+                    "apikey": anon_key,
+                    "Content-Type": "application/json",
+                },
+                json={"email": req.email, "password": req.password},
+            )
+            # 200 means credentials valid; 400/401 invalid
+            if resp.status_code == 200:
+                return {"success": True}
+            return {"success": False}
+    except Exception as e:
+        logger.error(f"Error verifying password: {e}")
+        raise HTTPException(status_code=500, detail="Failed to verify password")
 
 @app.post("/api/profile/change-password")
 async def change_password(
     req: PasswordChangeRequest,
+    current_user_id: str = Depends(extract_user_id_from_token),
 ):
-    # Placeholder: Implement Supabase Auth password change if needed
-    return {"success": False, "message": "Not implemented"}
+    """Change the authenticated user's password using Supabase Admin API.
+    This endpoint expects that the caller is the user themselves.
+    Optionally, require prior verification via /api/profile/verify-password from the client.
+    """
+    supabase_url = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", ""))
+    service_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    if not supabase_url or not service_key:
+        raise HTTPException(status_code=503, detail="Supabase admin not configured")
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.patch(
+                f"{supabase_url}/auth/v1/admin/users/{current_user_id}",
+                headers={
+                    "apikey": service_key,
+                    "Authorization": f"Bearer {service_key}",
+                    "Content-Type": "application/json",
+                },
+                json={"password": req.password},
+            )
+            if resp.status_code != 200:
+                try:
+                    data = resp.json()
+                    detail = data.get("message") or data.get("error") or data
+                except Exception:
+                    detail = resp.text
+                raise HTTPException(status_code=resp.status_code, detail=f"Failed to change password: {detail}")
+            return {"success": True, "message": "Password changed"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error changing password: {e}")
+        raise HTTPException(status_code=500, detail="Failed to change password")
 
 # Enhanced Commentator Info APIs with Friends System
 
