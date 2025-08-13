@@ -1344,33 +1344,36 @@ async def get_all_commentator_info():
 
 @app.get("/api/users/check-username/{username}")
 async def check_username_availability(username: str):
-    """Check if a username is available"""
+    """Check if a username/full name is available.
+    Allows letters (incl. Unicode), numbers, spaces, dots, underscores and hyphens, 2-30 chars.
+    """
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        # Validate username format
-        if len(username) < 2 or len(username) > 30:
-            return {"available": False, "reason": "Username must be between 2 and 30 characters"}
+        # Normalize
+        candidate = username.strip()
         
-        if not re.match(r'^[a-zA-Z0-9_-]+$', username):
-            return {"available": False, "reason": "Username can only contain letters, numbers, underscores, and hyphens"}
+        # Validate format (allow spaces and dots now)
+        if len(candidate) < 2 or len(candidate) > 30:
+            return {"available": False, "reason": "Name must be between 2 and 30 characters"}
         
-        if re.match(r'^[0-9]+$', username):
-            return {"available": False, "reason": "Username cannot be only numbers"}
+        # Allow unicode letters/digits via \w, plus space and dot and hyphen
+        if not re.match(r'^[\w .-]+$', candidate, flags=re.UNICODE):
+            return {"available": False, "reason": "Name can include letters, numbers, spaces, dots, underscores and hyphens"}
         
-        if re.match(r'^[_-]', username) or re.match(r'[_-]$', username):
-            return {"available": False, "reason": "Username cannot start or end with underscore or hyphen"}
+        if re.match(r'^[0-9]+$', candidate):
+            return {"available": False, "reason": "Name cannot be only numbers"}
         
         reserved_names = ['admin', 'administrator', 'root', 'system', 'api', 'www', 'ftp', 'mail', 'test', 'user', 'guest', 'null', 'undefined']
-        if username.lower() in reserved_names:
-            return {"available": False, "reason": "This username is reserved"}
+        if candidate.lower() in reserved_names:
+            return {"available": False, "reason": "This name is reserved"}
         
         # Check if username exists (case-insensitive)
-        existing_user = await supabase_client.select("user_profiles", "id", {"full_name": username})
+        existing_user = await supabase_client.select("user_profiles", "id", {"full_name": candidate})
         
         if existing_user:
-            return {"available": False, "reason": "Username is already taken"}
+            return {"available": False, "reason": "Name is already taken"}
         
         return {"available": True, "reason": "Username is available"}
         

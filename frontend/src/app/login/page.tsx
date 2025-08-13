@@ -145,7 +145,8 @@ export default function LoginPage() {
         try {
           const availability = await checkUsernameAvailability.mutateAsync(desiredName)
           if (!availability.available) {
-            setError('This name is already taken. Please choose another one.')
+            const reason = availability.reason || 'Name not available'
+            setError(reason)
             setLoading(false)
             return
           }
