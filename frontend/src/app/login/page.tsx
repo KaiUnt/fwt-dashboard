@@ -23,7 +23,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [authMode, setAuthMode] = useState<'sign-in' | 'sign-up' | 'forgot'>('sign-in')
   const [fullName, setFullName] = useState('')
   const [isLocked, setIsLocked] = useState(false)
   const [lockoutTime, setLockoutTime] = useState<number>(0)
@@ -77,11 +77,11 @@ export default function LoginPage() {
     }
   }, [user, router])
 
-  // Reset alerts when switching between Sign In / Sign Up
+  // Reset alerts when switching between auth modes
   useEffect(() => {
     setError('')
     setMessage('')
-  }, [isSignUp])
+  }, [authMode])
 
   const recordLoginAttempt = (success: boolean) => {
     const now = Date.now()
@@ -120,7 +120,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (isLocked) {
+    if (authMode === 'sign-in' && isLocked) {
       const remainingTime = Math.ceil((lockoutTime - Date.now()) / 1000 / 60)
       setError(`Account temporarily locked. Please try again in ${remainingTime} minutes.`)
       return
@@ -130,7 +130,7 @@ export default function LoginPage() {
     setError('')
 
     try {
-      if (isSignUp) {
+      if (authMode === 'sign-up') {
         // Client-side validations
         const trimmedName = fullName.trim()
         const desiredName = trimmedName || email.split('@')[0]
@@ -172,7 +172,7 @@ export default function LoginPage() {
         } else {
           setError('User creation failed - no user returned')
         }
-      } else {
+      } else if (authMode === 'sign-in') {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password
@@ -195,14 +195,20 @@ export default function LoginPage() {
         
         recordLoginAttempt(true)
         router.push('/')
+      } else if (authMode === 'forgot') {
+        const targetEmail = email.trim()
+        if (!targetEmail) {
+          setError('Please enter your email to receive a reset link.')
+          return
+        }
+        await supabase.auth.resetPasswordForEmail(targetEmail, {
+          redirectTo: `${window.location.origin}/auth/update-password`
+        })
+        setMessage('If an account exists, we have sent a password reset link to your email.')
       }
     } catch (error: unknown) {
-      if (!isSignUp) {
-        const errorMessage = error instanceof Error ? error.message : 'An error occurred'
-        setError(errorMessage)
-      } else {
-        setError(error instanceof Error ? error.message : 'An error occurred')
-      }
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -224,14 +230,14 @@ export default function LoginPage() {
             <Mountain className="h-8 w-8 text-blue-600" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            {isSignUp ? 'Create Account' : 'Sign in to FWT Dashboard'}
+            {authMode === 'sign-up' ? 'Create Account' : authMode === 'forgot' ? 'Reset your password' : 'Sign in to FWT Dashboard'}
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            {isSignUp ? 'Join the FWT community' : 'Access your dashboard'}
+            {authMode === 'sign-up' ? 'Join the FWT community' : authMode === 'forgot' ? 'Enter your email to receive a reset link' : 'Access your dashboard'}
           </p>
         </div>
 
-        {!isSignUp && isLocked && (
+        {authMode === 'sign-in' && isLocked && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4">
             <div className="flex">
               <AlertTriangle className="h-5 w-5 text-red-400" />
@@ -255,7 +261,7 @@ export default function LoginPage() {
                 <p className="text-sm text-green-800">{message}</p>
               </div>
             )}
-            {isSignUp && (
+            {authMode === 'sign-up' && (
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
                   Full Name
@@ -284,7 +290,7 @@ export default function LoginPage() {
                   type="email"
                   autoComplete="email"
                   required
-                  disabled={isLocked}
+                  disabled={authMode === 'sign-in' && isLocked}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-950"
@@ -296,6 +302,7 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {authMode !== 'forgot' && (
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
@@ -305,9 +312,9 @@ export default function LoginPage() {
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                  autoComplete={authMode === 'sign-up' ? 'new-password' : 'current-password'}
                   required
-                  disabled={isLocked}
+                  disabled={authMode === 'sign-in' && isLocked}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-950"
@@ -324,9 +331,10 @@ export default function LoginPage() {
                 </div>
               </div>
             </div>
+            )}
           </div>
 
-          {!isSignUp && !isLocked && remainingAttempts < MAX_LOGIN_ATTEMPTS && (
+          {authMode === 'sign-in' && !isLocked && remainingAttempts < MAX_LOGIN_ATTEMPTS && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
               <p className="text-sm text-yellow-800">
                 ⚠️ {remainingAttempts} login attempts remaining
@@ -343,39 +351,21 @@ export default function LoginPage() {
           <div>
             <button
               type="submit"
-              disabled={loading || isLocked}
+              disabled={loading || (authMode === 'sign-in' && isLocked)}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <span>{isSignUp ? 'Create Account' : 'Sign in'}</span>
+                <span>{authMode === 'sign-up' ? 'Create Account' : authMode === 'forgot' ? 'Send reset link' : 'Sign in'}</span>
               )}
             </button>
-            {!isSignUp && (
+            {authMode === 'sign-in' && (
               <div className="mt-3 text-center">
                 <button
                   type="button"
                   className="text-sm text-blue-600 hover:text-blue-500"
-                  onClick={async () => {
-                    setError(''); setMessage('')
-                    const targetEmail = email.trim()
-                    if (!targetEmail) {
-                      setError('Please enter your email to receive a reset link.')
-                      return
-                    }
-                    try {
-                      setLoading(true)
-                      await supabase.auth.resetPasswordForEmail(targetEmail, {
-                        redirectTo: `${window.location.origin}/auth/update-password`
-                      })
-                      setMessage('If an account exists, we have sent a password reset link to your email.')
-                  } catch {
-                      setError('Failed to send reset email. Please try again later.')
-                    } finally {
-                      setLoading(false)
-                    }
-                  }}
+                  onClick={() => { setError(''); setMessage(''); setAuthMode('forgot') }}
                 >
                   Forgot password?
                 </button>
@@ -383,19 +373,31 @@ export default function LoginPage() {
             )}
           </div>
 
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp)
-                setError('')
-                setMessage('')
-              }}
-              className="text-sm text-blue-600 hover:text-blue-500"
-            >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </button>
-          </div>
+          {authMode !== 'forgot' ? (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode(authMode === 'sign-in' ? 'sign-up' : 'sign-in')
+                  setError('')
+                  setMessage('')
+                }}
+                className="text-sm text-blue-600 hover:text-blue-500"
+              >
+                {authMode === 'sign-up' ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+              </button>
+            </div>
+          ) : (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('sign-in'); setError(''); setMessage('') }}
+                className="text-sm text-blue-600 hover:text-blue-500"
+              >
+                Back to Sign in
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
