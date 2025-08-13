@@ -42,6 +42,7 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = [
     '/login',
     '/auth/callback',
+    '/auth/update-password',
     '/api/auth',
     '/_next',
     '/favicon.ico',
