@@ -43,8 +43,8 @@ const setCommentatorInfoCache = (cache: CommentatorInfoCache): void => {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(COMMENTATOR_INFO_STORAGE_KEY, JSON.stringify(cache));
-  } catch (error) {
-    console.error('Failed to save commentator info cache:', error);
+  } catch {
+    // no-op
   }
 };
 
@@ -80,9 +80,8 @@ const fetchCommentatorInfo = async (athleteId: string, getAccessToken: () => Pro
     }
     
     return data.data || null;
-  } catch (error) {
+  } catch {
     // Network errors, CORS, etc.
-    console.warn(`⚠️ Commentator info fetch failed for athlete ${athleteId}:`, error);
     return null;
   }
 };
@@ -146,8 +145,7 @@ export function useCommentatorInfo(athleteId: string) {
           }
           
           return onlineData;
-        } catch (error) {
-          console.warn(`⚠️ Online fetch failed for athlete ${athleteId}, trying offline cache:`, error);
+        } catch {
           // Fall through to offline cache
         }
       }
@@ -183,8 +181,7 @@ export function useCommentatorInfo(athleteId: string) {
             return cache[athleteId];
           }
         }
-      } catch (error) {
-        console.warn(`⚠️ Failed to load from offline storage for athlete ${athleteId}:`, error);
+      } catch {
       }
       
       return null;
@@ -221,13 +218,11 @@ export function useUpdateCommentatorInfo() {
           setCommentatorInfoCache(cache);
           
           return updatedInfo;
-        } catch (error: unknown) {
-          
+        } catch (err) {
           // Re-throw authentication and permission errors immediately
-          if (error instanceof Error && (error.message?.includes('Authentication') || error.message?.includes('permission'))) {
-            throw error;
+          if (err instanceof Error && (err.message?.includes('Authentication') || err.message?.includes('permission'))) {
+            throw err;
           }
-          
           // For other errors, fall through to offline handling
         }
       } else {
@@ -311,8 +306,8 @@ export function useSyncCommentatorInfo() {
             await updateCommentatorInfo(item.athleteId, item.data || {}, getAccessToken);
           }
           syncResults.success++;
-        } catch (error) {
-          console.error(`Failed to sync ${item.action} for athlete ${item.athleteId}:`, error);
+        } catch (err) {
+          console.error(`Failed to sync ${item.action} for athlete ${item.athleteId}:`, err);
           syncResults.failed++;
         }
       }
@@ -356,8 +351,7 @@ export function useCommentatorInfoWithFriends(athleteId: string, source: 'mine' 
             { getAccessToken }
           );
           return data.data || [];
-        } catch (error) {
-          console.warn('Online fetch failed, trying offline cache:', error);
+        } catch {
           // Fall through to offline cache
         }
       }

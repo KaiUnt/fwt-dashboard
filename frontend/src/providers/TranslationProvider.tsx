@@ -94,8 +94,7 @@ function getOfflineTranslations(locale: string): Translations | null {
   try {
     const cached = localStorage.getItem(`translations-${locale}`);
     return cached ? JSON.parse(cached) : null;
-  } catch (error) {
-    console.warn('Failed to parse cached translations:', error);
+  } catch {
     return null;
   }
 }
@@ -117,7 +116,6 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
       // Try offline fallback first to avoid unnecessary network requests
       const offlineData = getOfflineTranslations(locale);
       if (offlineData && isOffline) {
-        console.log('Loaded translations from offline storage (offline mode)');
         return offlineData;
       }
       
@@ -125,15 +123,13 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
       if (!isOffline) {
         try {
           return await fetchTranslations(locale);
-        } catch (error) {
-          console.warn('Online translation fetch failed, trying offline fallback:', error);
+        } catch {
           // Fall through to offline fallback
         }
       }
       
       // Final fallback to cached data
       if (offlineData) {
-        console.log('Loaded translations from offline storage (fallback)');
         return offlineData;
       }
       

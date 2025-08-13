@@ -163,8 +163,7 @@ export function useOfflineStorage() {
             }
           });
         }
-      } catch (error) {
-        console.warn('Failed to load commentator info for offline storage:', error);
+      } catch {
       }
 
       // Calculate estimated size including commentator info

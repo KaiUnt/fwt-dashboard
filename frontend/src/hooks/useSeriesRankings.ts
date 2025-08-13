@@ -83,8 +83,7 @@ export function useOfflineSeriesRankings(eventId: string) {
       if (!isOffline) {
         try {
           return await fetchSeriesRankings(eventId);
-        } catch (error) {
-          console.warn('Online series rankings fetch failed, trying offline fallback:', error);
+        } catch {
           // Fall through to offline fallback
         }
       }
@@ -140,8 +139,7 @@ export function useOfflineMultiEventSeriesRankings(eventId1: string, eventId2: s
               total_series: rankings1.series_count + rankings2.series_count
             }
           };
-        } catch (error) {
-          console.warn('Online multi-event series rankings fetch failed, trying offline fallback:', error);
+        } catch {
           // Fall through to offline fallback
         }
       }

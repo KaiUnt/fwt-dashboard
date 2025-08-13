@@ -74,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-      console.log('Fetching profile for user:', userId)
       
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise<null>((_, reject) => {
@@ -82,38 +81,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       
       const fetchPromise = (async () => {
-        console.log('Making Supabase query for profile...')
         const { data, error } = await supabase
           .from('user_profiles')
           .select('*')
           .eq('id', userId)
           .single()
         
-        console.log('Supabase profile query result:', { data, error })
-        
         if (error) {
           // PGRST116 means no rows returned, which is OK for new users
           if (error.code === 'PGRST116') {
-            console.log('No profile found for user (PGRST116)')
             return null
           }
           
           // Log other errors but don't throw
-          console.error('Error fetching profile:', error)
           return null
         }
 
-        console.log('Profile fetched successfully:', data)
         return data
       })()
       
       const result = await Promise.race([fetchPromise, timeoutPromise])
       return result
     } catch (error) {
-      console.error('Error in fetchProfile:', error)
       // On timeout or any error, just return null - don't access profile here
       if (error instanceof Error && error.message === 'Profile fetch timeout') {
-        console.warn('Profile fetch timeout - will keep existing profile state')
+        // no-op
       }
       return null
     }
@@ -141,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return
         
         if (error) {
-          console.error('Error getting session:', error)
+          // no-op
         }
 
         // Set user from current session if available
@@ -162,8 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
               // On timeout (null), keep existing profile
             }
-          } catch (profileError) {
-            console.error('Error fetching profile during init:', profileError)
+          } catch {
             if (mounted) {
               setProfile(null)
             }
@@ -183,8 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setAccessToken(null)
           setAccessTokenExpiresAt(null)
         }
-      } catch (error) {
-        console.error('Error initializing auth:', error)
+      } catch {
         if (mounted) {
           setUser(null)
           setProfile(null)
@@ -244,8 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isInitialLoad = false
               }
             }
-          } catch (error) {
-            console.error('Error handling auth state change:', error)
+          } catch {
             if (mounted) {
               setProfile(null)
               setLoading(false)
@@ -272,7 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) {
-      console.error('Error signing out:', error)
+      // no-op
     }
     
     // Clear offline auth state
@@ -299,15 +288,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Ask Supabase for the current session (this may refresh token if needed)
       const { data: { session }, error } = await supabase.auth.getSession()
       if (error) {
-        console.error('Error refreshing session for access token:', error)
+        // no-op
       }
       const newToken = session?.access_token ?? null
       const newExpiry = session?.expires_at ? session.expires_at * 1000 : null
       setAccessToken(newToken)
       setAccessTokenExpiresAt(newExpiry)
       return newToken
-    } catch (err) {
-      console.error('Failed to get access token:', err)
+    } catch {
       return null
     }
   }, [accessToken, accessTokenExpiresAt, supabase.auth])

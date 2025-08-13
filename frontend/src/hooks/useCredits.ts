@@ -192,7 +192,7 @@ export function useCredits() {
       
       if (pendingPurchases.length === 0) return
       
-      console.log(`Syncing ${pendingPurchases.length} offline purchases...`)
+      
       
       for (const purchase of pendingPurchases) {
         try {
@@ -203,7 +203,7 @@ export function useCredits() {
             // Mark as synced and remove from offline storage
             await offlinePurchaseStorage.updatePurchaseStatus(purchase.id, 'synced')
             await offlinePurchaseStorage.deletePurchase(purchase.id)
-            console.log(`Successfully synced purchase ${purchase.id}`)
+            
           } else {
             // Mark as failed
             await offlinePurchaseStorage.updatePurchaseStatus(purchase.id, 'failed', 'Sync failed')

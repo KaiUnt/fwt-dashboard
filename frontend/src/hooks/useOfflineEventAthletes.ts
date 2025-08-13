@@ -67,8 +67,7 @@ export function useOfflineEventAthletes(eventId: string) {
       if (!isOffline) {
         try {
           return await fetchEventAthletes(eventId);
-        } catch (error) {
-          console.warn('Online fetch failed, trying offline fallback:', error);
+        } catch {
           // Fall through to offline fallback
         }
       }
@@ -141,8 +140,7 @@ export function useOfflineMultiEventAthletes(eventId1: string, eventId2: string)
               total: event1Data.athletes.length + event2Data.athletes.length
             }
           };
-        } catch (error) {
-          console.warn('Online multi-event fetch failed, trying offline fallback:', error);
+        } catch {
           // Fall through to offline fallback
         }
       }

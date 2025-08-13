@@ -51,7 +51,6 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
         })
         return data.access_status || {}
       } catch {
-        console.warn('Batch endpoint failed, falling back to individual calls')
       }
 
       // Fallback: Make parallel individual calls

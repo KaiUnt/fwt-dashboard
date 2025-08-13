@@ -53,9 +53,8 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
       if (token) {
         finalHeaders['Authorization'] = `Bearer ${token}`;
       }
-    } catch (err) {
+    } catch {
       // Non-fatal: continue without auth header
-      console.warn('apiFetch: failed to resolve access token:', err);
     }
   }
 

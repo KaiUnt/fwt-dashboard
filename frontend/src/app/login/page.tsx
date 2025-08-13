@@ -150,9 +150,8 @@ export default function LoginPage() {
             setLoading(false)
             return
           }
-        } catch (e) {
+        } catch {
           // If availability check fails, still attempt signup but show soft warning
-          console.warn('Username availability check failed:', e)
         }
 
         // Only include full_name in metadata if provided (avoid empty string in raw_user_meta_data)
