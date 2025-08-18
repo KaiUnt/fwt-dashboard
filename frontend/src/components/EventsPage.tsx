@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
-import { Search, Calendar, Loader2, ToggleLeft, ToggleRight, Eye, History, Clock, RefreshCw, Download, Trash2 } from 'lucide-react';
+import { Search, Calendar, Loader2, Eye, Download, Trash2 } from 'lucide-react';
 import { EventCard } from './EventCard';
 import { SearchInput } from './SearchInput';
 import { FilterTabs } from './FilterTabs';
@@ -276,56 +276,6 @@ export function EventsPage() {
             )}
           </span>
         </div>
-        
-        {/* Refresh Button */}
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing || isLoading}
-          className="flex items-center space-x-2 px-4 py-2 rounded-lg border-2 border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-200 disabled:opacity-50"
-          title={t('events.refreshTitle')}
-        >
-          <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span className="font-medium">
-            {isRefreshing ? t('buttons.updating') : t('buttons.update')}
-          </span>
-        </button>
-        
-        {/* Past Events Toggle */}
-        <button
-          onClick={() => setIncludePastEvents(!includePastEvents)}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 ${
-            includePastEvents
-              ? 'bg-orange-50 border-orange-200 text-orange-700'
-              : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-          }`}
-          title={t('events.showPastEvents')}
-        >
-          {includePastEvents ? (
-            <History className="h-5 w-5 text-orange-600" />
-          ) : (
-            <Clock className="h-5 w-5" />
-          )}
-          <span className="font-medium">
-            {includePastEvents ? t('buttons.allEvents') : t('buttons.showAllEvents')}
-          </span>
-        </button>
-        
-        {/* Multi-Event Toggle */}
-        <button
-          onClick={() => setIsMultiEventMode(!isMultiEventMode)}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 ${
-            isMultiEventMode
-              ? 'bg-blue-50 border-blue-200 text-blue-700'
-              : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          {isMultiEventMode ? (
-            <ToggleRight className="h-5 w-5 text-blue-600" />
-          ) : (
-            <ToggleLeft className="h-5 w-5" />
-          )}
-          <span className="font-medium">{t('buttons.multiEventMode')}</span>
-        </button>
       </AppHeader>
 
       {/* Multi-Event Status - Sticky Purchase Bar */}
@@ -535,6 +485,13 @@ export function EventsPage() {
                 onYearChange={setSelectedYear}
                 totalEvents={events.length}
                 filteredCount={filteredEvents.length}
+                onRefresh={handleRefresh}
+                isRefreshing={isRefreshing}
+                isLoading={isLoading}
+                includePastEvents={includePastEvents}
+                onTogglePastEvents={() => setIncludePastEvents(!includePastEvents)}
+                isMultiEventMode={isMultiEventMode}
+                onToggleMultiEventMode={() => setIsMultiEventMode(!isMultiEventMode)}
               />
             </div>
           </>
