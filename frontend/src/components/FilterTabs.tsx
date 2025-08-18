@@ -8,7 +8,6 @@ interface FilterTabsProps {
   selectedYear: number | 'all';
   onYearChange: (year: number | 'all') => void;
   totalEvents: number;
-  filteredCount: number;
   // Controls moved from header into this right-side controls area
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -23,8 +22,7 @@ export function FilterTabs({
   availableYears, 
   selectedYear, 
   onYearChange, 
-  totalEvents, 
-  filteredCount,
+  totalEvents,
   onRefresh,
   isRefreshing,
   isLoading,

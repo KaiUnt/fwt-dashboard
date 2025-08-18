@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
-import { Search, Calendar, Loader2, Eye, Download, Trash2 } from 'lucide-react';
+import { Search, Calendar, Loader2, Eye, Download, Trash2, RefreshCw } from 'lucide-react';
 import { EventCard } from './EventCard';
 import { SearchInput } from './SearchInput';
 import { FilterTabs } from './FilterTabs';
@@ -484,7 +484,6 @@ export function EventsPage() {
                 selectedYear={selectedYear}
                 onYearChange={setSelectedYear}
                 totalEvents={events.length}
-                filteredCount={filteredEvents.length}
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
                 isLoading={isLoading}
