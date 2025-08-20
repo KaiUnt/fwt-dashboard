@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useEventAthletes } from './useEventAthletes';
-import { useSeriesRankings, isMainSeasonRanking } from './useSeriesRankings';
+import { useOfflineEventAthletes } from './useOfflineEventAthletes';
+import { useOfflineSeriesRankings, isMainSeasonRanking } from './useSeriesRankings';
 import { eventMatcher } from '@/utils/eventMatching';
 
 export interface EventHistoryResult {
@@ -26,8 +26,8 @@ export interface EventHistoryResponse {
 }
 
 export function useAthleteEventHistory(athleteId: string, eventId: string) {
-  const { data: eventData, isLoading: eventLoading, error: eventError } = useEventAthletes(eventId);
-  const { data: seriesData, isLoading: seriesLoading, error: seriesError } = useSeriesRankings(eventId);
+  const { data: eventData, isLoading: eventLoading, error: eventError } = useOfflineEventAthletes(eventId);
+  const { data: seriesData, isLoading: seriesLoading, error: seriesError } = useOfflineSeriesRankings(eventId);
   const [eventHistory, setEventHistory] = useState<EventHistoryResponse | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 

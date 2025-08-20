@@ -57,6 +57,34 @@ class FWTEventMatcher {
     return normalized;
   }
 
+  // Normalize event for historical matching (aligns with backend behavior)
+  private normalizeForMatching(eventName: string): string {
+    let normalized = eventName.trim();
+
+    // Remove year (2024, 2025, etc.)
+    normalized = normalized.replace(/\b20\d{2}\b/g, '');
+
+    // Remove organization prefixes
+    normalized = normalized.replace(/^(FWT\s*-?\s*|IFSA\s*-?\s*)/i, '');
+
+    // Remove sponsor parts like "by <Sponsor Name>" before event type
+    normalized = normalized.replace(/\s+by\s+[A-Za-z][A-Za-z\s&]+?(?=\s+(?:Qualifier|Challenger|Open|Championship|$))/gi, '');
+
+    // Remove common leading sponsors (heuristic)
+    const words = normalized.split(' ');
+    if (words.length > 2) {
+      const firstWord = words[0].toLowerCase();
+      const knownSponsors = ['dynastar', 'salomon', 'atomic', 'rossignol', 'volkl', 'k2', 'peak', 'performance', 'orage', 'north', 'face'];
+      if (knownSponsors.some(s => firstWord.includes(s))) {
+        normalized = words.slice(1).join(' ');
+      }
+    }
+
+    // Clean up extra whitespace and lowercase
+    normalized = normalized.replace(/\s+/g, ' ').trim().toLowerCase();
+    return normalized;
+  }
+
   private findLocationInEventName(eventName: string): string | null {
     const eventLower = eventName.toLowerCase();
     
@@ -76,18 +104,23 @@ class FWTEventMatcher {
       return false;
     }
 
-    // Extract locations from both events
+    // First try normalized equality (robust to sponsors/years)
+    const currentNorm = this.normalizeForMatching(currentEvent);
+    const historicalNorm = this.normalizeForMatching(historicalEvent);
+    if (currentNorm === historicalNorm) {
+      return true;
+    }
+
+    // Fallback to location-based match
     const currentLocation = await this.extractLocationInfo(currentEvent);
     const historicalLocation = await this.extractLocationInfo(historicalEvent);
 
-    // Both must have locations and they must match
     if (!currentLocation.location || !historicalLocation.location) {
       return false;
     }
 
     return currentLocation.location.toLowerCase() === historicalLocation.location.toLowerCase();
   }
-
 
   extractYearFromName(eventName: string): number {
     const match = eventName.match(/\b(20\d{2})\b/);
