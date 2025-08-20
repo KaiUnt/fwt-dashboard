@@ -710,15 +710,58 @@ async def get_event_athletes(event_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to fetch event athletes: {str(e)}")
 
 @app.get("/api/series/rankings/{event_id}")
-async def get_series_rankings_for_event(event_id: str):
+async def get_series_rankings_for_event(event_id: str, request: Request, force_refresh: bool = False):
     """Get FWT series rankings for athletes in a specific event"""
     try:
         from api.client import LiveheatsClient
         
         client = LiveheatsClient()
-        
-        # First get event athletes to have athlete IDs
-        event_data = await client.get_event_athletes(event_id)
+
+        # Redis client init
+        ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
+        cache_key = f"seriesRankings:{event_id}"
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        redis_client = None
+        if redis is not None:
+            try:
+                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
+                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
+                redis_client = request.app.state._redis_client
+            except Exception as e:
+                logger.warning(f"Redis init failed, continuing without cache: {e}")
+                redis_client = None
+
+        # Endpoint-level cache
+        if redis_client and not force_refresh:
+            try:
+                cached_json = await redis_client.get(cache_key)
+                if cached_json:
+                    payload = json.loads(cached_json)
+                    ttl_remaining = await redis_client.ttl(cache_key)
+                    if payload is not None and ttl_remaining and ttl_remaining > 0:
+                        response = JSONResponse(content=payload)
+                        response.headers["Cache-Control"] = f"public, max-age={int(ttl_remaining)}"
+                        return response
+            except Exception as e:
+                logger.warning(f"Redis read failed for {cache_key}: {e}")
+
+        # First get event athletes to have athlete IDs (with its own cache)
+        event_athletes_key = f"eventAthletes:{event_id}"
+        event_data = None
+        if redis_client and not force_refresh:
+            try:
+                cached_event_json = await redis_client.get(event_athletes_key)
+                if cached_event_json:
+                    event_data = json.loads(cached_event_json)
+            except Exception as e:
+                logger.warning(f"Redis read failed for {event_athletes_key}: {e}")
+        if event_data is None:
+            event_data = await client.get_event_athletes(event_id)
+            if redis_client and event_data:
+                try:
+                    await redis_client.setex(event_athletes_key, ttl_seconds, json.dumps(event_data))
+                except Exception as e:
+                    logger.warning(f"Redis write failed for {event_athletes_key}: {e}")
         if not event_data:
             raise HTTPException(status_code=404, detail="Event not found")
         
@@ -736,16 +779,8 @@ async def get_series_rankings_for_event(event_id: str):
                 "message": "No athletes found in event"
             }
         
-        # Get FWT series from both organizations for complete history (2008-2030)
-        series_fwtglobal = await client.get_series_by_years("fwtglobal", range(2008, 2031))
-        series_fwt = await client.get_series_by_years("fwt", range(2008, 2031))
-        
-        # Kombiniere beide Organisationen
-        series_data = []
-        if series_fwtglobal:
-            series_data.extend(series_fwtglobal)
-        if series_fwt:
-            series_data.extend(series_fwt)
+        # Get FWT series only from fwtglobal (privacy and domain decision)
+        series_data = await client.get_series_by_years("fwtglobal", range(2008, 2031))
         if not series_data:
             return {
                 "event": event_data['event'],
@@ -770,30 +805,57 @@ async def get_series_rankings_for_event(event_id: str):
         
         logger.info(f"Series rankings for event {event_data['event']['name']}: {len(rankings)} series, {len(athlete_ids)} athletes")
         
-        return response
+        # Store endpoint payload in cache
+        if redis_client:
+            try:
+                await redis_client.setex(cache_key, ttl_seconds, json.dumps(response))
+            except Exception as e:
+                logger.warning(f"Redis write failed for {cache_key}: {e}")
+
+        json_response = JSONResponse(content=response)
+        json_response.headers["Cache-Control"] = f"public, max-age={ttl_seconds}"
+        return json_response
         
     except Exception as e:
         logger.error(f"Error fetching series rankings for event {event_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch series rankings: {str(e)}")
 
 @app.get("/api/athlete/{athlete_id}/results")
-async def get_athlete_results(athlete_id: str):
+async def get_athlete_results(athlete_id: str, request: Request, force_refresh: bool = False):
     """Get event results history for a specific athlete"""
     try:
         from api.client import LiveheatsClient
         
         client = LiveheatsClient()
-        
-        # Get complete FWT series history from both organizations since 2008
-        series_fwtglobal = await client.get_series_by_years("fwtglobal", range(2008, 2031))
-        series_fwt = await client.get_series_by_years("fwt", range(2008, 2031))
-        
-        # Kombiniere beide Organisationen
-        series_data = []
-        if series_fwtglobal:
-            series_data.extend(series_fwtglobal)
-        if series_fwt:
-            series_data.extend(series_fwt)
+
+        ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
+        cache_key = f"athleteResults:{athlete_id}"
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        redis_client = None
+        if redis is not None:
+            try:
+                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
+                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
+                redis_client = request.app.state._redis_client
+            except Exception as e:
+                logger.warning(f"Redis init failed, continuing without cache: {e}")
+                redis_client = None
+
+        if redis_client and not force_refresh:
+            try:
+                cached_json = await redis_client.get(cache_key)
+                if cached_json:
+                    payload = json.loads(cached_json)
+                    ttl_remaining = await redis_client.ttl(cache_key)
+                    if payload is not None and ttl_remaining and ttl_remaining > 0:
+                        response = JSONResponse(content=payload)
+                        response.headers["Cache-Control"] = f"public, max-age={int(ttl_remaining)}"
+                        return response
+            except Exception as e:
+                logger.warning(f"Redis read failed for {cache_key}: {e}")
+
+        # Get complete FWT series history only from fwtglobal since 2008
+        series_data = await client.get_series_by_years("fwtglobal", range(2008, 2031))
         if not series_data:
             return {
                 "athlete_id": athlete_id,
@@ -834,7 +896,15 @@ async def get_athlete_results(athlete_id: str):
         }
         
         logger.info(f"Found {len(athlete_results)} results for athlete {athlete_id}")
-        return response
+        if redis_client:
+            try:
+                await redis_client.setex(cache_key, ttl_seconds, json.dumps(response))
+            except Exception as e:
+                logger.warning(f"Redis write failed for {cache_key}: {e}")
+
+        json_response = JSONResponse(content=response)
+        json_response.headers["Cache-Control"] = f"public, max-age={ttl_seconds}"
+        return json_response
         
     except Exception as e:
         logger.error(f"Error fetching results for athlete {athlete_id}: {e}")
@@ -2562,23 +2632,41 @@ async def get_commentator_info_with_friends(
         raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
 
 @app.get("/api/fullresults")
-async def get_all_series():
+async def get_all_series(request: Request, force_refresh: bool = False):
     """Get all available FWT series with metadata"""
     try:
         from api.client import LiveheatsClient
         
         client = LiveheatsClient()
-        
-        # Get series from both organizations
-        series_fwtglobal = await client.get_series_by_years("fwtglobal", range(2008, 2031))
-        series_fwt = await client.get_series_by_years("fwt", range(2008, 2031))
-        
-        # Combine series
-        all_series = []
-        if series_fwtglobal:
-            all_series.extend(series_fwtglobal)
-        if series_fwt:
-            all_series.extend(series_fwt)
+
+        ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
+        cache_key = "fullresults"
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        redis_client = None
+        if redis is not None:
+            try:
+                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
+                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
+                redis_client = request.app.state._redis_client
+            except Exception as e:
+                logger.warning(f"Redis init failed, continuing without cache: {e}")
+                redis_client = None
+
+        if redis_client and not force_refresh:
+            try:
+                cached_json = await redis_client.get(cache_key)
+                if cached_json:
+                    payload = json.loads(cached_json)
+                    ttl_remaining = await redis_client.ttl(cache_key)
+                    if payload is not None and ttl_remaining and ttl_remaining > 0:
+                        response = JSONResponse(content=payload)
+                        response.headers["Cache-Control"] = f"public, max-age={int(ttl_remaining)}"
+                        return response
+            except Exception as e:
+                logger.warning(f"Redis read failed for {cache_key}: {e}")
+
+        # Get series only from fwtglobal
+        all_series = await client.get_series_by_years("fwtglobal", range(2008, 2031))
         
         # Enhance series data with metadata
         enhanced_series = []
@@ -2610,26 +2698,63 @@ async def get_all_series():
         # Sort by year (newest first) then by category
         enhanced_series.sort(key=lambda x: (-(x["year"] or 0), x["category"]))
         
-        return {
+        payload = {
             "series": enhanced_series,
             "total": len(enhanced_series),
             "categories": list(set(s["category"] for s in enhanced_series)),
             "years": sorted(list(set(s["year"] for s in enhanced_series if s["year"])), reverse=True),
             "message": f"Found {len(enhanced_series)} series"
         }
+
+        if redis_client:
+            try:
+                await redis_client.setex(cache_key, ttl_seconds, json.dumps(payload))
+            except Exception as e:
+                logger.warning(f"Redis write failed for {cache_key}: {e}")
+
+        response = JSONResponse(content=payload)
+        response.headers["Cache-Control"] = f"public, max-age={ttl_seconds}"
+        return response
         
     except Exception as e:
         logger.error(f"Error fetching all series: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch series: {str(e)}")
 
 @app.get("/api/fullresults/{series_id}")
-async def get_series_rankings(series_id: str):
+async def get_series_rankings(series_id: str, request: Request, force_refresh: bool = False):
     """Get rankings for a specific series with all divisions"""
     try:
         from api.client import LiveheatsClient
-        
+
         client = LiveheatsClient()
-        
+
+        # Cache first
+        ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
+        cache_key = f"fullresults:{series_id}"
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        redis_client = None
+        if redis is not None:
+            try:
+                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
+                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
+                redis_client = request.app.state._redis_client
+            except Exception as e:
+                logger.warning(f"Redis init failed, continuing without cache: {e}")
+                redis_client = None
+
+        if redis_client and not force_refresh:
+            try:
+                cached_json = await redis_client.get(cache_key)
+                if cached_json:
+                    payload = json.loads(cached_json)
+                    ttl_remaining = await redis_client.ttl(cache_key)
+                    if payload is not None and ttl_remaining and ttl_remaining > 0:
+                        response = JSONResponse(content=payload)
+                        response.headers["Cache-Control"] = f"public, max-age={int(ttl_remaining)}"
+                        return response
+            except Exception as e:
+                logger.warning(f"Redis read failed for {cache_key}: {e}")
+
         # Get series info and divisions
         async with client.client as graphql_client:
             divisions_data = await graphql_client.execute(
@@ -2667,13 +2792,23 @@ async def get_series_rankings(series_id: str):
                     all_rankings[division["name"]] = division_rankings
                     total_athletes += len(division_rankings)
             
-            return {
+            payload = {
                 "series_id": series_id,
                 "series_name": series_info["name"],
                 "divisions": all_rankings,
                 "total_athletes": total_athletes,
                 "message": f"Found {total_athletes} athletes across {len(all_rankings)} divisions"
             }
+
+            if redis_client:
+                try:
+                    await redis_client.setex(cache_key, ttl_seconds, json.dumps(payload))
+                except Exception as e:
+                    logger.warning(f"Redis write failed for {cache_key}: {e}")
+
+            response = JSONResponse(content=payload)
+            response.headers["Cache-Control"] = f"public, max-age={ttl_seconds}"
+            return response
         
     except HTTPException:
         raise

@@ -327,25 +327,37 @@ class LiveheatsClient:
                 
             results = {}
             series_has_results = False
-            
-            for division in divisions:
-                rankings = await client.execute(
-                    self.queries.GET_SERIES_RANKINGS,
-                    {"id": series_id, "divisionId": division["id"]}
-                )
-                
+
+            # Parallelisiere Division-Requests mit Concurrency-Limit
+            concurrency_limit = int(os.getenv("EVENTS_FETCH_CONCURRENCY", "6"))
+            semaphore = asyncio.Semaphore(concurrency_limit)
+
+            async def fetch_division_rankings(division_obj: Dict[str, Any]):
+                try:
+                    async with semaphore:
+                        return division_obj, await client.execute(
+                            self.queries.GET_SERIES_RANKINGS,
+                            {"id": series_id, "divisionId": division_obj["id"]}
+                        )
+                except Exception as e:
+                    logger.error(f"Fehler beim Laden der Rankings für Division {division_obj.get('name')} in Series {series_id}: {str(e)}")
+                    return division_obj, None
+
+            tasks = [fetch_division_rankings(division) for division in divisions]
+            division_results = await asyncio.gather(*tasks, return_exceptions=False)
+
+            for division_obj, rankings in division_results:
                 if rankings and "series" in rankings and "rankings" in rankings["series"]:
                     filtered_rankings = [
                         r for r in rankings["series"]["rankings"]
                         if r["athlete"]["id"] in athlete_ids
                     ]
-                    
                     if filtered_rankings:
-                        results[division["name"]] = filtered_rankings
+                        results[division_obj["name"]] = filtered_rankings
                         series_has_results = True
                         logger.debug(
                             f"Gefunden: {len(filtered_rankings)} Athleten "
-                            f"in Division {division['name']}"
+                            f"in Division {division_obj['name']}"
                         )
             
             if series_has_results:
