@@ -688,14 +688,41 @@ async def get_future_events(request: Request, include_past: bool = False, force_
         )
 
 @app.get("/api/events/{event_id}/athletes")
-async def get_event_athletes(event_id: str):
+async def get_event_athletes(event_id: str, request: Request, force_refresh: bool = False):
     """Get all athletes for a specific event"""
     try:
         # Import the LiveHeats client
         from api.client import LiveheatsClient
-        
+
         client = LiveheatsClient()
-        
+
+        # Redis-backed cache for event athletes
+        ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
+        cache_key = f"eventAthletes:{event_id}"
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        redis_client = None
+        if redis is not None:
+            try:
+                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
+                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
+                redis_client = request.app.state._redis_client
+            except Exception as e:
+                logger.warning(f"Redis init failed for event athletes: {e}")
+                redis_client = None
+
+        if redis_client and not force_refresh:
+            try:
+                cached_json = await redis_client.get(cache_key)
+                if cached_json:
+                    payload = json.loads(cached_json)
+                    ttl_remaining = await redis_client.ttl(cache_key)
+                    if payload is not None and ttl_remaining and ttl_remaining > 0:
+                        response = JSONResponse(content=payload)
+                        response.headers["Cache-Control"] = f"public, max-age={int(ttl_remaining)}"
+                        return response
+            except Exception as e:
+                logger.warning(f"Redis read failed for {cache_key}: {e}")
+
         # Use the existing method that already does what we need
         result = await client.get_event_athletes(event_id)
         
@@ -703,7 +730,16 @@ async def get_event_athletes(event_id: str):
             raise HTTPException(status_code=404, detail="Event not found")
         
         logger.info(f"Found event {result.get('event', {}).get('name')} with athletes")
-        return result
+        # Write to cache
+        if redis_client:
+            try:
+                await redis_client.setex(cache_key, ttl_seconds, json.dumps(result))
+            except Exception as e:
+                logger.warning(f"Redis write failed for {cache_key}: {e}")
+
+        response = JSONResponse(content=result)
+        response.headers["Cache-Control"] = f"public, max-age={ttl_seconds}"
+        return response
         
     except Exception as e:
         logger.error(f"Error fetching athletes for event {event_id}: {e}")

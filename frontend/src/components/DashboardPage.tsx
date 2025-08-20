@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Keyboard, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useOfflineSeriesRankings } from '@/hooks/useSeriesRankings';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { AthleteCard } from './AthleteCard';
@@ -23,8 +23,9 @@ interface DashboardPageProps {
 export function DashboardPage({ eventId }: DashboardPageProps) {
   const { t } = useTranslation();
   const router = useRouter();
-  const { data: athletesData, isLoading, error } = useOfflineEventAthletes(eventId);
-  const { data: seriesData, isLoading: seriesLoading } = useOfflineSeriesRankings(eventId);
+  const { data: athletesData, isLoading, error, refetch: refetchAthletes } = useOfflineEventAthletes(eventId);
+  const { data: seriesData, isLoading: seriesLoading, refetch: refetchSeries } = useOfflineSeriesRankings(eventId);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentAthleteIndex, setCurrentAthleteIndex] = useState(0);
   const [showBibJump, setShowBibJump] = useState(false);
 
@@ -146,31 +147,11 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
       {/* Header */}
       <AppHeader 
         title={athletesData.event.name}
-        subtitle={`${athletesData.event.date} • ${t('dashboard.athletesCount', { count: athletes.length })}`}
         showBackButton={true}
         backUrl="/"
       >
         <div className="text-sm text-gray-500 flex items-center">
-          <Users className="h-4 w-4 inline mr-1" />
-          {currentAthleteIndex + 1} / {athletes.length}
         </div>
-        
-        <button
-          onClick={() => setShowBibJump(true)}
-          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-          title={t('dashboard.searchAthletes')}
-        >
-          <Keyboard className="h-5 w-5" />
-        </button>
-        
-        <OfflineSaveButton
-          eventIds={[eventId]}
-          athletes={athletes}
-          eventInfo={athletesData.event}
-          seriesRankings={seriesData?.series_rankings}
-          isDataLoading={isLoading || seriesLoading}
-          variant="secondary"
-        />
       </AppHeader>
 
       {/* Main Content */}
@@ -178,6 +159,39 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
 
         {/* Mobile Layout with specific order */}
         <div className="block lg:hidden space-y-6">
+          {/* Toolbar above list (mobile) */}
+          <div className="flex items-center justify-end space-x-2">
+            <button
+              onClick={async () => {
+                setIsRefreshing(true);
+                try {
+                  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                  await Promise.all([
+                    fetch(`${API_BASE_URL}/api/events/${eventId}/athletes?force_refresh=true`).then(() => refetchAthletes()),
+                    fetch(`${API_BASE_URL}/api/series/rankings/${eventId}?force_refresh=true`).then(() => refetchSeries())
+                  ]);
+                } finally {
+                  setIsRefreshing(false);
+                }
+              }}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${isRefreshing ? 'bg-gray-200 text-gray-500' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+              title={t('buttons.reload')}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="text-sm">{t('buttons.reload')}</span>
+            </button>
+
+            <OfflineSaveButton
+              eventIds={[eventId]}
+              athletes={athletes}
+              eventInfo={athletesData.event}
+              seriesRankings={seriesData?.series_rankings}
+              isDataLoading={isLoading || seriesLoading}
+              variant="secondary"
+              showDetails={false}
+            />
+          </div>
+
           {currentAthlete && (
             <>
               {/* 1. Athlete Directory */}
@@ -252,6 +266,39 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
 
           {/* Navigation Sidebar */}
           <div className="w-80 space-y-4">
+            {/* Toolbar above list (desktop) */}
+            <div className="flex items-center justify-end space-x-2">
+              <button
+                onClick={async () => {
+                  setIsRefreshing(true);
+                  try {
+                    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                    await Promise.all([
+                      fetch(`${API_BASE_URL}/api/events/${eventId}/athletes?force_refresh=true`).then(() => refetchAthletes()),
+                      fetch(`${API_BASE_URL}/api/series/rankings/${eventId}?force_refresh=true`).then(() => refetchSeries())
+                    ]);
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${isRefreshing ? 'bg-gray-200 text-gray-500' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                title={t('buttons.reload')}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="text-sm">{t('buttons.reload')}</span>
+              </button>
+
+              <OfflineSaveButton
+                eventIds={[eventId]}
+                athletes={athletes}
+                eventInfo={athletesData.event}
+                seriesRankings={seriesData?.series_rankings}
+                isDataLoading={isLoading || seriesLoading}
+                variant="secondary"
+                showDetails={false}
+              />
+            </div>
+
             <AthleteNavigation
               athletes={athletes}
               currentIndex={currentAthleteIndex}

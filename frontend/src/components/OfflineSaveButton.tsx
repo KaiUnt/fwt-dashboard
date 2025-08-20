@@ -242,11 +242,7 @@ export function OfflineSaveButton({
         <span>
           {isDataLoading ? t('offline.loadingData') : t('offline.saveOffline')}
         </span>
-        {showDetails && !isDataLoading && (
-          <span className="text-xs opacity-75">
-            ({t('offline.athletesWithBib', { count: athletes.length })}{seriesRankings ? ` + ${t('offline.seriesRankings')}` : ''})
-          </span>
-        )}
+        {/* details removed intentionally */}
       </button>
 
       {/* Save Modal */}

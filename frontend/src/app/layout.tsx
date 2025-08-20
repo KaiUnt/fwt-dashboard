@@ -4,7 +4,6 @@ import "./globals.css";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { TranslationProvider } from "@/providers/TranslationProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
-import { OfflineIndicator } from "@/components/OfflineIndicator";
 
 
 const inter = Inter({
@@ -56,7 +55,6 @@ export default function RootLayout({
           <TranslationProvider>
             <AuthProvider>
               {children}
-              <OfflineIndicator />
             </AuthProvider>
           </TranslationProvider>
         </QueryProvider>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Users, Keyboard, Trophy, ArrowLeft } from 'lucide-react';
+import { Users, Keyboard, Trophy, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useOfflineMultiEventSeriesRankings } from '@/hooks/useSeriesRankings';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { AthleteCard } from './AthleteCard';
@@ -221,37 +221,6 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
             </div>
 
             <div className="flex items-center space-x-3">
-              <div className="text-sm text-gray-500">
-                <Users className="h-4 w-4 inline mr-1" />
-                {currentAthleteIndex + 1} / {combinedAthletes.length}
-              </div>
-              
-              <button
-                onClick={() => setShowSearch(true)}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Suchen (/)"
-              >
-                <Search className="h-5 w-5" />
-              </button>
-              
-              <button
-                onClick={() => setShowBibJump(true)}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                title="BIB Jump (j)"
-              >
-                <Keyboard className="h-5 w-5" />
-              </button>
-              
-              <OfflineSaveButton
-                eventIds={[eventId1, eventId2]}
-                athletes={combinedAthletes}
-                eventInfo={[event1Data.event, event2Data.event]}
-                seriesRankings={multiEventRankings?.combined?.series_rankings || []}
-                isDataLoading={isLoading || seriesLoading}
-                variant="secondary"
-              />
-              
-              {/* <CommentatorBackupButton /> */}
             </div>
           </div>
         </div>
@@ -259,9 +228,84 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Top toolbar (right aligned) */}
+        <div className="mb-6 flex items-center justify-end space-x-2">
+          <button
+            onClick={async () => {
+              const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+              await Promise.all([
+                fetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`),
+                fetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`),
+                fetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`),
+                fetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`),
+              ]);
+            }}
+            className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            title="Aktualisieren"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span className="text-sm">Aktualisieren</span>
+          </button>
+
+          <button
+            onClick={() => setShowBibJump(true)}
+            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            title="BIB Jump (j)"
+          >
+            <Keyboard className="h-5 w-5" />
+          </button>
+
+          <OfflineSaveButton
+            eventIds={[eventId1, eventId2]}
+            athletes={combinedAthletes}
+            eventInfo={[event1Data.event, event2Data.event]}
+            seriesRankings={multiEventRankings?.combined?.series_rankings || []}
+            isDataLoading={isLoading || seriesLoading}
+            variant="secondary"
+            showDetails={false}
+          />
+        </div>
 
         {/* Mobile Layout with specific order */}
         <div className="block lg:hidden space-y-6">
+          {/* Toolbar above list (mobile) */}
+          <div className="flex items-center justify-end space-x-2">
+            <button
+              onClick={async () => {
+                const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                await Promise.all([
+                  fetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`),
+                  fetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`),
+                  fetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`),
+                  fetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`),
+                ]);
+              }}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              title="Aktualisieren"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="text-sm">Aktualisieren</span>
+            </button>
+
+            <button
+              onClick={() => setShowBibJump(true)}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              title="BIB Jump (j)"
+            >
+              <Keyboard className="h-5 w-5" />
+            </button>
+
+            <OfflineSaveButton
+              eventIds={[eventId1, eventId2]}
+              athletes={combinedAthletes}
+              eventInfo={[event1Data.event, event2Data.event]}
+              seriesRankings={multiEventRankings?.combined?.series_rankings || []}
+              isDataLoading={isLoading || seriesLoading}
+              variant="secondary"
+              showDetails={false}
+            />
+          </div>
+
           {/* 1. Athlete Directory - Always show first */}
           <AthleteNavigation
             athletes={combinedAthletes}
@@ -368,6 +412,44 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
 
            {/* Navigation Sidebar */}
            <div className="w-80 space-y-4">
+             {/* Toolbar above list (desktop) */}
+             <div className="flex items-center justify-end space-x-2">
+               <button
+                 onClick={async () => {
+                   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                   await Promise.all([
+                     fetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`),
+                     fetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`),
+                     fetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`),
+                     fetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`),
+                   ]);
+                 }}
+                 className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                 title="Aktualisieren"
+               >
+                 <RefreshCw className="h-4 w-4" />
+                 <span className="text-sm">Aktualisieren</span>
+               </button>
+
+               <button
+                 onClick={() => setShowBibJump(true)}
+                 className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                 title="BIB Jump (j)"
+               >
+                 <Keyboard className="h-5 w-5" />
+               </button>
+
+               <OfflineSaveButton
+                 eventIds={[eventId1, eventId2]}
+                 athletes={combinedAthletes}
+                 eventInfo={[event1Data.event, event2Data.event]}
+                 seriesRankings={multiEventRankings?.combined?.series_rankings || []}
+                 isDataLoading={isLoading || seriesLoading}
+                 variant="secondary"
+                 showDetails={false}
+               />
+             </div>
+
              <AthleteNavigation
                athletes={combinedAthletes}
                currentIndex={currentAthleteIndex}
