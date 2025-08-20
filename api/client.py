@@ -233,9 +233,25 @@ class LiveheatsClient:
         """
         async with self.client as client:
             events = []
-            for series_id in series_ids:
-                result = await client.execute(self.queries.GET_EVENTS_BY_SERIES, {"id": series_id})
-                if result and "series" in result and "events" in result["series"]:
+            # Concurrency limit to avoid overwhelming upstream API
+            concurrency_limit = int(os.getenv("EVENTS_FETCH_CONCURRENCY", "6"))
+            semaphore = asyncio.Semaphore(concurrency_limit)
+
+            async def fetch_series_events(series_id: str):
+                try:
+                    async with semaphore:
+                        return await client.execute(self.queries.GET_EVENTS_BY_SERIES, {"id": series_id})
+                except Exception as e:
+                    logger.error(f"Fehler beim Laden der Events für Serie {series_id}: {str(e)}")
+                    return None
+
+            tasks = [fetch_series_events(series_id) for series_id in series_ids]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for result in results:
+                if isinstance(result, Exception) or not result:
+                    continue
+                if "series" in result and "events" in result["series"]:
                     events.extend(result["series"]["events"])
             
             logger.info(f"{len(events)} Events vor Filterung/Deduplikation gefunden.")

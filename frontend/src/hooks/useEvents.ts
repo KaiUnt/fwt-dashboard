@@ -5,10 +5,13 @@ import { EventsResponse } from '@/types/events';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-async function fetchEvents(includePast: boolean = false): Promise<EventsResponse> {
+export async function fetchEvents(includePast: boolean = false, forceRefresh: boolean = false): Promise<EventsResponse> {
   const url = new URL(`${API_BASE_URL}/api/events`);
   if (includePast) {
     url.searchParams.set('include_past', 'true');
+  }
+  if (forceRefresh) {
+    url.searchParams.set('force_refresh', 'true');
   }
 
   const response = await fetch(url.toString());

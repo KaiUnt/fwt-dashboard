@@ -11,7 +11,7 @@ import { useCredits } from '@/hooks/useCredits';
 import { EventPurchaseModal } from './EventPurchaseModal';
 import { useBatchEventAccess } from '@/hooks/useBatchEventAccess';
 
-import { useEvents } from '@/hooks/useEvents';
+import { useEvents, fetchEvents } from '@/hooks/useEvents';
 import { FWTEvent } from '@/types/events';
 import { useQueryClient } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from '@/hooks/useOfflineStorage';
@@ -60,9 +60,10 @@ export function EventsPage() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Invalidate both current and past events queries
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      // Wait a bit to show the refresh animation
+      // Force-refresh from server (bypasses server cache) and update client cache
+      const fresh = await fetchEvents(includePastEvents, true);
+      queryClient.setQueryData(['events', includePastEvents], fresh);
+      // Small delay to show the refresh animation
       await new Promise(resolve => setTimeout(resolve, 500));
     } finally {
       setIsRefreshing(false);
