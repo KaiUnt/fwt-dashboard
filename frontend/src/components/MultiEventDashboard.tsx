@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Keyboard, Trophy, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Keyboard, RefreshCw } from 'lucide-react';
 import { useOfflineMultiEventSeriesRankings } from '@/hooks/useSeriesRankings';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { AthleteCard } from './AthleteCard';
@@ -14,7 +14,7 @@ import { AthleteEventHistory } from './AthleteEventHistory';
 import { useOfflineMultiEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { Athlete } from '@/types/athletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
-
+import { AppHeader } from './AppHeader';
 
 
 interface MultiEventDashboardProps {
@@ -189,83 +189,15 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/')}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span>Zurück</span>
-              </button>
-              
-              <div className="h-6 w-px bg-gray-300" />
-              
-              <div>
-                <div className="flex items-center space-x-2 mb-1">
-                  <Trophy className="h-5 w-5 text-blue-600" />
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    Multi-Event Dashboard
-                  </h1>
-                </div>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <div>🔴 {event1Data.event.name}</div>
-                  <div>🔵 {event2Data.event.name}</div>
-                  <div className="text-xs text-gray-500">
-                    {combinedAthletes.length} Athleten kombiniert • BIB-sortiert
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-            </div>
-          </div>
-        </div>
-      </div>
+      <AppHeader 
+        title="Multi-Event Dashboard"
+        subtitle={`🔴 ${event1Data.event.name}  •  🔵 ${event2Data.event.name}`}
+        showBackButton={true}
+        backUrl="/"
+      />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Top toolbar (right aligned) */}
-        <div className="mb-6 flex items-center justify-end space-x-2">
-          <button
-            onClick={async () => {
-              const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-              await Promise.all([
-                fetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`),
-                fetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`),
-                fetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`),
-                fetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`),
-              ]);
-            }}
-            className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-            title="Aktualisieren"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span className="text-sm">Aktualisieren</span>
-          </button>
-
-          <button
-            onClick={() => setShowBibJump(true)}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            title="BIB Jump (j)"
-          >
-            <Keyboard className="h-5 w-5" />
-          </button>
-
-          <OfflineSaveButton
-            eventIds={[eventId1, eventId2]}
-            athletes={combinedAthletes}
-            eventInfo={[event1Data.event, event2Data.event]}
-            seriesRankings={multiEventRankings?.combined?.series_rankings || []}
-            isDataLoading={isLoading || seriesLoading}
-            variant="secondary"
-            showDetails={false}
-          />
-        </div>
-
         {/* Mobile Layout with specific order */}
         <div className="block lg:hidden space-y-6">
           {/* Toolbar above list (mobile) */}
