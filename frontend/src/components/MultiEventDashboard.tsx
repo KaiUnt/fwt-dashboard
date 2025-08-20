@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Keyboard, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useOfflineMultiEventSeriesRankings } from '@/hooks/useSeriesRankings';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { AthleteCard } from './AthleteCard';
@@ -219,14 +219,6 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
               <span className="text-sm">Aktualisieren</span>
             </button>
 
-            <button
-              onClick={() => setShowBibJump(true)}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              title="BIB Jump (j)"
-            >
-              <Keyboard className="h-5 w-5" />
-            </button>
-
             <OfflineSaveButton
               eventIds={[eventId1, eventId2]}
               athletes={combinedAthletes}
@@ -361,14 +353,6 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                >
                  <RefreshCw className="h-4 w-4" />
                  <span className="text-sm">Aktualisieren</span>
-               </button>
-
-               <button
-                 onClick={() => setShowBibJump(true)}
-                 className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                 title="BIB Jump (j)"
-               >
-                 <Keyboard className="h-5 w-5" />
                </button>
 
                <OfflineSaveButton
