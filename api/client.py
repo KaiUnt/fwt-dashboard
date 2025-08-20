@@ -224,48 +224,34 @@ class LiveheatsClient:
             return filtered_series
 
     async def get_events_from_series(self, series_ids: list, include_past: bool = False) -> list:
-        """Fetch events from a list of series IDs."""
+        """Fetch events from a list of series IDs.
+        
+        Args:
+            series_ids: List of series IDs to fetch events from
+            include_past: If True, include all events. If False, filter to future events 
+                         with 5-day grace period for recently ended events.
+        """
         async with self.client as client:
             events = []
             for series_id in series_ids:
                 result = await client.execute(self.queries.GET_EVENTS_BY_SERIES, {"id": series_id})
                 if result and "series" in result and "events" in result["series"]:
                     events.extend(result["series"]["events"])
+            
+            logger.info(f"{len(events)} Events vor Filterung/Deduplikation gefunden.")
             
             if include_past:
                 # Alle Events (keine Datum-Filterung)
-                unique_events = {event["id"]: event for event in events}.values()
-                logger.info(f"{len(unique_events)} Events (inkl. vergangene) gefunden.")
-                return list(unique_events)
+                unique_events = self._deduplicate_events_by_id(events)
+                logger.info(f"{len(unique_events)} Events (inkl. vergangene) nach Deduplikation.")
+                return unique_events
             else:
-                # Nach Datum filtern (nur zukünftige Events)
-                now = datetime.now(timezone.utc)
-                grace_period = now - timedelta(days=5)
-                future_events = [
-                    event for event in events 
-                    if datetime.fromisoformat(event["date"].replace("Z", "+00:00")) >= grace_period
-                ]
-                
-                # Deduplizieren basierend auf der Event-ID
-                unique_events = {event["id"]: event for event in future_events}.values()
-                
-                logger.info(f"{len(unique_events)} zukünftige Events gefunden.")
-                return list(unique_events)
+                # Nach Datum filtern (nur zukünftige Events mit Grace-Periode)
+                filtered_events = self._filter_events_by_date_with_grace(events, grace_days=5)
+                unique_events = self._deduplicate_events_by_id(filtered_events)
+                logger.info(f"{len(unique_events)} zukünftige Events nach Filter/Deduplikation.")
+                return unique_events
 
-    async def get_all_events_from_series(self, series_ids: list) -> list:
-        """Fetch ALL events from a list of series IDs (including past events)."""
-        async with self.client as client:
-            events = []
-            for series_id in series_ids:
-                result = await client.execute(self.queries.GET_EVENTS_BY_SERIES, {"id": series_id})
-                if result and "series" in result and "events" in result["series"]:
-                    events.extend(result["series"]["events"])
-            
-            # Deduplizieren basierend auf der Event-ID (KEINE Datum-Filterung)
-            unique_events = {event["id"]: event for event in events}.values()
-            
-            logger.info(f"{len(unique_events)} Events (inkl. vergangene) gefunden.")
-            return list(unique_events)
 
     async def get_future_events(self) -> list:
         """Fetch future events for FWT series in recent years."""
@@ -274,46 +260,28 @@ class LiveheatsClient:
         if not series:
             return []
         
-        # Extrahiere Serien-IDs
+        # Extrahiere und dedupliziere Serien-IDs
         series_ids = [s["id"] for s in series]
+        series_ids = list(dict.fromkeys(series_ids))  # Preserve order, remove duplicates
+        logger.info(f"{len(series_ids)} eindeutige Serien-IDs für Future Events.")
         
         # Hole Events aus den Serien
         return await self.get_events_from_series(series_ids, include_past=False)
 
     async def get_all_events(self) -> list:
         """Fetch ALL events (including past) for FWT series since 2008."""
-        # Hole Serien von BEIDEN Organisationen (komplette FWT Historie)
-        series_fwtglobal = await self.get_series_by_years("fwtglobal", range(2008, 2031))
-        series_fwt = await self.get_series_by_years("fwt", range(2008, 2031))
-        
-        # Kombiniere Serien aus beiden Organisationen
-        all_series = []
-        if series_fwtglobal:
-            all_series.extend(series_fwtglobal)
-        if series_fwt:
-            all_series.extend(series_fwt)
-            
-        if not all_series:
-            return []
-        
-        # Extrahiere Serien-IDs
-        series_ids = [s["id"] for s in all_series]
-        
-        # Hole ALLE Events aus den Serien (inkl. vergangene)
-        return await self.get_events_from_series(series_ids, include_past=True)
-
-    async def get_all_events_for_years(self, years: range) -> list:
-        """Fetch ALL events (including past) for FWT series in specified years."""
-        # Hole die Serien der Organisation
-        series = await self.get_series_by_years("fwtglobal", years)
+        # Hole Serien nur von fwtglobal Organisation (komplette FWT Historie)
+        series = await self.get_series_by_years("fwtglobal", range(2008, 2031))
         if not series:
             return []
         
-        # Extrahiere Serien-IDs
+        # Extrahiere und dedupliziere Serien-IDs
         series_ids = [s["id"] for s in series]
+        series_ids = list(dict.fromkeys(series_ids))  # Preserve order, remove duplicates
+        logger.info(f"{len(series_ids)} eindeutige Serien-IDs für All Events.")
         
-        # Hole alle Events aus den Serien (ohne Datum-Filter)
-        return await self.get_all_events_from_series(series_ids)
+        # Hole ALLE Events aus den Serien (inkl. vergangene)
+        return await self.get_events_from_series(series_ids, include_past=True)
             
     async def _process_series(self, client: GraphQLClient, series_id: str, athlete_ids: List[str]) -> Optional[Dict]:
         """Process a single series and its divisions."""
@@ -376,3 +344,32 @@ class LiveheatsClient:
         except Exception as e:
             logger.error(f"Fehler bei Series {series_id}: {str(e)}")
             return None
+
+    def _deduplicate_events_by_id(self, events: list) -> list:
+        """Helper: Remove duplicate events by ID."""
+        unique_events = {event["id"]: event for event in events if "id" in event}
+        return list(unique_events.values())
+
+    def _filter_events_by_date_with_grace(self, events: list, grace_days: int = 5) -> list:
+        """Helper: Filter events to include future events and recent past (grace period)."""
+        if not events:
+            return []
+            
+        now = datetime.now(timezone.utc)
+        grace_period = now - timedelta(days=grace_days)
+        
+        future_events = []
+        for event in events:
+            try:
+                if "date" not in event or not event["date"]:
+                    logger.warning(f"Event ohne Datum übersprungen: {event.get('id', 'Unknown')}")
+                    continue
+                    
+                event_date = datetime.fromisoformat(event["date"].replace("Z", "+00:00"))
+                if event_date >= grace_period:
+                    future_events.append(event)
+            except Exception as e:
+                logger.warning(f"Fehler beim Parsen des Datums für Event {event.get('id', 'Unknown')}: {e}")
+                continue
+                
+        return future_events
