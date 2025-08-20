@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Keyboard, Trophy, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Keyboard, Trophy, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useOfflineMultiEventSeriesRankings } from '@/hooks/useSeriesRankings';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { AthleteCard } from './AthleteCard';

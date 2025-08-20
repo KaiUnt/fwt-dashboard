@@ -25,7 +25,7 @@ export function OfflineSaveButton({
   seriesRankings,
   className = '',
   variant = 'primary',
-  showDetails = true,
+  showDetails: _showDetails = true,
   isDataLoading = false
 }: OfflineSaveButtonProps) {
   const { t } = useTranslation();
