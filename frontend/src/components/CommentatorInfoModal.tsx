@@ -219,17 +219,26 @@ export function CommentatorInfoModal({
     if (!isOpen) return;
 
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Only prevent dashboard shortcuts when NOT in an input field
+      // Check if the target is an input field
       const target = e.target as HTMLElement;
       const isInputField = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
       
-      if (!isInputField) {
-        // Block dashboard shortcuts when modal is open and not in input field
-        if (e.key === 'j' || e.key === '/' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || 
-            e.key === 'h' || e.key === 'l' || e.key === 'Home' || e.key === 'End') {
+      // If in input field, allow normal typing but still block dashboard shortcuts
+      if (isInputField) {
+        // Only block dashboard navigation keys when in input field
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') {
           e.preventDefault();
           e.stopPropagation();
         }
+        // Allow normal typing (including 'l', 'h', 'j', '/') in input fields
+        return;
+      }
+      
+      // If not in input field, block all dashboard shortcuts
+      if (e.key === 'j' || e.key === '/' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || 
+          e.key === 'h' || e.key === 'l' || e.key === 'Home' || e.key === 'End') {
+        e.preventDefault();
+        e.stopPropagation();
       }
       
       // Always allow Escape to close modal

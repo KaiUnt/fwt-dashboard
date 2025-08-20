@@ -77,7 +77,17 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
   // Keyboard Navigation (same as single event)
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      // Ignore if user is typing in an input, textarea, or contenteditable element
+      const target = e.target as HTMLElement | null;
+      if (
+        target && (
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target.isContentEditable
+        )
+      ) {
+        return;
+      }
 
       switch (e.key) {
         case 'ArrowLeft':

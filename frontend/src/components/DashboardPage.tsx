@@ -47,8 +47,17 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   // Keyboard Navigation
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
-      if (e.target instanceof HTMLInputElement) return;
+      // Ignore if user is typing in an input, textarea, or contenteditable element
+      const target = e.target as HTMLElement | null;
+      if (
+        target && (
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target.isContentEditable
+        )
+      ) {
+        return;
+      }
 
       switch (e.key) {
         case 'ArrowLeft':
