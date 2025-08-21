@@ -1,13 +1,13 @@
 -- Credits System Migration Script
 -- Run this in Supabase SQL Editor after creating the main schema
 
--- Ensure all existing users get 2 credits
+-- Ensure all existing users get 5 credits
 -- This is idempotent - won't create duplicates
 
 INSERT INTO user_credits (user_id, credits)
 SELECT 
     au.id as user_id,
-    2 as credits
+    5 as credits
 FROM auth.users au
 LEFT JOIN user_credits uc ON au.id = uc.user_id
 WHERE uc.user_id IS NULL;
@@ -24,9 +24,9 @@ INSERT INTO credit_transactions (
 SELECT 
     uc.user_id,
     'grant' as transaction_type,
-    2 as amount,
+    5 as amount,
     0 as credits_before,
-    2 as credits_after,
+    5 as credits_after,
     'Initial credits for existing user' as description
 FROM user_credits uc
 LEFT JOIN credit_transactions ct ON uc.user_id = ct.user_id

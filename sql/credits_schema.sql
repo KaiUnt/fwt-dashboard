@@ -139,7 +139,7 @@ BEGIN
     
     -- Get user credits, create record if not exists
     INSERT INTO user_credits (user_id, credits)
-    VALUES (auth.uid(), 2) -- New users get 2 credits
+    VALUES (auth.uid(), 5) -- New users get 5 credits
     ON CONFLICT (user_id) DO NOTHING;
     
     SELECT credits INTO user_credits 
@@ -398,11 +398,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Migration: Give existing users 2 credits
+-- Migration: Give existing users 5 credits
 INSERT INTO user_credits (user_id, credits)
 SELECT 
     id as user_id,
-    2 as credits
+    5 as credits
 FROM auth.users
 WHERE id NOT IN (SELECT user_id FROM user_credits)
 ON CONFLICT (user_id) DO NOTHING;
