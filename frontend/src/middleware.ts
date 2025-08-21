@@ -54,9 +54,32 @@ export async function middleware(request: NextRequest) {
 
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
   
+  // Special handling for API routes - they handle their own auth
+  if (pathname.startsWith('/api/') && !isPublicRoute) {
+    // Add security headers for API routes but let them handle auth internally
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('X-XSS-Protection', '1; mode=block');
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    
+    // Log API access attempt for monitoring
+    console.log('API Route Access:', {
+      ip,
+      endpoint: pathname,
+      method: request.method,
+      userAgent: request.headers.get('user-agent'),
+      timestamp: new Date().toISOString()
+    });
+    
+    return response;
+  }
+  
   if (isPublicRoute) {
     // Add security headers even for public routes
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-Frame-Options', 'DENY');
     return response;
   }
 

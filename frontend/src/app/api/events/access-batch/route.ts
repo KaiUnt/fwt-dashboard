@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export async function POST(request: NextRequest) {
+async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    // Get the authorization header from the request
+    console.log(`Batch event access check for user: ${user.id}`)
+
     const authHeader = request.headers.get('authorization')
-    
     if (!authHeader) {
       return NextResponse.json(
         { error: 'Authorization header required' },
-        { status: 401 }
+        { status: 400 }
       )
     }
 
@@ -25,13 +26,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate eventIds are strings
+    // Validate eventIds are strings and limit batch size
     if (!eventIds.every(id => typeof id === 'string')) {
       return NextResponse.json(
         { error: 'All eventIds must be strings' },
         { status: 400 }
       )
     }
+
+    // Prevent abuse - limit batch size
+    if (eventIds.length > 50) {
+      return NextResponse.json(
+        { error: 'Maximum 50 events per batch request' },
+        { status: 400 }
+      )
+    }
+
+    console.log(`Batch access check for user ${user.id}: ${eventIds.length} events`)
 
     // Forward the request to the FastAPI backend
     const response = await fetch(`${API_BASE_URL}/api/events/access-batch`, {
@@ -46,18 +57,23 @@ export async function POST(request: NextRequest) {
     const data = await response.json()
 
     if (!response.ok) {
+      console.error(`Batch event access check failed for user ${user.id}:`, data)
       return NextResponse.json(
         { error: data.detail || 'Failed to check batch event access' },
         { status: response.status }
       )
     }
 
+    console.log(`Batch event access check successful for user ${user.id}`)
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Error in batch event access check API route:', error)
+    console.error(`Error in batch event access check API route for user ${user.id}:`, error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
+
+// Export with standard rate limiting
+export const POST = withAuth(handler, { rateLimit: RATE_LIMITS.standard })

@@ -1,25 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export async function POST(
+async function handler(
+  user: AuthenticatedUser,
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
-) {
-  const { eventId } = await params
+): Promise<NextResponse> {
   try {
-    // Get the authorization header from the request
-    const authHeader = request.headers.get('authorization')
-    
-    if (!authHeader) {
+    const { eventId } = await params
+    console.log(`Event purchase request for user ${user.id}, event ${eventId}`)
+
+    // Validate eventId
+    if (!eventId || eventId.trim().length === 0) {
       return NextResponse.json(
-        { error: 'Authorization header required' },
-        { status: 401 }
+        { error: 'Valid event ID is required' },
+        { status: 400 }
       )
     }
 
-    // Get the request body
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: 'Authorization header required' },
+        { status: 400 }
+      )
+    }
+
+    // Get and validate request body
     const body = await request.json()
+    
+    // Log purchase attempt for security and business monitoring
+    console.log(`PURCHASE ATTEMPT by user ${user.id}:`, {
+      eventId,
+      purchaseData: body,
+      timestamp: new Date().toISOString(),
+      userEmail: user.email
+    })
 
     // Forward the request to the FastAPI backend
     const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/purchase`, {
@@ -34,18 +52,23 @@ export async function POST(
     const data = await response.json()
 
     if (!response.ok) {
+      console.error(`Event purchase FAILED for user ${user.id}, event ${eventId}:`, data)
       return NextResponse.json(
         { error: data.detail || 'Failed to purchase event access' },
         { status: response.status }
       )
     }
 
+    console.log(`Event purchase SUCCESSFUL for user ${user.id}, event ${eventId}`)
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Error in event purchase API route:', error)
+    console.error(`Error in event purchase API route for user ${user.id}:`, error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
+
+// CRITICAL: Purchase endpoint with strict rate limiting
+export const POST = withAuth(handler, { rateLimit: RATE_LIMITS.purchase })

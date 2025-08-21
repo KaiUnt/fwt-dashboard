@@ -1,20 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export async function GET(
+async function handler(
+  user: AuthenticatedUser,
   request: NextRequest,
   { params }: { params: Promise<{ eventId: string }> }
-) {
-  const { eventId } = await params
+): Promise<NextResponse> {
   try {
-    // Get the authorization header from the request
+    const { eventId } = await params
+    console.log(`Event access check for user ${user.id}, event ${eventId}`)
+
+    // Validate eventId format
+    if (!eventId || eventId.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Valid event ID is required' },
+        { status: 400 }
+      )
+    }
+
     const authHeader = request.headers.get('authorization')
-    
     if (!authHeader) {
       return NextResponse.json(
         { error: 'Authorization header required' },
-        { status: 401 }
+        { status: 400 }
       )
     }
 
@@ -29,12 +39,14 @@ export async function GET(
     const data = await response.json()
 
     if (!response.ok) {
+      console.error(`Event access check failed for user ${user.id}, event ${eventId}:`, data)
       return NextResponse.json(
         { error: data.detail || 'Failed to check event access' },
         { status: response.status }
       )
     }
 
+    console.log(`Event access check successful for user ${user.id}, event ${eventId}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error in event access check API route:', error)
@@ -44,3 +56,6 @@ export async function GET(
     )
   }
 }
+
+// Export with standard rate limiting
+export const GET = withAuth(handler, { rateLimit: RATE_LIMITS.standard })

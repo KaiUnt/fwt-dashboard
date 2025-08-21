@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export async function GET(request: NextRequest) {
+async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    // Get the authorization header from the request
+    console.log(`Credits balance request for user: ${user.id}`)
+
+    // Get the authorization header to forward to backend
     const authHeader = request.headers.get('authorization')
     
     if (!authHeader) {
       return NextResponse.json(
-        { error: 'Authorization header required' },
-        { status: 401 }
+        { error: 'Authorization header missing' },
+        { status: 400 }
       )
     }
-
-    console.log('Credits balance API route: Forwarding to backend at', API_BASE_URL)
 
     // Forward the request to the FastAPI backend
     const response = await fetch(`${API_BASE_URL}/api/credits/balance`, {
@@ -24,25 +25,26 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log('Credits balance API route: Backend response status:', response.status)
-
     const data = await response.json()
 
     if (!response.ok) {
-      console.error('Credits balance API route: Backend error:', data)
+      console.error('Backend error for user', user.id, ':', data)
       return NextResponse.json(
         { error: data.detail || 'Failed to fetch credits balance' },
         { status: response.status }
       )
     }
 
-    console.log('Credits balance API route: Success, returning data:', data)
+    console.log(`Credits balance retrieved successfully for user: ${user.id}`)
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Error in credits balance API route:', error)
+    console.error('Error in credits balance API route for user', user.id, ':', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
+
+// Export the protected route with rate limiting
+export const GET = withAuth(handler, { rateLimit: RATE_LIMITS.credits })

@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export async function GET(request: NextRequest) {
+async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    // Get the authorization header from the request
+    console.log(`Credit transactions request for user: ${user.id}`)
+
     const authHeader = request.headers.get('authorization')
-    
     if (!authHeader) {
       return NextResponse.json(
         { error: 'Authorization header required' },
-        { status: 401 }
+        { status: 400 }
       )
     }
 
@@ -25,18 +26,23 @@ export async function GET(request: NextRequest) {
     const data = await response.json()
 
     if (!response.ok) {
+      console.error(`Credit transactions request failed for user ${user.id}:`, data)
       return NextResponse.json(
         { error: data.detail || 'Failed to fetch credit transactions' },
         { status: response.status }
       )
     }
 
+    console.log(`Credit transactions retrieved successfully for user ${user.id}`)
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Error in credits transactions API route:', error)
+    console.error(`Error in credits transactions API route for user ${user.id}:`, error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
+
+// Export with credits rate limiting
+export const GET = withAuth(handler, { rateLimit: RATE_LIMITS.credits })

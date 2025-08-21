@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export async function GET(request: NextRequest) {
+async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
+    console.log(`Admin users request by: ${user.email} (${user.role})`)
+
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization header required' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Authorization header required' }, 
+        { status: 400 }
+      )
     }
 
-    // This endpoint is a placeholder proxy. Implement backend endpoint to return admin users list.
+    // Forward to backend (backend should also validate admin role)
     const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
       headers: {
         Authorization: authHeader,
@@ -19,14 +25,28 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json()
     if (!response.ok) {
-      return NextResponse.json({ error: data.detail || 'Failed to fetch users' }, { status: response.status })
+      console.error(`Admin users request failed for ${user.email}:`, data)
+      return NextResponse.json(
+        { error: data.detail || 'Failed to fetch users' }, 
+        { status: response.status }
+      )
     }
 
+    console.log(`Admin users request successful for ${user.email}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error in admin users API route:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal server error' }, 
+      { status: 500 }
+    )
   }
 }
+
+// Export with admin role requirement and admin rate limiting
+export const GET = withAuth(handler, { 
+  requireAdmin: true, 
+  rateLimit: RATE_LIMITS.admin 
+})
 
 
