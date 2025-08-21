@@ -5,10 +5,36 @@ import { EventAthletesResponse } from '@/types/athletes';
 import { apiFetch } from '@/utils/api';
 import { useAccessToken } from '@/providers/AuthProvider';
 
+// Backend response format (raw from LiveHeats API)
+interface BackendEventAthletesResponse {
+  event: {
+    id: string;
+    name: string;
+    date: string;
+    status: string;
+    eventDivisions: Array<{
+      division: {
+        name: string;
+      };
+      entries: Array<{
+        athlete: {
+          id: string;
+          name: string;
+          nationality?: string;
+          dob?: string;
+          image?: string;
+        };
+        bib?: string;
+        status: 'confirmed' | 'waitlisted' | string;
+      }>;
+    }>;
+  };
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 async function fetchEventAthletes(eventId: string, getAccessToken: () => Promise<string | null>): Promise<EventAthletesResponse> {
-  const data = await apiFetch(`${API_BASE_URL}/api/events/${eventId}/athletes`, { getAccessToken });
+  const data = await apiFetch<BackendEventAthletesResponse>(`${API_BASE_URL}/api/events/${eventId}/athletes`, { getAccessToken });
   
   // Transform the data to match our frontend structure
   const athletes = [];
@@ -22,7 +48,7 @@ async function fetchEventAthletes(eventId: string, getAccessToken: () => Promise
           dob: entry.athlete.dob,
           image: entry.athlete.image,
           bib: entry.bib,
-          status: entry.status,
+          status: entry.status as 'confirmed' | 'waitlisted',
           division: division.division.name
         });
       }
