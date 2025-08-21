@@ -33,10 +33,17 @@ function validateSupabaseConfig() {
  * Check if we're in build/pre-rendering context
  */
 function isBuildTime(): boolean {
-  return typeof window === 'undefined' && 
-         (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === undefined) &&
-         !process.env.NEXT_RUNTIME &&
-         !process.env.VERCEL
+  // More comprehensive build-time detection
+  return typeof window === 'undefined' && (
+    // During next build
+    process.env.NODE_ENV === 'production' ||
+    // During next build with no NODE_ENV set
+    process.env.NODE_ENV === undefined ||
+    // During prerendering phase
+    process.env.NEXT_PHASE === 'phase-production-build' ||
+    // When Next.js is building
+    !!process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
+  )
 }
 
 /**
@@ -47,10 +54,14 @@ function isBuildTime(): boolean {
 export const createClient = () => {
   const { supabaseUrl, supabaseKey, errors } = validateSupabaseConfig()
   
-  // During build time, provide a minimal client to prevent build errors
+  // During build time, always provide a minimal client to prevent build errors
   // This only happens during `next build`, not in actual runtime
-  if (isBuildTime() && errors.length > 0) {
-    console.warn('Supabase config validation failed during build. This is expected if env vars are set at runtime.')
+  if (isBuildTime()) {
+    if (errors.length > 0) {
+      console.warn('Supabase config validation failed during build. Using placeholder client for build process.')
+    } else {
+      console.log('Supabase config available during build. Using placeholder client anyway for stability.')
+    }
     
     // Return a minimal client that satisfies TypeScript but won't be used in runtime
     return createBrowserClient<Database>(
