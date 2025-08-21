@@ -572,7 +572,12 @@ async def health_check():
 
 @app.get("/api/events")
 @limiter.limit("30/minute")
-async def get_future_events(request: Request, include_past: bool = False, force_refresh: bool = False):
+async def get_future_events(
+    request: Request, 
+    current_user_id: str = Depends(extract_user_id_from_token),
+    include_past: bool = False, 
+    force_refresh: bool = False
+):
     """Get FWT events for event selection."""
     try:
         # Prefer Redis shared cache if available, otherwise fallback to per-process memory cache
@@ -688,7 +693,12 @@ async def get_future_events(request: Request, include_past: bool = False, force_
         )
 
 @app.get("/api/events/{event_id}/athletes")
-async def get_event_athletes(event_id: str, request: Request, force_refresh: bool = False):
+async def get_event_athletes(
+    event_id: str, 
+    request: Request, 
+    current_user_id: str = Depends(extract_user_id_from_token),
+    force_refresh: bool = False
+):
     """Get all athletes for a specific event"""
     try:
         # Import the LiveHeats client
@@ -746,7 +756,12 @@ async def get_event_athletes(event_id: str, request: Request, force_refresh: boo
         raise HTTPException(status_code=500, detail=f"Failed to fetch event athletes: {str(e)}")
 
 @app.get("/api/series/rankings/{event_id}")
-async def get_series_rankings_for_event(event_id: str, request: Request, force_refresh: bool = False):
+async def get_series_rankings_for_event(
+    event_id: str, 
+    request: Request, 
+    current_user_id: str = Depends(extract_user_id_from_token),
+    force_refresh: bool = False
+):
     """Get FWT series rankings for athletes in a specific event"""
     try:
         from api.client import LiveheatsClient
@@ -857,7 +872,12 @@ async def get_series_rankings_for_event(event_id: str, request: Request, force_r
         raise HTTPException(status_code=500, detail=f"Failed to fetch series rankings: {str(e)}")
 
 @app.get("/api/athlete/{athlete_id}/results")
-async def get_athlete_results(athlete_id: str, request: Request, force_refresh: bool = False):
+async def get_athlete_results(
+    athlete_id: str, 
+    request: Request, 
+    current_user_id: str = Depends(extract_user_id_from_token),
+    force_refresh: bool = False
+):
     """Get event results history for a specific athlete"""
     try:
         from api.client import LiveheatsClient
@@ -1171,7 +1191,11 @@ def is_main_series(series_name: str) -> bool:
     ])
 
 @app.get("/api/events/multi/{event_id1}/{event_id2}/athletes")
-async def get_multi_event_athletes(event_id1: str, event_id2: str):
+async def get_multi_event_athletes(
+    event_id1: str, 
+    event_id2: str,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Get combined athletes from two events, sorted by BIB numbers for live commentary"""
     try:
         from api.client import LiveheatsClient
@@ -1450,7 +1474,9 @@ async def restore_commentator_info(
         raise HTTPException(status_code=500, detail=f"Failed to restore commentator info: {str(e)}")
 
 @app.get("/api/commentator-info/deleted")
-async def get_deleted_commentator_info():
+async def get_deleted_commentator_info(
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Get all soft-deleted commentator info records"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -1492,7 +1518,9 @@ async def cleanup_old_deleted_commentator_info(
         raise HTTPException(status_code=500, detail=f"Failed to cleanup old deleted records: {str(e)}")
 
 @app.get("/api/commentator-info")
-async def get_all_commentator_info():
+async def get_all_commentator_info(
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Get all commentator info records"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -1513,7 +1541,10 @@ async def get_all_commentator_info():
 # Friends System APIs
 
 @app.get("/api/users/check-username/{username}")
-async def check_username_availability(username: str):
+async def check_username_availability(
+    username: str,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Check if a username/full name is available.
     Allows letters (incl. Unicode), numbers, spaces, dots, underscores and hyphens, 2-30 chars.
     """
@@ -2174,7 +2205,9 @@ async def purchase_multiple_events(
         raise HTTPException(status_code=500, detail=f"Failed to purchase events: {str(e)}")
 
 @app.get("/api/credits/packages")
-async def get_credit_packages():
+async def get_credit_packages(
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Get available credit packages for purchase"""
     packages = [
         CreditPackage(
@@ -2526,6 +2559,7 @@ async def update_profile(
 @app.post("/api/profile/verify-password")
 async def verify_password(
     req: VerifyPasswordRequest,
+    current_user_id: str = Depends(extract_user_id_from_token)
 ):
     """Verify user's current password by attempting a password grant with Supabase Auth."""
     supabase_url = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", ""))
