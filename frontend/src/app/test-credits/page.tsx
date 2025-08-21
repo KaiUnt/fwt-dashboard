@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { isSupabaseConfigured } from '@/utils/supabase'
 
+// Force dynamic rendering for Supabase-dependent page
+export const dynamic = 'force-dynamic'
+
 export default function TestCreditsPage() {
   const [supabaseStatus, setSupabaseStatus] = useState<string>('Checking...')
   const [creditsStatus, setCreditsStatus] = useState<string>('Not tested')
