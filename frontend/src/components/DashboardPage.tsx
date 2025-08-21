@@ -14,6 +14,8 @@ import { OfflineSaveButton } from './OfflineSaveButton';
 import { AthleteEventHistory } from './AthleteEventHistory';
 import { AppHeader } from './AppHeader';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAccessToken } from '@/providers/AuthProvider';
+import { apiFetch } from '@/utils/api';
 
 
 interface DashboardPageProps {
@@ -23,6 +25,7 @@ interface DashboardPageProps {
 export function DashboardPage({ eventId }: DashboardPageProps) {
   const { t } = useTranslation();
   const router = useRouter();
+  const { getAccessToken } = useAccessToken();
   const { data: athletesData, isLoading, error, refetch: refetchAthletes } = useOfflineEventAthletes(eventId);
   const { data: seriesData, isLoading: seriesLoading, refetch: refetchSeries } = useOfflineSeriesRankings(eventId);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -167,8 +170,8 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 try {
                   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
                   await Promise.all([
-                    fetch(`${API_BASE_URL}/api/events/${eventId}/athletes?force_refresh=true`).then(() => refetchAthletes()),
-                    fetch(`${API_BASE_URL}/api/series/rankings/${eventId}?force_refresh=true`).then(() => refetchSeries())
+                    apiFetch(`${API_BASE_URL}/api/events/${eventId}/athletes?force_refresh=true`, { getAccessToken }).then(() => refetchAthletes()),
+                    apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId}?force_refresh=true`, { getAccessToken }).then(() => refetchSeries())
                   ]);
                 } finally {
                   setIsRefreshing(false);
@@ -274,8 +277,8 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                   try {
                     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
                     await Promise.all([
-                      fetch(`${API_BASE_URL}/api/events/${eventId}/athletes?force_refresh=true`).then(() => refetchAthletes()),
-                      fetch(`${API_BASE_URL}/api/series/rankings/${eventId}?force_refresh=true`).then(() => refetchSeries())
+                      apiFetch(`${API_BASE_URL}/api/events/${eventId}/athletes?force_refresh=true`, { getAccessToken }).then(() => refetchAthletes()),
+                      apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId}?force_refresh=true`, { getAccessToken }).then(() => refetchSeries())
                     ]);
                   } finally {
                     setIsRefreshing(false);

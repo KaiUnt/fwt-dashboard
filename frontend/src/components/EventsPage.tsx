@@ -17,11 +17,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from '@/hooks/useOfflineStorage';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AppHeader } from './AppHeader';
+import { useAccessToken } from '@/providers/AuthProvider';
 
 export function EventsPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { getAccessToken } = useAccessToken();
   const [includePastEvents, setIncludePastEvents] = useState(false);
   const { data: eventsData, isLoading, error } = useEvents(includePastEvents);
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,7 +63,7 @@ export function EventsPage() {
     setIsRefreshing(true);
     try {
       // Force-refresh from server (bypasses server cache) and update client cache
-      const fresh = await fetchEvents(includePastEvents, true);
+      const fresh = await fetchEvents(includePastEvents, true, getAccessToken);
       queryClient.setQueryData(['events', includePastEvents], fresh);
       // Small delay to show the refresh animation
       await new Promise(resolve => setTimeout(resolve, 500));

@@ -2,17 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { EventAthletesResponse } from '@/types/athletes';
+import { apiFetch } from '@/utils/api';
+import { useAccessToken } from '@/providers/AuthProvider';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-async function fetchEventAthletes(eventId: string): Promise<EventAthletesResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/athletes`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch athletes: ${response.status}`);
-  }
-  
-  const data = await response.json();
+async function fetchEventAthletes(eventId: string, getAccessToken: () => Promise<string | null>): Promise<EventAthletesResponse> {
+  const data = await apiFetch(`${API_BASE_URL}/api/events/${eventId}/athletes`, { getAccessToken });
   
   // Transform the data to match our frontend structure
   const athletes = [];
@@ -53,9 +49,11 @@ async function fetchEventAthletes(eventId: string): Promise<EventAthletesRespons
 }
 
 export function useEventAthletes(eventId: string) {
+  const { getAccessToken } = useAccessToken();
+  
   return useQuery({
     queryKey: ['event-athletes', eventId],
-    queryFn: () => fetchEventAthletes(eventId),
+    queryFn: () => fetchEventAthletes(eventId, getAccessToken),
     refetchOnWindowFocus: false,
     staleTime: 10 * 60 * 1000, // 10 minutes
   });

@@ -2,6 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from './useOfflineStorage';
+import { apiFetch } from '@/utils/api';
+import { useAccessToken } from '@/providers/AuthProvider';
 
 export interface SeriesEventResult {
   place?: number;
@@ -52,19 +54,17 @@ export interface SeriesRankingsResponse {
   message: string;
 }
 
-async function fetchSeriesRankings(eventId: string): Promise<SeriesRankingsResponse> {
+async function fetchSeriesRankings(eventId: string, getAccessToken: () => Promise<string | null>): Promise<SeriesRankingsResponse> {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  const response = await fetch(`${API_BASE_URL}/api/series/rankings/${eventId}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch series rankings: ${response.status} ${response.statusText}`);
-  }
-  return response.json();
+  return await apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId}`, { getAccessToken });
 }
 
 export function useSeriesRankings(eventId: string) {
+  const { getAccessToken } = useAccessToken();
+  
   return useQuery({
     queryKey: ['seriesRankings', eventId],
-    queryFn: () => fetchSeriesRankings(eventId),
+    queryFn: () => fetchSeriesRankings(eventId, getAccessToken),
     enabled: !!eventId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
@@ -75,6 +75,7 @@ export function useSeriesRankings(eventId: string) {
 export function useOfflineSeriesRankings(eventId: string) {
   const isOffline = useIsOffline();
   const { getOfflineEvent } = useOfflineStorage();
+  const { getAccessToken } = useAccessToken();
 
   return useQuery({
     queryKey: ['seriesRankings', eventId],
@@ -82,7 +83,7 @@ export function useOfflineSeriesRankings(eventId: string) {
       // Try online first if we have internet
       if (!isOffline) {
         try {
-          return await fetchSeriesRankings(eventId);
+          return await fetchSeriesRankings(eventId, getAccessToken);
         } catch {
           // Fall through to offline fallback
         }
@@ -118,6 +119,7 @@ export function useOfflineSeriesRankings(eventId: string) {
 export function useOfflineMultiEventSeriesRankings(eventId1: string, eventId2: string) {
   const isOffline = useIsOffline();
   const { getOfflineEvent } = useOfflineStorage();
+  const { getAccessToken } = useAccessToken();
 
   return useQuery({
     queryKey: ['multi-event-series-rankings', eventId1, eventId2],
@@ -126,8 +128,8 @@ export function useOfflineMultiEventSeriesRankings(eventId1: string, eventId2: s
       if (!isOffline) {
         try {
           const [rankings1, rankings2] = await Promise.all([
-            fetchSeriesRankings(eventId1),
-            fetchSeriesRankings(eventId2)
+            fetchSeriesRankings(eventId1, getAccessToken),
+            fetchSeriesRankings(eventId2, getAccessToken)
           ]);
           
           return {

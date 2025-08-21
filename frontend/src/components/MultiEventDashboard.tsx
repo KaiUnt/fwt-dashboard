@@ -15,6 +15,8 @@ import { useOfflineMultiEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { Athlete } from '@/types/athletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
 import { AppHeader } from './AppHeader';
+import { useAccessToken } from '@/providers/AuthProvider';
+import { apiFetch } from '@/utils/api';
 
 
 interface MultiEventDashboardProps {
@@ -29,6 +31,7 @@ interface CombinedAthlete extends Athlete {
 
 export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardProps) {
   const router = useRouter();
+  const { getAccessToken } = useAccessToken();
   const { data: multiEventData, isLoading, error } = useOfflineMultiEventAthletes(eventId1, eventId2);
   
   // Fetch series rankings for both events using offline-first approach
@@ -206,10 +209,10 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
               onClick={async () => {
                 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
                 await Promise.all([
-                  fetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`),
-                  fetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`),
-                  fetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`),
-                  fetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`),
+                  apiFetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`, { getAccessToken }),
+                  apiFetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`, { getAccessToken }),
+                  apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`, { getAccessToken }),
+                  apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`, { getAccessToken }),
                 ]);
               }}
               className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
@@ -342,10 +345,10 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                  onClick={async () => {
                    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
                    await Promise.all([
-                     fetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`),
-                     fetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`),
-                     fetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`),
-                     fetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`),
+                     apiFetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`, { getAccessToken }),
+                     apiFetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`, { getAccessToken }),
+                     apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`, { getAccessToken }),
+                     apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`, { getAccessToken }),
                    ]);
                  }}
                  className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"

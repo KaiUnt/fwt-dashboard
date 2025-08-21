@@ -4,18 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from './useOfflineStorage';
 import { EventAthletesResponse } from '@/types/athletes';
 import { createEventId } from '@/utils/offlineStorage';
+import { apiFetch } from '@/utils/api';
+import { useAccessToken } from '@/providers/AuthProvider';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Original online fetch function
-async function fetchEventAthletes(eventId: string): Promise<EventAthletesResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/athletes`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch athletes: ${response.status}`);
-  }
-  
-  const data = await response.json();
+async function fetchEventAthletes(eventId: string, getAccessToken: () => Promise<string | null>): Promise<EventAthletesResponse> {
+  const data = await apiFetch(`${API_BASE_URL}/api/events/${eventId}/athletes`, { getAccessToken });
   
   // Transform the data to match our frontend structure
   const athletes = [];
@@ -59,6 +55,7 @@ async function fetchEventAthletes(eventId: string): Promise<EventAthletesRespons
 export function useOfflineEventAthletes(eventId: string) {
   const isOffline = useIsOffline();
   const { getOfflineEvent } = useOfflineStorage();
+  const { getAccessToken } = useAccessToken();
 
   return useQuery({
     queryKey: ['event-athletes', eventId],
@@ -66,7 +63,7 @@ export function useOfflineEventAthletes(eventId: string) {
       // Try online first if we have internet
       if (!isOffline) {
         try {
-          return await fetchEventAthletes(eventId);
+          return await fetchEventAthletes(eventId, getAccessToken);
         } catch {
           // Fall through to offline fallback
         }
@@ -100,6 +97,7 @@ export function useOfflineEventAthletes(eventId: string) {
 export function useOfflineMultiEventAthletes(eventId1: string, eventId2: string) {
   const isOffline = useIsOffline();
   const { getOfflineEvent } = useOfflineStorage();
+  const { getAccessToken } = useAccessToken();
 
   return useQuery({
     queryKey: ['multi-event-athletes', eventId1, eventId2],
@@ -109,8 +107,8 @@ export function useOfflineMultiEventAthletes(eventId1: string, eventId2: string)
         try {
           // Fetch both events from API
           const [event1Data, event2Data] = await Promise.all([
-            fetchEventAthletes(eventId1),
-            fetchEventAthletes(eventId2)
+            fetchEventAthletes(eventId1, getAccessToken),
+            fetchEventAthletes(eventId2, getAccessToken)
           ]);
           
           // Add eventSource property to athletes for proper identification

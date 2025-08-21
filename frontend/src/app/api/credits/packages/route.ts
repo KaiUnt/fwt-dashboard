@@ -3,13 +3,24 @@ import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-async function handler(user: AuthenticatedUser, _request: NextRequest): Promise<NextResponse> {
+async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
     console.log(`Credit packages request for user: ${user.id}`)
+
+    // Get the authorization header to forward to backend
+    const authHeader = request.headers.get('authorization')
+    
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: 'Authorization header missing' },
+        { status: 400 }
+      )
+    }
 
     // Forward the request to the FastAPI backend
     const response = await fetch(`${API_BASE_URL}/api/credits/packages`, {
       headers: {
+        'Authorization': authHeader,
         'Content-Type': 'application/json'
       }
     })
@@ -35,5 +46,5 @@ async function handler(user: AuthenticatedUser, _request: NextRequest): Promise<
   }
 }
 
-// Even though packages could be public, we protect it to prevent abuse
-export const GET = withAuth(handler, { rateLimit: RATE_LIMITS.standard })
+// Protected to prevent abuse and for consistent credits API behavior
+export const GET = withAuth(handler, { rateLimit: RATE_LIMITS.credits })
