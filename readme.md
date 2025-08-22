@@ -25,7 +25,7 @@ A professional event management tool for Freeride World Tour commentators, built
 ## Quick Start 🚀
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.11+
 - Node.js 18+
 - Git
 
