@@ -5,6 +5,8 @@ import { Search, Filter, Trophy, Users, Calendar, Medal, Award, X, Loader2, Tren
 import Image from 'next/image';
 import { SeriesInfo, SeriesListResponse, SeriesRankingsResponse } from '@/types/series';
 import { useTranslation } from '@/hooks/useTranslation';
+import { apiFetch } from '@/utils/api';
+import { useAccessToken } from '@/providers/AuthProvider';
 
 interface SeriesRankingToolProps {
   onClose: () => void;
@@ -12,6 +14,7 @@ interface SeriesRankingToolProps {
 
 export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
   const { t } = useTranslation();
+  const { getAccessToken } = useAccessToken();
   const [series, setSeries] = useState<SeriesInfo[]>([]);
   const [selectedSeries, setSelectedSeries] = useState<string | null>(null);
   const [rankings, setRankings] = useState<SeriesRankingsResponse | null>(null);
@@ -32,13 +35,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
       try {
         setIsLoadingSeries(true);
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${API_BASE_URL}/api/fullresults`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data: SeriesListResponse = await response.json();
+        const data: SeriesListResponse = await apiFetch(`${API_BASE_URL}/api/fullresults`, { getAccessToken });
         setSeries(data.series);
       } catch (err) {
         setError(`Failed to load series: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -48,7 +45,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
     };
 
     fetchSeries();
-  }, []);
+  }, [getAccessToken]);
 
   // Load rankings when series is selected
   useEffect(() => {
@@ -63,13 +60,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
         setError(null);
         
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${API_BASE_URL}/api/fullresults/${selectedSeries}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data: SeriesRankingsResponse = await response.json();
+        const data: SeriesRankingsResponse = await apiFetch(`${API_BASE_URL}/api/fullresults/${selectedSeries}`, { getAccessToken });
         setRankings(data);
       } catch (err) {
         setError(`Failed to load rankings: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -80,7 +71,7 @@ export function SeriesRankingTool({ onClose }: SeriesRankingToolProps) {
     };
 
     fetchRankings();
-  }, [selectedSeries]);
+  }, [selectedSeries, getAccessToken]);
 
   // Get unique years and categories for filters
   const availableYears = useMemo(() => {

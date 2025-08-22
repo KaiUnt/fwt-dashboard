@@ -2702,7 +2702,11 @@ async def get_commentator_info_with_friends(
         raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
 
 @app.get("/api/fullresults")
-async def get_all_series(request: Request, force_refresh: bool = False):
+async def get_all_series(
+    request: Request, 
+    current_user_id: str = Depends(extract_user_id_from_token),
+    force_refresh: bool = False
+):
     """Get all available FWT series with metadata"""
     try:
         from api.client import LiveheatsClient
@@ -2791,7 +2795,12 @@ async def get_all_series(request: Request, force_refresh: bool = False):
         raise HTTPException(status_code=500, detail=f"Failed to fetch series: {str(e)}")
 
 @app.get("/api/fullresults/{series_id}")
-async def get_series_rankings(series_id: str, request: Request, force_refresh: bool = False):
+async def get_series_rankings(
+    series_id: str, 
+    request: Request, 
+    current_user_id: str = Depends(extract_user_id_from_token),
+    force_refresh: bool = False
+):
     """Get rankings for a specific series with all divisions"""
     try:
         from api.client import LiveheatsClient
@@ -2887,7 +2896,9 @@ async def get_series_rankings(series_id: str, request: Request, force_refresh: b
         raise HTTPException(status_code=500, detail=f"Failed to fetch series rankings: {str(e)}")
 
 @app.get("/api/commentator-info/export")
-async def export_all_commentator_info():
+async def export_all_commentator_info(
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Export all commentator info for backup purposes"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
@@ -3016,7 +3027,10 @@ async def log_failed_login_attempt(request: Request, email: str, reason: str = "
         raise HTTPException(status_code=500, detail="Failed to log security event")
 
 @app.get("/api/security/alerts")
-async def get_security_alerts(request: Request):
+async def get_security_alerts(
+    request: Request,
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
     """Get security alerts for admin monitoring"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")

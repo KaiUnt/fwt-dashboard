@@ -6,10 +6,13 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { SeriesInfo, SeriesListResponse, SeriesRankingsResponse } from '@/types/series';
 import { useTranslation } from '@/hooks/useTranslation';
+import { apiFetch } from '@/utils/api';
+import { useAccessToken } from '@/providers/AuthProvider';
 
 export default function SeriesRankingsPage() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { getAccessToken } = useAccessToken();
   const [series, setSeries] = useState<SeriesInfo[]>([]);
   const [selectedSeries, setSelectedSeries] = useState<string | null>(null);
   const [rankings, setRankings] = useState<SeriesRankingsResponse | null>(null);
@@ -31,13 +34,7 @@ export default function SeriesRankingsPage() {
       try {
         setIsLoadingSeries(true);
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${API_BASE_URL}/api/fullresults`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data: SeriesListResponse = await response.json();
+        const data: SeriesListResponse = await apiFetch(`${API_BASE_URL}/api/fullresults`, { getAccessToken });
         setSeries(data.series);
       } catch (err) {
         setError(`Failed to load series: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -47,7 +44,7 @@ export default function SeriesRankingsPage() {
     };
 
     fetchSeries();
-  }, []);
+  }, [getAccessToken]);
 
   // Auto-hide header after 3 seconds
   useEffect(() => {
@@ -75,13 +72,7 @@ export default function SeriesRankingsPage() {
         setError(null);
         
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${API_BASE_URL}/api/fullresults/${selectedSeries}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data: SeriesRankingsResponse = await response.json();
+        const data: SeriesRankingsResponse = await apiFetch(`${API_BASE_URL}/api/fullresults/${selectedSeries}`, { getAccessToken });
         setRankings(data);
       } catch (err) {
         setError(`Failed to load rankings: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -92,7 +83,7 @@ export default function SeriesRankingsPage() {
     };
 
     fetchRankings();
-  }, [selectedSeries]);
+  }, [selectedSeries, getAccessToken]);
 
   // Get unique years and categories for filters
   const availableYears = useMemo(() => {

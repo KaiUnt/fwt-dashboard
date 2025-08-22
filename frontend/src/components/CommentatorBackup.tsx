@@ -2,6 +2,8 @@
 
 import React, { useState, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import { apiFetch } from '@/utils/api';
+import { useAccessToken } from '@/providers/AuthProvider';
 
 interface BackupData {
   export_timestamp: string;
@@ -31,6 +33,7 @@ interface ImportResult {
 
 export function CommentatorBackup() {
   const { t } = useTranslation();
+  const { getAccessToken } = useAccessToken();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -42,10 +45,7 @@ export function CommentatorBackup() {
     setError(null);
     
     try {
-      const response = await fetch('/api/commentator-info/export');
-      if (!response.ok) throw new Error('Export failed');
-      
-      const backupData: BackupData = await response.json();
+      const backupData: BackupData = await apiFetch('/api/commentator-info/export', { getAccessToken });
       
       // Create downloadable file
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { 
