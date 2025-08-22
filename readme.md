@@ -95,6 +95,7 @@ This gives commentators complete context about athlete progression and venue exp
 - **CORS enabled** for frontend communication
 - **Automatic caching** for improved performance
 - **RESTful endpoints** for all data access
+- **JWT Authentication** for secure API access (91.3% endpoint coverage)
 
 ### Optional Features
 - **Supabase integration** for commentator annotations
@@ -103,16 +104,26 @@ This gives commentators complete context about athlete progression and venue exp
 
 ## API Endpoints 🔌
 
+### Authentication
+All API endpoints (except `/health` and `/`) require JWT authentication via `Authorization: Bearer <token>` header.
+
 ### Events
-- `GET /api/events` - List upcoming FWT events
-- `GET /api/events/{id}/athletes` - Get athletes for specific event
+- `GET /api/events` - List upcoming FWT events 🔒
+- `GET /api/events/{id}/athletes` - Get athletes for specific event 🔒
 
 ### Series Rankings
-- `GET /api/series/rankings/{eventId}` - Get series rankings and historical data
+- `GET /api/series/rankings/{eventId}` - Get series rankings and historical data 🔒
+- `GET /api/fullresults` - Complete FWT series data 🔒
+- `GET /api/fullresults/{series_id}` - Specific series rankings 🔒
 
 ### Commentator Info (Optional)
-- `POST /api/commentator-info` - Save commentator annotations
-- Requires Supabase configuration
+- `POST /api/commentator-info` - Save commentator annotations 🔒
+- `GET /api/commentator-info/export` - Export all commentator data 🔒
+- Requires Supabase configuration and user authentication
+
+### Public Endpoints
+- `GET /` - API status (public)
+- `GET /health` - Health check (public)
 
 ## Configuration ⚙️
 
