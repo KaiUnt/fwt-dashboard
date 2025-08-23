@@ -396,7 +396,8 @@
       "profileSettings": "Profile Settings",
       "friends": "Friends",
       "adminDashboard": "Admin Dashboard",
-      "signOut": "Sign Out"
+      "signOut": "Sign Out",
+      "manageCredits": "Manage Credits"
     }
   },
   "friends": {
@@ -468,6 +469,93 @@
   },
   "credits": {
     "credit": "Credit",
-    "credits": "Credits"
+    "credits": "Credits",
+    "modal": {
+      "title": "Credits System",
+      "notConfigured": "The credits system is currently unavailable as Supabase is not configured.",
+      "contactAdmin": "Please contact the administrator for more information.",
+      "tabs": {
+        "overview": "Overview",
+        "purchase": "Purchase",
+        "history": "History"
+      },
+      "overview": {
+        "currentBalance": "Current Balance",
+        "creditAvailable": "Credit available",
+        "creditsAvailable": "Credits available",
+        "eventAccess": "Event Access",
+        "eventAccessDesc": "1 Credit = Access to one event of your choice",
+        "freeEvents": "Free Events",
+        "freeEventsDesc": "Events become automatically free 7 days after completion",
+        "noCreditsTitle": "No Credits Available",
+        "noCreditsDesc": "You need credits to access new events.",
+        "buyCredits": "Buy Credits"
+      },
+      "purchase": {
+        "title": "Credit Packages",
+        "subtitle": "Choose the right package for you",
+        "bestValue": "BEST VALUE",
+        "perCredit": "per Credit",
+        "buy": "Buy",
+        "securePayment": "💳 Secure Payment",
+        "securePaymentDesc": "All payments are processed securely through Stripe. You will receive your credits immediately after successful payment."
+      },
+      "history": {
+        "title": "Transaction History",
+        "entries": "Entries",
+        "noTransactions": "No transactions yet",
+        "balance": "Balance"
+      },
+      "footer": {
+        "systemName": "FWT Dashboard Credits System",
+        "phase": "Phase 2: Stripe Integration coming soon"
+      }
+    },
+    "balance": {
+      "loading": "Loading...",
+      "error": "Error",
+      "retryLoading": "Retry loading credits",
+      "refresh": "Refresh credits"
+    },
+    "contact": {
+      "needMoreCredits": "Need more credits? Please contact kai@open-faces.com and you will receive them for free."
+    },
+    "purchase": {
+      "stripeIntegrationComing": "Stripe integration for {price} coming in Phase 2! Contact kai@open-faces.com for immediate credits.",
+      "eventAccessGranted": "Event access successfully granted!"
+    },
+    "csvUpload": {
+      "title": "Upload CSV File",
+      "dataPreview": "CSV Data Preview",
+      "processingFile": "Processing CSV file...",
+      "dropFileHere": "Drop CSV file here or click to browse",
+      "fileDescription": "First column: First Name, Second column: Last Name, Additional columns: Custom fields",
+      "selectFile": "Select File",
+      "athletesMatched": "{count} athletes matched",
+      "notMatched": "{count} not matched",
+      "noMatch": "No match",
+      "fields": "fields",
+      "moreRows": "... and {count} more rows",
+      "readyToImport": "Ready to import {count} matched athletes",
+      "importAllMatched": "Import All Matched",
+      "errors": {
+        "selectCSV": "Please select a CSV file",
+        "dropCSV": "Please drop a CSV file",
+        "minimumColumns": "CSV must have at least 3 columns (First Name, Last Name, and additional fields)",
+        "parseError": "Failed to parse CSV file: {error}",
+        "readError": "Failed to read CSV file: {error}",
+        "error": "Error"
+      },
+      "formatRequirements": {
+        "title": "CSV Format Requirements:",
+        "columnA": "Column A: First Name of athlete",
+        "columnB": "Column B: Last Name of athlete",
+        "columnC": "Column C+: Additional fields (will be automatically mapped to standard fields when possible)",
+        "supportedFields": "Supported fields: homebase, team, sponsors, favorite_trick, achievements, injuries, fun_facts, notes, social media"
+      },
+      "adminSelectUser": "Upload for another user",
+      "uploadForCurrentUser": "Upload for myself (current user)",
+      "adminSelectUserHelp": "As admin, you can upload data for other users"
+    }
   }
 }

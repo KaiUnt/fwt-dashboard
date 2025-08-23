@@ -484,25 +484,32 @@ export function useBulkImportCommentatorInfo() {
   const { getAccessToken } = useAccessToken();
 
   return useMutation({
-    mutationFn: async (data: Array<{
-      athlete_id: string;
-      homebase?: string;
-      team?: string;
-      sponsors?: string;
-      favorite_trick?: string;
-      achievements?: string;
-      injuries?: string;
-      fun_facts?: string;
-      notes?: string;
-      instagram?: string;
-      youtube?: string;
-      website?: string;
-      custom_fields?: Record<string, string>;
-    }>) => {
+    mutationFn: async (params: {
+      data: Array<{
+        athlete_id: string;
+        homebase?: string;
+        team?: string;
+        sponsors?: string;
+        favorite_trick?: string;
+        achievements?: string;
+        injuries?: string;
+        fun_facts?: string;
+        notes?: string;
+        instagram?: string;
+        youtube?: string;
+        website?: string;
+        custom_fields?: Record<string, string>;
+      }>;
+      targetUserId?: string;
+    }) => {
       try {
-        const result = await apiFetch(`${API_BASE_URL}/api/commentator-info/bulk-import`, {
+        const url = params.targetUserId 
+          ? `${API_BASE_URL}/api/commentator-info/bulk-import?target_user_id=${params.targetUserId}`
+          : `${API_BASE_URL}/api/commentator-info/bulk-import`;
+          
+        const result = await apiFetch(url, {
           method: 'POST',
-          body: data,
+          body: params.data,
           getAccessToken,
           timeoutMs: 300000, // 5 Minuten für CSV Bulk Import
         });

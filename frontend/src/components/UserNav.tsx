@@ -118,7 +118,7 @@ export function UserNav() {
           <button
             onClick={openCreditsModal}
             className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors"
-            title="Credits verwalten"
+            title={t('profile.userNav.manageCredits')}
           >
             <CreditsBalance 
               onCreditsUpdate={handleCreditsUpdate}
@@ -215,7 +215,7 @@ export function UserNav() {
                   className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
                 >
                   <Coins className="h-4 w-4" />
-                  Credits verwalten
+                  {t('profile.userNav.manageCredits')}
                 </button>
               )}
 

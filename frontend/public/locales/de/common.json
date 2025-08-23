@@ -397,7 +397,8 @@
       "profileSettings": "Profil-Einstellungen",
       "friends": "Freunde",
       "adminDashboard": "Admin Dashboard",
-      "signOut": "Abmelden"
+      "signOut": "Abmelden",
+      "manageCredits": "Credits verwalten"
     }
   },
   "friends": {
@@ -474,6 +475,93 @@
   },
   "credits": {
     "credit": "Credit",
-    "credits": "Credits"
+    "credits": "Credits",
+    "modal": {
+      "title": "Credits-System",
+      "notConfigured": "Das Credits-System ist derzeit nicht verfügbar, da Supabase nicht konfiguriert ist.",
+      "contactAdmin": "Bitte kontaktieren Sie den Administrator für weitere Informationen.",
+      "tabs": {
+        "overview": "Übersicht",
+        "purchase": "Kaufen",
+        "history": "Verlauf"
+      },
+      "overview": {
+        "currentBalance": "Aktueller Kontostand",
+        "creditAvailable": "Credit verfügbar",
+        "creditsAvailable": "Credits verfügbar",
+        "eventAccess": "Event-Zugang",
+        "eventAccessDesc": "1 Credit = Zugang zu einem Event deiner Wahl",
+        "freeEvents": "Gratis-Events",
+        "freeEventsDesc": "Events werden 7 Tage nach Ende automatisch kostenlos",
+        "noCreditsTitle": "Keine Credits verfügbar",
+        "noCreditsDesc": "Du benötigst Credits, um auf neue Events zugreifen zu können.",
+        "buyCredits": "Credits kaufen"
+      },
+      "purchase": {
+        "title": "Credits-Pakete",
+        "subtitle": "Wähle das passende Paket für dich",
+        "bestValue": "BESTER WERT",
+        "perCredit": "pro Credit",
+        "buy": "Kaufen",
+        "securePayment": "💳 Sichere Zahlung",
+        "securePaymentDesc": "Alle Zahlungen werden sicher über Stripe abgewickelt. Du erhältst deine Credits sofort nach erfolgreicher Zahlung."
+      },
+      "history": {
+        "title": "Transaktionsverlauf",
+        "entries": "Einträge",
+        "noTransactions": "Noch keine Transaktionen vorhanden",
+        "balance": "Saldo"
+      },
+      "footer": {
+        "systemName": "FWT Dashboard Credits-System",
+        "phase": "Phase 2: Stripe-Integration folgt"
+      }
+    },
+    "balance": {
+      "loading": "Laden...",
+      "error": "Fehler",
+      "retryLoading": "Credits erneut laden",
+      "refresh": "Credits aktualisieren"
+    },
+    "contact": {
+      "needMoreCredits": "Du brauchst mehr Credits? Melde dich bitte unter kai@open-faces.com und du erh\u00e4ltst sie kostenlos."
+    },
+    "purchase": {
+      "stripeIntegrationComing": "Stripe-Integration f\u00fcr {price} kommt in Phase 2! Kontaktiere kai@open-faces.com f\u00fcr sofortige Credits.",
+      "eventAccessGranted": "Event-Zugang erfolgreich freigeschaltet!"
+    },
+    "csvUpload": {
+      "title": "CSV-Datei hochladen",
+      "dataPreview": "CSV-Daten Vorschau",
+      "processingFile": "Verarbeite CSV-Datei...",
+      "dropFileHere": "CSV-Datei hier ablegen oder klicken zum Durchsuchen",
+      "fileDescription": "Erste Spalte: Vorname, Zweite Spalte: Nachname, Weitere Spalten: Benutzerdefinierte Felder",
+      "selectFile": "Datei ausw\u00e4hlen",
+      "athletesMatched": "{count} Athleten gefunden",
+      "notMatched": "{count} nicht gefunden",
+      "noMatch": "Keine \u00dcbereinstimmung",
+      "fields": "Felder",
+      "moreRows": "... und {count} weitere Zeilen",
+      "readyToImport": "Bereit zum Importieren von {count} gefundenen Athleten",
+      "importAllMatched": "Alle Gefundenen importieren",
+      "errors": {
+        "selectCSV": "Bitte w\u00e4hlen Sie eine CSV-Datei",
+        "dropCSV": "Bitte legen Sie eine CSV-Datei ab",
+        "minimumColumns": "CSV muss mindestens 3 Spalten haben (Vorname, Nachname und weitere Felder)",
+        "parseError": "Fehler beim Parsen der CSV-Datei: {error}",
+        "readError": "Fehler beim Lesen der CSV-Datei: {error}",
+        "error": "Fehler"
+      },
+      "formatRequirements": {
+        "title": "CSV-Format Anforderungen:",
+        "columnA": "Spalte A: Vorname des Athleten",
+        "columnB": "Spalte B: Nachname des Athleten",
+        "columnC": "Spalte C+: Weitere Felder (werden automatisch zu Standardfeldern zugeordnet, wenn m\u00f6glich)",
+        "supportedFields": "Unterst\u00fctzte Felder: homebase, team, sponsors, favorite_trick, achievements, injuries, fun_facts, notes, social media"
+      },
+      "adminSelectUser": "Für anderen Benutzer hochladen",
+      "uploadForCurrentUser": "Für mich selbst (aktueller Benutzer)",
+      "adminSelectUserHelp": "Als Admin können Sie Daten für andere Benutzer hochladen"
+    }
   }
 }

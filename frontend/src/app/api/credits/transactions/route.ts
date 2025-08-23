@@ -5,7 +5,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    console.log(`Credit transactions request for user: ${user.id}`)
 
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -33,7 +32,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       )
     }
 
-    console.log(`Credit transactions retrieved successfully for user ${user.id}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error(`Error in credits transactions API route for user ${user.id}:`, error)

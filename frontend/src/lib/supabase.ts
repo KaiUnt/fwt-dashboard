@@ -60,7 +60,6 @@ export const createClient = () => {
     if (errors.length > 0) {
       console.warn('Supabase config validation failed during build. Using placeholder client for build process.')
     } else {
-      console.log('Supabase config available during build. Using placeholder client anyway for stability.')
     }
     
     // Return a minimal client that satisfies TypeScript but won't be used in runtime

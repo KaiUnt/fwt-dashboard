@@ -5,6 +5,7 @@ import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, Fil
 import { CommentatorInfo, Athlete } from '@/types/athletes';
 import { useUpdateCommentatorInfo, useBulkImportCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAuth, useAccessToken } from '@/providers/AuthProvider';
 import { CSVUploadComponent } from './CSVUploadComponent';
 
 interface CommentatorInfoModalProps {
@@ -25,6 +26,9 @@ export function CommentatorInfoModal({
   athletes = [],
 }: CommentatorInfoModalProps) {
   const { t } = useTranslation();
+  const { isAdmin } = useAuth();
+  const { getAccessToken } = useAccessToken();
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
   const [formData, setFormData] = useState<Partial<CommentatorInfo>>({
     homebase: '',
     team: '',
@@ -48,6 +52,34 @@ export function CommentatorInfoModal({
   const [activeTab, setActiveTab] = useState<'form' | 'csv'>('form');
   const updateMutation = useUpdateCommentatorInfo();
   const bulkImportMutation = useBulkImportCommentatorInfo();
+
+  // Load available users for admins
+  useEffect(() => {
+    if (isOpen && isAdmin) {
+      const loadUsers = async () => {
+        try {
+          const token = await getAccessToken();
+          
+          const response = await fetch('/api/admin/users', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setAvailableUsers(data.users || []);
+          } else {
+            console.error('Failed to load users:', response.status);
+            // Keep availableUsers empty on API failure - this will hide the user selection
+          }
+        } catch (error) {
+          console.error('Failed to load users:', error);
+        }
+      };
+      loadUsers();
+    }
+  }, [isOpen, isAdmin, getAccessToken]);
 
   // Initialize form data when modal opens or data changes
   useEffect(() => {
@@ -224,7 +256,7 @@ export function CommentatorInfoModal({
     }
   };
 
-  const handleBulkImport = async (csvData: Array<{ matchedAthleteId?: string; standardFields: Record<string, string>; customFields: Record<string, string> }>) => {
+  const handleBulkImport = async (csvData: Array<{ matchedAthleteId?: string; standardFields: Record<string, string>; customFields: Record<string, string> }>, targetUserId?: string) => {
     try {
       setIsSaving(true);
       setError(null);
@@ -247,7 +279,10 @@ export function CommentatorInfoModal({
           };
         });
 
-      await bulkImportMutation.mutateAsync(importData);
+      await bulkImportMutation.mutateAsync({ 
+        data: importData, 
+        targetUserId 
+      });
       
       setShowSuccess(true);
       setTimeout(() => {
@@ -437,6 +472,8 @@ export function CommentatorInfoModal({
                 onDataParsed={handleCSVDataParsed}
                 onClose={() => setActiveTab('form')}
                 onBulkImport={handleBulkImport}
+                isAdmin={isAdmin}
+                availableUsers={availableUsers}
               />
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

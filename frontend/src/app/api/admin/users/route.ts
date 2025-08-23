@@ -5,7 +5,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    console.log(`Admin users request by: ${user.email} (${user.role})`)
 
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -32,7 +31,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       )
     }
 
-    console.log(`Admin users request successful for ${user.email}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error in admin users API route:', error)
@@ -45,7 +43,7 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
 
 // Export with admin role requirement and admin rate limiting
 export const GET = withAuth(handler, { 
-  requireAdmin: true, 
+  requireAdmin: true,  // Fixed: Auth middleware now reads role from user_profiles
   rateLimit: RATE_LIMITS.admin 
 })
 

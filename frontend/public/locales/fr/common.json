@@ -396,7 +396,8 @@
       "profileSettings": "Paramètres du profil",
       "friends": "Amis",
       "adminDashboard": "Tableau de bord admin",
-      "signOut": "Se déconnecter"
+      "signOut": "Se déconnecter",
+      "manageCredits": "Gérer les Crédits"
     }
   },
   "friends": {
@@ -471,6 +472,93 @@
 },
 "credits": {
   "credit": "Crédit",
-  "credits": "Crédits"
-}
+  "credits": "Crédits",
+  "modal": {
+    "title": "Système de Crédits",
+    "notConfigured": "Le système de crédits est actuellement indisponible car Supabase n'est pas configuré.",
+    "contactAdmin": "Veuillez contacter l'administrateur pour plus d'informations.",
+    "tabs": {
+      "overview": "Aperçu",
+      "purchase": "Acheter",
+      "history": "Historique"
+    },
+    "overview": {
+      "currentBalance": "Solde Actuel",
+      "creditAvailable": "Crédit disponible",
+      "creditsAvailable": "Crédits disponibles",
+      "eventAccess": "Accès aux Événements",
+      "eventAccessDesc": "1 Crédit = Accès à un événement de votre choix",
+      "freeEvents": "Événements Gratuits",
+      "freeEventsDesc": "Les événements deviennent automatiquement gratuits 7 jours après la fin",
+      "noCreditsTitle": "Aucun Crédit Disponible",
+      "noCreditsDesc": "Vous avez besoin de crédits pour accéder aux nouveaux événements.",
+      "buyCredits": "Acheter des Crédits"
+    },
+    "purchase": {
+      "title": "Packs de Crédits",
+      "subtitle": "Choisissez le pack qui vous convient",
+      "bestValue": "MEILLEURE VALEUR",
+      "perCredit": "par Crédit",
+      "buy": "Acheter",
+      "securePayment": "💳 Paiement Sécurisé",
+      "securePaymentDesc": "Tous les paiements sont traités de manière sécurisée via Stripe. Vous recevrez vos crédits immédiatement après un paiement réussi."
+    },
+    "history": {
+      "title": "Historique des Transactions",
+      "entries": "Entrées",
+      "noTransactions": "Aucune transaction pour le moment",
+      "balance": "Solde"
+    },
+    "footer": {
+      "systemName": "Système de Crédits FWT Dashboard",
+      "phase": "Phase 2: Intégration Stripe à venir"
+    }
+  },
+      "balance": {
+      "loading": "Chargement...",
+      "error": "Erreur",
+      "retryLoading": "Réessayer le chargement des crédits",
+      "refresh": "Actualiser les crédits"
+    },
+    "contact": {
+      "needMoreCredits": "Besoin de plus de crédits ? Veuillez contacter kai@open-faces.com et vous les recevrez gratuitement."
+    },
+    "purchase": {
+      "stripeIntegrationComing": "Intégration Stripe pour {price} arrive en Phase 2 ! Contactez kai@open-faces.com pour des crédits immédiats.",
+      "eventAccessGranted": "Accès à l'événement accordé avec succès !"
+    },
+    "csvUpload": {
+      "title": "T\u00e9l\u00e9charger fichier CSV",
+      "dataPreview": "Aper\u00e7u des donn\u00e9es CSV",
+      "processingFile": "Traitement du fichier CSV...",
+      "dropFileHere": "D\u00e9posez le fichier CSV ici ou cliquez pour parcourir",
+      "fileDescription": "Premi\u00e8re colonne : Pr\u00e9nom, Deuxi\u00e8me colonne : Nom, Colonnes suppl\u00e9mentaires : Champs personnalis\u00e9s",
+      "selectFile": "S\u00e9lectionner fichier",
+      "athletesMatched": "{count} athl\u00e8tes trouv\u00e9s",
+      "notMatched": "{count} non trouv\u00e9s",
+      "noMatch": "Aucune correspondance",
+      "fields": "champs",
+      "moreRows": "... et {count} lignes suppl\u00e9mentaires",
+      "readyToImport": "Pr\u00eat \u00e0 importer {count} athl\u00e8tes trouv\u00e9s",
+      "importAllMatched": "Importer tous les trouv\u00e9s",
+      "errors": {
+        "selectCSV": "Veuillez s\u00e9lectionner un fichier CSV",
+        "dropCSV": "Veuillez d\u00e9poser un fichier CSV",
+        "minimumColumns": "Le CSV doit avoir au moins 3 colonnes (Pr\u00e9nom, Nom et champs suppl\u00e9mentaires)",
+        "parseError": "\u00c9chec de l'analyse du fichier CSV : {error}",
+        "readError": "\u00c9chec de la lecture du fichier CSV : {error}",
+        "error": "Erreur"
+      },
+      "formatRequirements": {
+        "title": "Exigences du format CSV :",
+        "columnA": "Colonne A : Pr\u00e9nom de l'athl\u00e8te",
+        "columnB": "Colonne B : Nom de l'athl\u00e8te",
+        "columnC": "Colonne C+ : Champs suppl\u00e9mentaires (seront automatiquement mapp\u00e9s aux champs standard si possible)",
+        "supportedFields": "Champs support\u00e9s : homebase, team, sponsors, favorite_trick, achievements, injuries, fun_facts, notes, social media"
+      },
+      "adminSelectUser": "Télécharger pour un autre utilisateur",
+      "uploadForCurrentUser": "Télécharger pour moi-même (utilisateur actuel)",
+      "adminSelectUserHelp": "En tant qu'administrateur, vous pouvez télécharger des données pour d'autres utilisateurs"
+    }
+  }
 }

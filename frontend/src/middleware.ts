@@ -63,14 +63,6 @@ export async function middleware(request: NextRequest) {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     
-    // Log API access attempt for monitoring
-    console.log('API Route Access:', {
-      ip,
-      endpoint: pathname,
-      method: request.method,
-      userAgent: request.headers.get('user-agent'),
-      timestamp: new Date().toISOString()
-    });
     
     return response;
   }

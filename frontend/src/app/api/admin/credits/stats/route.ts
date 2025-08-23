@@ -5,7 +5,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    console.log(`Admin credits stats request by: ${user.email} (${user.role})`)
 
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -31,7 +30,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       )
     }
 
-    console.log(`Admin credits stats request successful for ${user.email}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error in admin credits stats API route:', error)

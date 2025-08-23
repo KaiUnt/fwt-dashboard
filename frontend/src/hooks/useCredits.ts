@@ -5,6 +5,7 @@ import { offlinePurchaseStorage, OfflinePurchaseData } from '@/utils/offlineStor
 import { useIsOffline } from '@/hooks/useOfflineStorage'
 import { apiFetch } from '@/utils/api'
 import { useAccessToken } from '@/providers/AuthProvider'
+import { useTranslation } from '@/providers/TranslationProvider'
 
 interface CreditTransaction {
   id: string
@@ -28,6 +29,7 @@ export function useCredits() {
   const [initialized, setInitialized] = useState(false)
   const isOffline = useIsOffline()
   const { getAccessToken } = useAccessToken()
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
 
   // Balance query
@@ -173,8 +175,8 @@ export function useCredits() {
         throw new Error('Package not found')
       }
 
-      // For now, show a placeholder
-      alert(`Stripe-Integration für ${selectedPackage.price_display} kommt in Phase 2!`)
+      // For now, show a placeholder with contact info
+      alert(t('credits.purchase.stripeIntegrationComing', { price: selectedPackage.price_display }))
       
       return {
         success: false,
@@ -183,7 +185,7 @@ export function useCredits() {
     } catch (err) {
       throw err
     }
-  }, [packages])
+  }, [packages, t])
 
   // Sync offline purchases when coming back online
   const syncOfflinePurchases = useCallback(async () => {

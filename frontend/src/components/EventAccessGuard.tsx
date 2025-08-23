@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Lock, Coins, Clock, Calendar, AlertCircle } from 'lucide-react'
 import { useCredits } from '@/hooks/useCredits'
+import { useTranslation } from '@/providers/TranslationProvider'
 
 interface EventAccessGuardProps {
   eventId: string
@@ -24,6 +25,7 @@ export default function EventAccessGuard({
   const [purchasing, setPurchasing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { credits, checkEventAccess, purchaseEventAccess } = useCredits()
+  const { t } = useTranslation()
 
   const checkAccess = useCallback(async () => {
     try {
@@ -61,7 +63,7 @@ export default function EventAccessGuard({
       }
 
       // Show success message
-      alert('Event-Zugang erfolgreich freigeschaltet!')
+      alert(t('credits.purchase.eventAccessGranted'))
 
     } catch (err) {
       console.error('Error purchasing access:', err)
@@ -160,20 +162,12 @@ export default function EventAccessGuard({
               )}
             </button>
           ) : (
-            <div className="space-y-3">
-              <p className="text-red-400 text-sm">
-                Du hast keine Credits mehr. Kaufe Credits, um Zugang zu erhalten.
-              </p>
-              <button
-                onClick={() => {
-                  // This would open the credits modal
-                  alert('Credits-Kauf-Modal würde sich hier öffnen')
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors flex items-center justify-center space-x-2 mx-auto"
-              >
-                <Coins className="h-4 w-4" />
-                <span>Credits kaufen</span>
-              </button>
+            <div className="space-y-4">
+              <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-4">
+                <p className="text-blue-400 text-sm font-medium mb-2">
+                  {t('credits.contact.needMoreCredits')}
+                </p>
+              </div>
             </div>
           )}
 

@@ -5,7 +5,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    console.log(`Batch event access check for user: ${user.id}`)
 
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -42,7 +41,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       )
     }
 
-    console.log(`Batch access check for user ${user.id}: ${eventIds.length} events`)
 
     // Forward the request to the FastAPI backend
     const response = await fetch(`${API_BASE_URL}/api/events/access-batch`, {
@@ -64,7 +62,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       )
     }
 
-    console.log(`Batch event access check successful for user ${user.id}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error(`Error in batch event access check API route for user ${user.id}:`, error)

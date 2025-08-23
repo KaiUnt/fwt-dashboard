@@ -5,7 +5,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    console.log(`Multi-event purchase request for user: ${user.id}`);
 
     // Get the authorization header
     const authHeader = request.headers.get('authorization');
@@ -20,7 +19,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
     const body = await request.json();
     
     // Log purchase attempt for security monitoring
-    console.log(`Purchase attempt by user ${user.id}:`, {
       eventIds: body.eventIds || 'unknown',
       timestamp: new Date().toISOString()
     });
@@ -45,7 +43,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       );
     }
 
-    console.log(`Multi-event purchase successful for user ${user.id}`);
     return NextResponse.json(data);
   } catch (error) {
     console.error(`Multi-event purchase API error for user ${user.id}:`, error);

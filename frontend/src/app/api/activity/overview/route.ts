@@ -5,7 +5,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    console.log(`Activity overview request for user: ${user.id}`)
 
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -43,7 +42,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       )
     }
 
-    console.log(`Activity overview retrieved successfully for user ${user.id}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error(`Error in activity overview API route for user ${user.id}:`, error)

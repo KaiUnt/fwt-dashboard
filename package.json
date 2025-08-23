@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@types/papaparse": "^5.3.16",
+    "node-fetch": "^3.3.2",
     "papaparse": "^5.5.3"
   }
 }

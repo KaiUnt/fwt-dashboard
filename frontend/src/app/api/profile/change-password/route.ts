@@ -5,7 +5,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
-    console.log(`Password change request for user: ${user.id}`)
 
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -26,7 +25,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
     }
 
     // Log security-relevant action
-    console.log(`Password change attempt for user ${user.id} at ${new Date().toISOString()}`)
 
     const response = await fetch(`${API_BASE_URL}/api/profile/change-password`, {
       method: 'POST',
@@ -46,7 +44,6 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       )
     }
 
-    console.log(`Password change successful for user ${user.id}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error(`Error in profile change-password API route for user ${user.id}:`, error)

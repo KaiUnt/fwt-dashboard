@@ -11,7 +11,6 @@ async function handler(
   try {
     const { userId } = await params
     
-    console.log(`Admin credit grant request by ${user.email} for user ${userId}`);
 
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -24,7 +23,6 @@ async function handler(
     const body = await request.json()
     
     // Log admin action for audit trail
-    console.log(`Admin ${user.email} granting credits:`, {
       targetUserId: userId,
       amount: body.amount || 'unknown',
       reason: body.reason || 'not specified',
@@ -49,7 +47,6 @@ async function handler(
       )
     }
 
-    console.log(`Credit grant successful by ${user.email} for user ${userId}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error in admin grant credits API route:', error)

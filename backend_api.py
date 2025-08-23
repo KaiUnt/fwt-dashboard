@@ -78,16 +78,9 @@ security = HTTPBearer(auto_error=True)
 
 def get_user_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """Extract raw user JWT token from credentials"""
-    logger.info(f"=== GET USER TOKEN DEBUG ===")
-    logger.info(f"Credentials provided: {bool(credentials)}")
-    logger.info(f"Credentials type: {type(credentials)}")
-    
     if not credentials or not credentials.credentials:
         logger.error("No credentials provided")
         raise HTTPException(status_code=401, detail="Authorization token required")
-    
-    logger.info(f"Token length: {len(credentials.credentials)}")
-    logger.info(f"Token starts with: {credentials.credentials[:20]}...")
     
     return credentials.credentials
 
@@ -226,23 +219,13 @@ class SupabaseClient:
             "Prefer": "return=representation"
         }
         
-        # Debug logging
-        logger.info(f"=== GET HEADERS DEBUG ===")
-        logger.info(f"User token provided: {bool(user_token)}")
-        logger.info(f"User token length: {len(user_token) if user_token else 0}")
-        if user_token:
-            logger.info(f"User token starts with: {user_token[:20]}...")
-        
         if user_token:
             # Use user JWT token for RLS-enabled operations
             headers["Authorization"] = f"Bearer {user_token}"
-            logger.info("Using user JWT token for Supabase request (RLS enabled)")
         else:
             # Fall back to service key for non-RLS operations
             headers["Authorization"] = f"Bearer {self.key}"
-            logger.info("Using service key for Supabase request (no RLS)")
         
-        logger.info(f"Final headers: {headers}")
         return headers
     
     async def select(self, table: str, columns: str = "*", filters: dict = None, user_token: Optional[str] = None):
@@ -263,28 +246,15 @@ class SupabaseClient:
         
         headers = self._get_headers(user_token)
         
-        # Debug logging
-        logger.info(f"=== SUPABASE SELECT DEBUG ===")
-        logger.info(f"Table: {table}")
-        logger.info(f"Columns: {columns}")
-        logger.info(f"Filters: {filters}")
-        logger.info(f"URL: {url}")
-        logger.info(f"User token available: {bool(user_token)}")
-        logger.info(f"User token length: {len(user_token) if user_token else 0}")
-        logger.info(f"Headers: {headers}")
         
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(url, headers=headers, params=params)
-                logger.info(f"Response status: {response.status_code}")
-                logger.info(f"Response headers: {dict(response.headers)}")
-                
                 if response.status_code != 200:
                     logger.error(f"Supabase error response: {response.text}")
                 
                 response.raise_for_status()
                 result = response.json()
-                logger.info(f"Query result: {result}")
                 return result
         except httpx.TimeoutException:
             logger.error("Supabase request timeout")
@@ -1334,16 +1304,8 @@ async def get_commentator_info(
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        logger.info(f"=== GET COMMENTATOR INFO DEBUG ===")
-        logger.info(f"Athlete ID: {athlete_id}")
-        logger.info(f"User token available: {bool(user_token)}")
-        logger.info(f"User token length: {len(user_token) if user_token else 0}")
-        
         # Use user token for RLS policy enforcement
         result = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id}, user_token=user_token)
-        
-        logger.info(f"Supabase query result: {result}")
-        logger.info(f"Result count: {len(result) if result else 0}")
         
         if result:
             logger.info(f"Found commentator info for athlete {athlete_id}")
@@ -1444,22 +1406,11 @@ async def update_commentator_info(
         
         logger.info(f"Successfully updated commentator info for athlete {athlete_id}")
         
-        # Debug: Log what Supabase returned
-        logger.info(f"=== SUPABASE RESULT DEBUG ===")
-        logger.info(f"Result type: {type(result)}")
-        logger.info(f"Result length: {len(result) if result else 0}")
-        logger.info(f"Result content: {result}")
-        
         response_data = {
             "success": True,
             "data": result[0] if result else None,
             "message": "Commentator info updated successfully"
         }
-        
-        logger.info(f"=== BACKEND RESPONSE DEBUG ===")
-        logger.info(f"Response data: {response_data}")
-        logger.info(f"Response data.data: {response_data.get('data')}")
-        logger.info(f"Response data type: {type(response_data.get('data'))}")
         
         return response_data
         
@@ -2468,6 +2419,37 @@ async def get_credits_statistics(
         logger.error(f"Error getting credits statistics: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
 
+# Debug endpoint to check user role
+@app.get("/api/debug/user-role")
+async def debug_user_role(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Debug endpoint to check current user's role and token info"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        logger.info(f"Debug request: current_user_id={current_user_id}, user_token={'***' if user_token else 'None'}")
+        user_profile = await supabase_client.select("user_profiles", "*", {"id": current_user_id}, user_token)
+        logger.info(f"Debug user profile: {user_profile}")
+        
+        return {
+            "success": True,
+            "user_id": current_user_id,
+            "has_token": bool(user_token),
+            "profile": user_profile[0] if user_profile else None,
+            "is_admin": user_profile[0].get("role") == "admin" if user_profile else False
+        }
+    except Exception as e:
+        logger.error(f"Debug error: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "user_id": current_user_id,
+            "has_token": bool(user_token)
+        }
+
 # Admin users listing for frontend admin panel
 @app.get("/api/admin/users")
 async def get_admin_users(
@@ -2486,8 +2468,11 @@ async def get_admin_users(
 
     try:
         # Check admin role
+        logger.info(f"Admin users request: current_user_id={current_user_id}, user_token={'***' if user_token else 'None'}")
         user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        logger.info(f"Admin check result: user_profile={user_profile}")
         if not user_profile or user_profile[0].get("role") != "admin":
+            logger.warning(f"Admin access denied for user {current_user_id}: profile={user_profile}")
             raise HTTPException(status_code=403, detail="Admin privileges required")
 
         # Fetch users - select minimal fields
@@ -3105,6 +3090,7 @@ async def import_commentator_info(
 @app.post("/api/commentator-info/bulk-import")
 async def bulk_import_commentator_info(
     data: List[Dict[str, Any]],
+    target_user_id: Optional[str] = None,
     user_token: str = Depends(get_user_token),
     current_user_id: str = Depends(extract_user_id_from_token)
 ):
@@ -3113,22 +3099,38 @@ async def bulk_import_commentator_info(
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
+        
+        # Check if target_user_id is specified and current user is admin
+        effective_user_id = current_user_id
+        if target_user_id:
+            # Check if current user is admin
+            user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+            if not user_profile or user_profile[0].get("role") != "admin":
+                raise HTTPException(status_code=403, detail="Admin privileges required to upload for other users")
+            effective_user_id = target_user_id
+            logger.info(f"Admin {current_user_id} uploading data for user {target_user_id}")
+        
+        # Get user's token for the effective user
+        if target_user_id and target_user_id != current_user_id:
+            # For admin operations on behalf of other users, we still use the admin's token
+            # but track that this is for the target user
+            pass
         results = {"success": 0, "failed": 0, "errors": []}
-        logger.info(f"Starting bulk import for {len(data)} items by user {current_user_id}")
+        logger.info(f"Starting bulk import for {len(data)} items by user {current_user_id} (effective_user: {effective_user_id})")
         
         for item in data:
             try:
                 athlete_id = item.get("athlete_id")
-                logger.info(f"Processing athlete {athlete_id}: {item}")
                 
                 if not athlete_id:
                     results["failed"] += 1
                     results["errors"].append("Missing athlete_id")
                     continue
                 
-                # Check if record exists
+                # Check if record exists for the effective user
                 existing = await supabase_client.select("commentator_info", "*", {
-                    "athlete_id": athlete_id
+                    "athlete_id": athlete_id,
+                    "created_by": effective_user_id
                 }, user_token=user_token)
                 
                 # Prepare data for insert/update
@@ -3149,19 +3151,20 @@ async def bulk_import_commentator_info(
                 if existing:
                     # Update existing record
                     update_data = {k: v for k, v in info_data.items() if k != "athlete_id"}
-                    await supabase_client.update("commentator_info", update_data, {
-                        "athlete_id": athlete_id
+                    result = await supabase_client.update("commentator_info", update_data, {
+                        "athlete_id": athlete_id,
+                        "created_by": effective_user_id
                     }, user_token=user_token)
                 else:
                     # Create new record - add user info
-                    info_data["created_by"] = current_user_id
+                    info_data["created_by"] = effective_user_id
                     
-                    # Get user profile for author name
-                    user_profile = await supabase_client.select("user_profiles", "full_name", {"id": current_user_id}, user_token=user_token)
+                    # Get user profile for author name (target user)
+                    user_profile = await supabase_client.select("user_profiles", "full_name", {"id": effective_user_id}, user_token=user_token)
                     if user_profile:
                         info_data["author_name"] = user_profile[0]["full_name"]
                     
-                    await supabase_client.insert("commentator_info", info_data, user_token=user_token)
+                    result = await supabase_client.insert("commentator_info", info_data, user_token=user_token)
                 
                 results["success"] += 1
                 

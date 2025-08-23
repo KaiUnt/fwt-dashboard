@@ -65,8 +65,20 @@ export async function authenticateRequest(request: NextRequest): Promise<Authent
       throw new AuthenticationError('Invalid or expired authentication')
     }
 
-    // Extract role from user metadata
-    const role = user.user_metadata?.role || 'user'
+    // Extract role from user_profiles table (same as frontend)
+    let role = 'user'
+    try {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      
+      role = profile?.role || 'user'
+    } catch (error) {
+      console.warn('Failed to load user role from user_profiles, using default:', error)
+      role = 'user'
+    }
 
     return {
       id: user.id,
@@ -87,6 +99,7 @@ export async function authenticateRequest(request: NextRequest): Promise<Authent
  * Check if user has required role
  */
 export function requireRole(user: AuthenticatedUser, requiredRole: string): void {
+  
   if (requiredRole === 'admin' && user.role !== 'admin') {
     console.warn('Insufficient permissions:', {
       userId: user.id,
@@ -232,7 +245,6 @@ export function withAuth<T extends unknown[]>(
       
       // Log response time
       const duration = Date.now() - startTime
-      console.log(`API Request completed in ${duration}ms`)
       
       return response
       
@@ -326,7 +338,6 @@ interface SecurityLog {
 }
 
 function logSecurityEvent(event: SecurityLog): void {
-  console.log('🔒 SECURITY EVENT:', JSON.stringify(event, null, 2))
   
   // In production, send to external monitoring service
   // await sendToSecurityMonitoring(event)

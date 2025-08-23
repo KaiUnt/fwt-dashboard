@@ -10,7 +10,6 @@ async function handler(
 ): Promise<NextResponse> {
   try {
     const { eventId } = await params
-    console.log(`Event access check for user ${user.id}, event ${eventId}`)
 
     // Validate eventId format
     if (!eventId || eventId.trim().length === 0) {
@@ -46,7 +45,6 @@ async function handler(
       )
     }
 
-    console.log(`Event access check successful for user ${user.id}, event ${eventId}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error in event access check API route:', error)

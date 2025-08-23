@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, X, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, X, FileSpreadsheet, AlertCircle, CheckCircle, Users } from 'lucide-react';
 import Papa from 'papaparse';
 
 import { Athlete } from '@/types/athletes';
+import { useTranslation } from '@/providers/TranslationProvider';
 
 interface CSVRow {
   [key: string]: string;
@@ -24,16 +25,20 @@ interface CSVUploadComponentProps {
   athletes: Athlete[];
   onDataParsed: (data: ParsedCSVData[]) => void;
   onClose?: () => void;
-  onBulkImport?: (data: ParsedCSVData[]) => void;
+  onBulkImport?: (data: ParsedCSVData[], targetUserId?: string) => void;
+  isAdmin?: boolean;
+  availableUsers?: Array<{ id: string; full_name: string; email: string }>;
 }
 
 export function CSVUploadComponent({ 
   athletes, 
   onDataParsed, 
   onClose,
-  onBulkImport
+  onBulkImport,
+  isAdmin = false,
+  availableUsers = []
 }: CSVUploadComponentProps) {
-
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isDragOver, setIsDragOver] = useState(false);
@@ -42,6 +47,7 @@ export function CSVUploadComponent({
   const [_csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [_csvData, setCsvData] = useState<CSVRow[]>([]);
   const [parsedData, setParsedData] = useState<ParsedCSVData[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
 
   // Simple fuzzy matching for athlete names
   const matchAthlete = (firstName: string, lastName: string): { athlete?: Athlete; confidence: number } => {
@@ -84,7 +90,7 @@ export function CSVUploadComponent({
 
   const handleFileSelect = (file: File) => {
     if (!file.name.endsWith('.csv')) {
-      setError('Please select a CSV file');
+      setError(t('csvUpload.errors.selectCSV'));
       return;
     }
 
@@ -105,7 +111,7 @@ export function CSVUploadComponent({
           const headers = results.meta.fields || [];
 
           if (headers.length < 3) {
-            setError('CSV must have at least 3 columns (First Name, Last Name, and additional fields)');
+            setError(t('csvUpload.errors.minimumColumns'));
             setIsLoading(false);
             return;
           }
@@ -175,12 +181,12 @@ export function CSVUploadComponent({
           onDataParsed(processed);
           setIsLoading(false);
         } catch (err) {
-          setError('Failed to parse CSV file: ' + (err as Error).message);
+          setError(t('csvUpload.errors.parseError', { error: (err as Error).message }));
           setIsLoading(false);
         }
       },
       error: (error) => {
-        setError('Failed to read CSV file: ' + error.message);
+        setError(t('csvUpload.errors.readError', { error: error.message }));
         setIsLoading(false);
       }
     });
@@ -196,7 +202,7 @@ export function CSVUploadComponent({
     if (csvFile) {
       handleFileSelect(csvFile);
     } else {
-      setError('Please drop a CSV file');
+      setError(t('csvUpload.errors.dropCSV'));
     }
   };
 
@@ -229,7 +235,7 @@ export function CSVUploadComponent({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">CSV Data Preview</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t('csvUpload.dataPreview')}</h3>
           {onClose && (
             <button
               onClick={onClose}
@@ -246,14 +252,14 @@ export function CSVUploadComponent({
             <div className="flex items-center space-x-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span className="text-green-700">
-                {stats.matched} athletes matched
+                {t('csvUpload.athletesMatched', { count: stats.matched })}
               </span>
             </div>
             {stats.unmatched > 0 && (
               <div className="flex items-center space-x-2">
                 <AlertCircle className="h-4 w-4 text-orange-500" />
                 <span className="text-orange-700">
-                  {stats.unmatched} not matched
+                  {t('csvUpload.notMatched', { count: stats.unmatched })}
                 </span>
               </div>
             )}
@@ -272,7 +278,7 @@ export function CSVUploadComponent({
                   Match
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                  Fields
+                  {t('csvUpload.fields')}
                 </th>
               </tr>
             </thead>
@@ -296,13 +302,13 @@ export function CSVUploadComponent({
                     ) : (
                       <div className="flex items-center space-x-2">
                         <AlertCircle className="h-4 w-4 text-orange-500" />
-                        <span className="text-orange-700">No match</span>
+                        <span className="text-orange-700">{t('csvUpload.noMatch')}</span>
                       </div>
                     )}
                   </td>
                   <td className="px-3 py-2">
                     <div className="text-xs text-gray-600">
-                      {Object.keys({...row.standardFields, ...row.customFields}).length} fields
+                      {Object.keys({...row.standardFields, ...row.customFields}).length} {t('csvUpload.fields')}
                     </div>
                   </td>
                 </tr>
@@ -311,23 +317,61 @@ export function CSVUploadComponent({
           </table>
           {parsedData.length > 10 && (
             <div className="p-3 text-center text-sm text-gray-500 bg-gray-50">
-              ... and {parsedData.length - 10} more rows
+              {t('csvUpload.moreRows', { count: parsedData.length - 10 })}
             </div>
           )}
         </div>
+
+        {/* Admin User Selection */}
+        {isAdmin && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mb-4">
+            <div className="text-xs text-yellow-800">
+              Debug: isAdmin={isAdmin ? 'true' : 'false'}, availableUsers.length={availableUsers.length}
+            </div>
+          </div>
+        )}
+        {isAdmin && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <Users className="h-4 w-4 text-blue-600" />
+              <h4 className="text-sm font-medium text-blue-800">
+                {t('csvUpload.adminSelectUser')}
+              </h4>
+            </div>
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            >
+              <option value="">{t('csvUpload.uploadForCurrentUser')}</option>
+              {availableUsers.length === 0 ? (
+                <option disabled>Loading users...</option>
+              ) : (
+                availableUsers.map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name || user.email} ({user.email})
+                  </option>
+                ))
+              )}
+            </select>
+            <p className="text-xs text-blue-600 mt-2">
+              {t('csvUpload.adminSelectUserHelp')}
+            </p>
+          </div>
+        )}
 
         {/* Bulk Import Actions */}
         {onBulkImport && stats.matched > 0 && (
           <div className="flex items-center justify-between pt-4 border-t border-gray-200">
             <div className="text-sm text-gray-600">
-              Ready to import {stats.matched} matched athletes
+              {t('csvUpload.readyToImport', { count: stats.matched })}
             </div>
             <button
-              onClick={() => onBulkImport(parsedData.filter(d => d.matchedAthleteId))}
+              onClick={() => onBulkImport(parsedData.filter(d => d.matchedAthleteId), selectedUserId || undefined)}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
             >
               <Upload className="h-4 w-4" />
-              <span>Import All Matched</span>
+              <span>{t('csvUpload.importAllMatched')}</span>
             </button>
           </div>
         )}
@@ -338,7 +382,7 @@ export function CSVUploadComponent({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Upload CSV File</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t('csvUpload.title')}</h3>
         {onClose && (
           <button
             onClick={onClose}
@@ -363,17 +407,17 @@ export function CSVUploadComponent({
         {isLoading ? (
           <div className="flex flex-col items-center space-y-2">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600">Processing CSV file...</p>
+            <p className="text-gray-600">{t('csvUpload.processingFile')}</p>
           </div>
         ) : (
           <div className="flex flex-col items-center space-y-4">
             <FileSpreadsheet className="h-12 w-12 text-gray-400" />
             <div>
               <p className="text-lg font-medium text-gray-900">
-                Drop CSV file here or click to browse
+                {t('csvUpload.dropFileHere')}
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                First column: First Name, Second column: Last Name, Additional columns: Custom fields
+                {t('csvUpload.fileDescription')}
               </p>
             </div>
             <button
@@ -381,7 +425,7 @@ export function CSVUploadComponent({
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Upload className="h-4 w-4 inline mr-2" />
-              Select File
+              {t('csvUpload.selectFile')}
             </button>
           </div>
         )}
@@ -402,7 +446,7 @@ export function CSVUploadComponent({
           <div className="flex items-start space-x-2">
             <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-medium text-red-800">Error</h4>
+              <h4 className="text-sm font-medium text-red-800">{t('csvUpload.errors.error')}</h4>
               <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
           </div>
@@ -411,12 +455,12 @@ export function CSVUploadComponent({
 
       {/* Instructions */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-blue-800 mb-2">CSV Format Requirements:</h4>
+        <h4 className="text-sm font-medium text-blue-800 mb-2">{t('csvUpload.formatRequirements.title')}</h4>
         <ul className="text-sm text-blue-700 space-y-1">
-          <li>• Column A: First Name of athlete</li>
-          <li>• Column B: Last Name of athlete</li>
-          <li>• Column C+: Additional fields (will be automatically mapped to standard fields when possible)</li>
-          <li>• Supported fields: homebase, team, sponsors, favorite_trick, achievements, injuries, fun_facts, notes, social media</li>
+          <li>• {t('csvUpload.formatRequirements.columnA')}</li>
+          <li>• {t('csvUpload.formatRequirements.columnB')}</li>
+          <li>• {t('csvUpload.formatRequirements.columnC')}</li>
+          <li>• {t('csvUpload.formatRequirements.supportedFields')}</li>
         </ul>
       </div>
     </div>

@@ -10,7 +10,6 @@ async function handler(
 ): Promise<NextResponse> {
   try {
     const { eventId } = await params
-    console.log(`Event purchase request for user ${user.id}, event ${eventId}`)
 
     // Validate eventId
     if (!eventId || eventId.trim().length === 0) {
@@ -32,7 +31,6 @@ async function handler(
     const body = await request.json()
     
     // Log purchase attempt for security and business monitoring
-    console.log(`PURCHASE ATTEMPT by user ${user.id}:`, {
       eventId,
       purchaseData: body,
       timestamp: new Date().toISOString(),
@@ -59,7 +57,6 @@ async function handler(
       )
     }
 
-    console.log(`Event purchase SUCCESSFUL for user ${user.id}, event ${eventId}`)
     return NextResponse.json(data)
   } catch (error) {
     console.error(`Error in event purchase API route for user ${user.id}:`, error)

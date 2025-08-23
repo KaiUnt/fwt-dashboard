@@ -3,7 +3,6 @@ import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
 async function handler(user: AuthenticatedUser, _request: NextRequest): Promise<NextResponse> {
   try {
-    console.log(`Credit packages request for user: ${user.id}`)
 
     // Since credits are currently just for abuse protection and no real payment integration,
     // we can return the packages directly without backend call
@@ -35,7 +34,6 @@ async function handler(user: AuthenticatedUser, _request: NextRequest): Promise<
       message: "Credit packages retrieved successfully"
     }
 
-    console.log(`Credit packages retrieved successfully for user ${user.id}`)
     return NextResponse.json(response)
   } catch (error) {
     console.error(`Error in credits packages API route for user ${user.id}:`, error)
