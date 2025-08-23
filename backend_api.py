@@ -2099,8 +2099,11 @@ async def purchase_event_access(
                 [{
                     "user_id": current_user_id,
                     "amount": -1,
-                    "transaction_type": "purchase",
+                    "transaction_type": "spend",
+                    "credits_before": current_credits,
+                    "credits_after": current_credits - 1,
                     "description": f"Event access purchase: {request_data.event_name or event_id}",
+                    "event_id": event_id,
                     "created_at": datetime.now().isoformat()
                 }],
                 user_token=user_token
