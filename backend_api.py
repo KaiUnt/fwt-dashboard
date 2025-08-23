@@ -1961,12 +1961,18 @@ async def check_event_access(
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        # Use RPC function to check access
-        has_access = await supabase_client.rpc("check_event_access", {"event_id_param": event_id}, user_token=user_token)
+        # Direct table operation instead of RPC
+        result = await supabase_client.select(
+            "user_event_access", 
+            "id", 
+            {"user_id": current_user_id, "event_id": event_id},
+            user_token=user_token
+        )
+        has_access = len(result) > 0
         
         return EventAccessResponse(
             success=True,
-            has_access=has_access if has_access is not None else False,
+            has_access=has_access,
             message="Access checked successfully"
         )
         
@@ -1987,16 +1993,24 @@ async def check_batch_event_access(
     try:
         access_status = {}
         
-        # Check access for each event ID
-        for event_id in request_data.event_ids:
-            try:
-                # Use RPC function to check access for each event
-                has_access = await supabase_client.rpc("check_event_access", {"event_id_param": event_id}, user_token=user_token)
-                access_status[event_id] = has_access if has_access is not None else False
-            except Exception as e:
-                logger.warning(f"Error checking access for event {event_id}: {e}")
-                # If individual check fails, assume no access
-                access_status[event_id] = False
+        # Batch query: Get all user's event access in one request
+        if request_data.event_ids:
+            user_access_result = await supabase_client.select(
+                "user_event_access",
+                "event_id",
+                {"user_id": current_user_id},
+                user_token=user_token
+            )
+            
+            # Create set of accessible event IDs for fast lookup
+            accessible_events = {item["event_id"] for item in user_access_result}
+            
+            # Check each requested event ID
+            for event_id in request_data.event_ids:
+                access_status[event_id] = event_id in accessible_events
+        else:
+            # No events to check
+            pass
         
         return BatchEventAccessResponse(
             success=True,
@@ -2026,36 +2040,80 @@ async def purchase_event_access(
         if event_id != request_data.event_id:
             raise HTTPException(status_code=400, detail="Event ID mismatch")
         
-        # Use RPC function to purchase access
-        result = await supabase_client.rpc("purchase_event_access", {
-            "event_id_param": event_id,
-            "event_name_param": request_data.event_name
-        }, user_token=user_token)
-        
-        if not result:
-            raise HTTPException(status_code=500, detail="No response from purchase function")
-        
-        # Parse result
-        success = result.get("success", False)
-        message = result.get("message", "Unknown error")
-        error = result.get("error")
-        credits_remaining = result.get("credits_remaining")
-        
-        if not success:
-            status_code = 400
-            if error == "insufficient_credits":
-                status_code = 402  # Payment required
-            elif error == "already_has_access":
-                status_code = 409  # Conflict
-                
-            raise HTTPException(status_code=status_code, detail=message)
-        
-        return PurchaseEventAccessResponse(
-            success=True,
-            message=message,
-            credits_remaining=credits_remaining,
-            event_id=event_id
+        # Direct table operations instead of RPC
+        # 1. Check if user already has access
+        existing_access = await supabase_client.select(
+            "user_event_access",
+            "id",
+            {"user_id": current_user_id, "event_id": event_id},
+            user_token=user_token
         )
+        
+        if len(existing_access) > 0:
+            raise HTTPException(status_code=409, detail="User already has access to this event")
+        
+        # 2. Get current credits
+        credits_result = await supabase_client.select(
+            "user_credits",
+            "credits",
+            {"user_id": current_user_id},
+            user_token=user_token
+        )
+        
+        if not credits_result or len(credits_result) == 0:
+            current_credits = 0
+        else:
+            current_credits = credits_result[0].get("credits", 0)
+        
+        # 3. Check sufficient credits
+        if current_credits < 1:
+            raise HTTPException(status_code=402, detail="Not enough credits to purchase event access")
+        
+        # 4. Execute purchase transaction
+        try:
+            # Deduct credit
+            await supabase_client.update(
+                "user_credits",
+                {"credits": current_credits - 1, "updated_at": "now()"},
+                {"user_id": current_user_id},
+                user_token=user_token
+            )
+            
+            # Grant access
+            await supabase_client.insert(
+                "user_event_access",
+                [{
+                    "user_id": current_user_id,
+                    "event_id": event_id,
+                    "event_name": request_data.event_name,
+                    "purchased_at": "now()"
+                }],
+                user_token=user_token
+            )
+            
+            # Log transaction
+            await supabase_client.insert(
+                "credit_transactions",
+                [{
+                    "user_id": current_user_id,
+                    "amount": -1,
+                    "transaction_type": "purchase",
+                    "description": f"Event access purchase: {request_data.event_name or event_id}",
+                    "created_at": "now()"
+                }],
+                user_token=user_token
+            )
+            
+            return PurchaseEventAccessResponse(
+                success=True,
+                message="Event access purchased successfully",
+                credits_remaining=current_credits - 1,
+                event_id=event_id
+            )
+            
+        except Exception as transaction_error:
+            logger.error(f"Purchase transaction failed for user {current_user_id}: {transaction_error}")
+            raise HTTPException(status_code=500, detail="Failed to complete purchase transaction")
         
     except HTTPException:
         raise
@@ -2087,20 +2145,23 @@ async def purchase_multiple_events(
         events_to_purchase = []
         already_purchased = []
         
+        # Batch check for existing access - get all user's access at once
+        user_access_result = await supabase_client.select(
+            "user_event_access",
+            "event_id",
+            {"user_id": current_user_id},
+            user_token=user_token
+        )
+        
+        # Create set of accessible event IDs for fast lookup
+        accessible_events = {item["event_id"] for item in user_access_result}
+        
+        # Categorize events
         for event_id in event_ids:
-            try:
-                access_result = await supabase_client.rpc("check_event_access", {
-                    "event_id_param": event_id
-                }, user_token=user_token)
-                
-                if access_result and access_result.get("has_access"):
-                    already_purchased.append(event_id)
-                    logger.info(f"User already has access to event {event_id}")
-                else:
-                    events_to_purchase.append(event_id)
-            except Exception as e:
-                logger.warning(f"Could not check access for event {event_id}: {e}")
-                # If we can't check access, assume we need to purchase
+            if event_id in accessible_events:
+                already_purchased.append(event_id)
+                logger.info(f"User already has access to event {event_id}")
+            else:
                 events_to_purchase.append(event_id)
         
         # Calculate actual cost (only for events not already purchased)
