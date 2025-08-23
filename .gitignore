@@ -179,6 +179,8 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+*.sql 
+
 
 # Temporary files
 *.tmp
@@ -196,3 +198,4 @@ nul
 *.md
 !README.md
 !readme.md 
+*.md 

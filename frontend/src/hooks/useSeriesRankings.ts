@@ -56,7 +56,10 @@ export interface SeriesRankingsResponse {
 
 async function fetchSeriesRankings(eventId: string, getAccessToken: () => Promise<string | null>): Promise<SeriesRankingsResponse> {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  return await apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId}`, { getAccessToken });
+  return await apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId}`, { 
+    getAccessToken,
+    timeoutMs: 60000 // 60 Sekunden für Series Rankings (erste Ladung dauert ~35s)
+  });
 }
 
 export function useSeriesRankings(eventId: string) {

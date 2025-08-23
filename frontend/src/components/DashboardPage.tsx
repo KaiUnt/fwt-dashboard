@@ -208,6 +208,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
               <AthleteCard 
                 athlete={currentAthlete}
                 eventInfo={athletesData.event}
+                athletes={athletes}
               />
               
               {/* 3. Event History */}
@@ -244,6 +245,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 <AthleteCard 
                   athlete={currentAthlete}
                   eventInfo={athletesData.event}
+                  athletes={athletes}
                 />
                 
                 {/* Event History Section */}

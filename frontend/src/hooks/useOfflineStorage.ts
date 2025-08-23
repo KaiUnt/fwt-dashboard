@@ -30,6 +30,7 @@ interface CommentatorInfo {
     youtube?: string;
     website?: string;
   };
+  custom_fields?: Record<string, any>;
   updated_at?: string;
 }
 
@@ -158,6 +159,7 @@ export function useOfflineStorage() {
                 fun_facts: parsedCache[athlete.id].fun_facts,
                 notes: parsedCache[athlete.id].notes,
                 social_media: parsedCache[athlete.id].social_media,
+                custom_fields: parsedCache[athlete.id].custom_fields,
                 updated_at: parsedCache[athlete.id].updated_at
               };
             }

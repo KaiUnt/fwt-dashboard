@@ -13,9 +13,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 interface AthleteCardProps {
   athlete: Athlete;
   eventInfo: EventInfo;
+  athletes?: Athlete[]; // For CSV upload in commentator modal
 }
 
-export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
+export function AthleteCard({ athlete, eventInfo, athletes = [] }: AthleteCardProps) {
   const { t } = useTranslation();
   const [showCommentatorModal, setShowCommentatorModal] = useState(false);
   
@@ -220,6 +221,7 @@ export function AthleteCard({ athlete, eventInfo }: AthleteCardProps) {
         initialData={myCommentatorInfo?.[0] || null}
         isOpen={showCommentatorModal}
         onClose={() => setShowCommentatorModal(false)}
+        athletes={athletes}
       />
     </div>
   );

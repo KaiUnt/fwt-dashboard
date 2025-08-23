@@ -2,8 +2,13 @@ import sys
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables - use .env.local for development, .env for production
+if os.path.exists("frontend/.env.local"):
+    # Development mode - load frontend/.env.local first
+    load_dotenv("frontend/.env.local")
+else:
+    # Production mode - load .env
+    load_dotenv()
 
 # Add current directory to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -196,6 +201,7 @@ class CommentatorInfoWithAuthor(BaseModel):
     fun_facts: Optional[str]
     notes: Optional[str]
     social_media: Optional[Dict[str, str]]
+    custom_fields: Optional[Dict[str, Any]]
     created_at: str
     updated_at: str
     deleted_at: Optional[str]
@@ -441,6 +447,7 @@ class CommentatorInfoCreate(BaseModel):
     fun_facts: Optional[str] = Field(None, max_length=2000)
     notes: Optional[str] = Field(None, max_length=2000)
     social_media: Optional[Dict[str, str]] = Field(None)
+    custom_fields: Optional[Dict[str, Any]] = Field(None)
     
     @validator('social_media')
     def validate_social_media(cls, v):
@@ -456,6 +463,28 @@ class CommentatorInfoCreate(BaseModel):
         
         return v
 
+    @validator('custom_fields')
+    def validate_custom_fields(cls, v):
+        if v is None:
+            return v
+        
+        # Validate custom fields structure
+        if not isinstance(v, dict):
+            raise ValueError("Custom fields must be a dictionary")
+        
+        # Limit number of custom fields
+        if len(v) > 50:
+            raise ValueError("Too many custom fields (max 50 allowed)")
+        
+        # Validate keys and values
+        for key, value in v.items():
+            if not isinstance(key, str) or len(key) > 100:
+                raise ValueError(f"Invalid custom field key: {key}")
+            if not isinstance(value, (str, int, float, bool)) or (isinstance(value, str) and len(value) > 1000):
+                raise ValueError(f"Invalid custom field value for {key}")
+        
+        return v
+
 class CommentatorInfoUpdate(BaseModel):
     homebase: Optional[str] = Field(None, max_length=200)
     team: Optional[str] = Field(None, max_length=200)
@@ -466,6 +495,7 @@ class CommentatorInfoUpdate(BaseModel):
     fun_facts: Optional[str] = Field(None, max_length=2000)
     notes: Optional[str] = Field(None, max_length=2000)
     social_media: Optional[Dict[str, str]] = Field(None)
+    custom_fields: Optional[Dict[str, Any]] = Field(None)
     
     @validator('social_media')
     def validate_social_media(cls, v):
@@ -478,6 +508,28 @@ class CommentatorInfoUpdate(BaseModel):
                 raise ValueError(f"Invalid social media key: {key}")
             if not isinstance(v[key], str) or len(v[key]) > 500:
                 raise ValueError(f"Invalid social media URL for {key}")
+        
+        return v
+
+    @validator('custom_fields')
+    def validate_custom_fields(cls, v):
+        if v is None:
+            return v
+        
+        # Validate custom fields structure
+        if not isinstance(v, dict):
+            raise ValueError("Custom fields must be a dictionary")
+        
+        # Limit number of custom fields
+        if len(v) > 50:
+            raise ValueError("Too many custom fields (max 50 allowed)")
+        
+        # Validate keys and values
+        for key, value in v.items():
+            if not isinstance(key, str) or len(key) > 100:
+                raise ValueError(f"Invalid custom field key: {key}")
+            if not isinstance(value, (str, int, float, bool)) or (isinstance(value, str) and len(value) > 1000):
+                raise ValueError(f"Invalid custom field value for {key}")
         
         return v
 
@@ -3049,6 +3101,84 @@ async def import_commentator_info(
     except Exception as e:
         logger.error(f"Error importing commentator info: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to import commentator info: {str(e)}")
+
+@app.post("/api/commentator-info/bulk-import")
+async def bulk_import_commentator_info(
+    data: List[Dict[str, Any]],
+    user_token: str = Depends(get_user_token),
+    current_user_id: str = Depends(extract_user_id_from_token)
+):
+    """Bulk import commentator info from CSV data with user token"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    
+    try:
+        results = {"success": 0, "failed": 0, "errors": []}
+        logger.info(f"Starting bulk import for {len(data)} items by user {current_user_id}")
+        
+        for item in data:
+            try:
+                athlete_id = item.get("athlete_id")
+                logger.info(f"Processing athlete {athlete_id}: {item}")
+                
+                if not athlete_id:
+                    results["failed"] += 1
+                    results["errors"].append("Missing athlete_id")
+                    continue
+                
+                # Check if record exists
+                existing = await supabase_client.select("commentator_info", "*", {
+                    "athlete_id": athlete_id
+                }, user_token=user_token)
+                
+                # Prepare data for insert/update
+                info_data = {
+                    "athlete_id": athlete_id,
+                    "homebase": item.get("homebase", ""),
+                    "team": item.get("team", ""),
+                    "sponsors": item.get("sponsors", ""),
+                    "favorite_trick": item.get("favorite_trick", ""),
+                    "achievements": item.get("achievements", ""),
+                    "injuries": item.get("injuries", ""),
+                    "fun_facts": item.get("fun_facts", ""),
+                    "notes": item.get("notes", ""),
+                    "social_media": item.get("social_media", {}),
+                    "custom_fields": item.get("custom_fields", {})
+                }
+                
+                if existing:
+                    # Update existing record
+                    update_data = {k: v for k, v in info_data.items() if k != "athlete_id"}
+                    await supabase_client.update("commentator_info", update_data, {
+                        "athlete_id": athlete_id
+                    }, user_token=user_token)
+                else:
+                    # Create new record - add user info
+                    info_data["created_by"] = current_user_id
+                    
+                    # Get user profile for author name
+                    user_profile = await supabase_client.select("user_profiles", "full_name", {"id": current_user_id}, user_token=user_token)
+                    if user_profile:
+                        info_data["author_name"] = user_profile[0]["full_name"]
+                    
+                    await supabase_client.insert("commentator_info", info_data, user_token=user_token)
+                
+                results["success"] += 1
+                
+            except Exception as item_error:
+                results["failed"] += 1
+                results["errors"].append(f"Athlete {item.get('athlete_id', 'unknown')}: {str(item_error)}")
+                logger.error(f"Error processing bulk import item {item.get('athlete_id')}: {item_error}")
+        
+        logger.info(f"Bulk import completed: {results['success']} success, {results['failed']} failed")
+        return {
+            "success": True,
+            "data": results
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in bulk import commentator info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to bulk import: {str(e)}")
 
 @app.post("/api/security/log-failed-attempt")
 @limiter.limit("10/minute")

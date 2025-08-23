@@ -1337,6 +1337,7 @@ CREATE TABLE IF NOT EXISTS "public"."commentator_info" (
     "fun_facts" "text",
     "notes" "text",
     "social_media" "jsonb" DEFAULT '{}'::"jsonb",
+    "custom_fields" "jsonb" DEFAULT '{}'::"jsonb",
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "deleted_at" timestamp with time zone,
@@ -1389,6 +1390,10 @@ COMMENT ON COLUMN "public"."commentator_info"."notes" IS 'Allgemeine Notizen und
 
 
 COMMENT ON COLUMN "public"."commentator_info"."social_media" IS 'Social Media Links (Instagram, YouTube, Website)';
+
+
+
+COMMENT ON COLUMN "public"."commentator_info"."custom_fields" IS 'Benutzerdefinierte Felder aus CSV-Imports (dynamische Schlüssel-Wert Paare)';
 
 
 

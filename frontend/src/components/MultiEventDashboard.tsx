@@ -262,6 +262,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                     id: currentAthlete.eventSource,
                     status: 'active'
                   }}
+                  athletes={combinedAthletes}
                 />
                 
                 {/* Event History */}
@@ -314,6 +315,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                      id: currentAthlete.eventSource,
                      status: 'active'
                    }}
+                   athletes={combinedAthletes}
                  />
                  
                  {/* Event History */}

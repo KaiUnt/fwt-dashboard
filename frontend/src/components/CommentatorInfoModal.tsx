@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe } from 'lucide-react';
-import { CommentatorInfo } from '@/types/athletes';
-import { useUpdateCommentatorInfo } from '@/hooks/useCommentatorInfo';
+import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe, Upload } from 'lucide-react';
+import { CommentatorInfo, Athlete } from '@/types/athletes';
+import { useUpdateCommentatorInfo, useBulkImportCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { useTranslation } from '@/hooks/useTranslation';
+import { CSVUploadComponent } from './CSVUploadComponent';
 
 interface CommentatorInfoModalProps {
   athleteId: string;
@@ -12,6 +13,7 @@ interface CommentatorInfoModalProps {
   initialData?: CommentatorInfo | null;
   isOpen: boolean;
   onClose: () => void;
+  athletes?: Athlete[]; // For CSV upload matching
 }
 
 export function CommentatorInfoModal({
@@ -20,6 +22,7 @@ export function CommentatorInfoModal({
   initialData,
   isOpen,
   onClose,
+  athletes = [],
 }: CommentatorInfoModalProps) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState<Partial<CommentatorInfo>>({
@@ -36,12 +39,15 @@ export function CommentatorInfoModal({
       youtube: '',
       website: '',
     },
+    custom_fields: {},
   });
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState<'form' | 'csv'>('form');
   const updateMutation = useUpdateCommentatorInfo();
+  const bulkImportMutation = useBulkImportCommentatorInfo();
 
   // Initialize form data when modal opens or data changes
   useEffect(() => {
@@ -64,6 +70,7 @@ export function CommentatorInfoModal({
             youtube: initialData.social_media?.youtube || '',
             website: initialData.social_media?.website || '',
           },
+          custom_fields: initialData.custom_fields || {},
         });
       } else {
         // Reset form for new data
@@ -81,6 +88,7 @@ export function CommentatorInfoModal({
             youtube: '',
             website: '',
           },
+          custom_fields: {},
         });
       }
     }
@@ -200,6 +208,58 @@ export function CommentatorInfoModal({
     }));
   };
 
+  const handleCSVDataParsed = (csvData: any[]) => {
+    // For now, just show the first matched athlete's data in the form
+    const firstMatch = csvData.find(d => d.matchedAthleteId === athleteId);
+    if (firstMatch) {
+      setFormData(prev => ({
+        ...prev,
+        ...firstMatch.standardFields,
+        custom_fields: {
+          ...prev.custom_fields,
+          ...firstMatch.customFields,
+        },
+      }));
+      setActiveTab('form'); // Switch back to form tab to show the data
+    }
+  };
+
+  const handleBulkImport = async (csvData: any[]) => {
+    try {
+      setIsSaving(true);
+      setError(null);
+
+      // Transform CSV data to API format
+      const importData = csvData.map(item => {
+        const { instagram, youtube, website, ...otherStandardFields } = item.standardFields;
+        
+        return {
+          athlete_id: item.matchedAthleteId,
+          ...otherStandardFields,
+          social_media: {
+            instagram: instagram || '',
+            youtube: youtube || '',
+            website: website || '',
+          },
+          custom_fields: item.customFields,
+        };
+      });
+
+      const result = await bulkImportMutation.mutateAsync(importData);
+      
+      setShowSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+      
+    } catch (error: unknown) {
+      console.error('Bulk import failed:', error);
+      setError('Failed to import CSV data. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Stop all keyboard events from bubbling to prevent dashboard shortcuts
     e.stopPropagation();
@@ -296,6 +356,31 @@ export function CommentatorInfoModal({
                 <X className="h-6 w-6" />
               </button>
             </div>
+            
+            {/* Tab Navigation */}
+            <div className="flex space-x-1 mt-4">
+              <button
+                onClick={() => setActiveTab('form')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeTab === 'form'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-blue-100 hover:text-white hover:bg-blue-500/20'
+                }`}
+              >
+                Manual Entry
+              </button>
+              <button
+                onClick={() => setActiveTab('csv')}
+                className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeTab === 'csv'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-blue-100 hover:text-white hover:bg-blue-500/20'
+                }`}
+              >
+                <Upload className="h-4 w-4" />
+                <span>CSV Upload</span>
+              </button>
+            </div>
           </div>
 
           {/* Success Message */}
@@ -342,8 +427,16 @@ export function CommentatorInfoModal({
             </div>
           )}
 
-          {/* Form */}
+          {/* Content */}
           <div className="px-6 py-6 max-h-[70vh] overflow-y-auto">
+            {activeTab === 'csv' && athletes.length > 0 ? (
+              <CSVUploadComponent
+                athletes={athletes}
+                onDataParsed={handleCSVDataParsed}
+                onClose={() => setActiveTab('form')}
+                onBulkImport={handleBulkImport}
+              />
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left column */}
               <div className="space-y-6">
@@ -514,8 +607,39 @@ export function CommentatorInfoModal({
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 resize-none"
                   />
                 </div>
+
+                {/* Custom Fields */}
+                {formData.custom_fields && Object.keys(formData.custom_fields).length > 0 && (
+                  <div className="col-span-full">
+                    <label className="text-sm font-medium text-gray-900 mb-3 block">
+                      Custom Fields (from CSV)
+                    </label>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                      {Object.entries(formData.custom_fields).map(([key, value]) => (
+                        <div key={key}>
+                          <label className="flex items-center space-x-2 text-xs font-medium text-blue-800 mb-1">
+                            <span>{key}</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={String(value) || ''}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              custom_fields: {
+                                ...prev.custom_fields,
+                                [key]: e.target.value,
+                              },
+                            }))}
+                            className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 bg-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+            )}
           </div>
 
           {/* Footer */}

@@ -41,7 +41,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     body,
     getAccessToken,
     contentType = 'json',
-    timeoutMs = 15000,
+    timeoutMs = 60000,
   } = options;
 
   const finalHeaders: Record<string, string> = { ...headers };

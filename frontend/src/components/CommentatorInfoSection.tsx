@@ -32,7 +32,7 @@ export function CommentatorInfoSection({
 
   const countFields = (info: CommentatorInfo | null): number => {
     if (!info) return 0;
-    return [
+    const standardFieldsCount = [
       info.homebase,
       info.team,
       info.sponsors,
@@ -45,6 +45,10 @@ export function CommentatorInfoSection({
       info.social_media?.youtube,
       info.social_media?.website
     ].filter(Boolean).length;
+    
+    const customFieldsCount = info.custom_fields ? Object.values(info.custom_fields).filter(Boolean).length : 0;
+    
+    return standardFieldsCount + customFieldsCount;
   };
 
   // Build tabs
@@ -314,6 +318,39 @@ export function CommentatorInfoSection({
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Custom Fields */}
+        {info.custom_fields && Object.keys(info.custom_fields).length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-amber-800 mb-2 flex items-center space-x-2">
+              <FileText className="h-4 w-4" />
+              <span>Custom Fields</span>
+            </h4>
+            <div className="space-y-2">
+              {Object.entries(info.custom_fields).map(([key, value]) => (
+                value && (
+                  <div key={key} className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-amber-800">{key}</div>
+                      <div className="text-sm text-amber-700">{String(value)}</div>
+                    </div>
+                    {hasFieldAuthors && info.fieldAuthors?.[`custom_${key}`] && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        info.fieldAuthors[`custom_${key}`].isOwnData 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {info.fieldAuthors[`custom_${key}`].author === 'You' 
+                          ? t('commentatorInfo.you') 
+                          : info.fieldAuthors[`custom_${key}`].author}
+                      </span>
+                    )}
+                  </div>
+                )
+              ))}
             </div>
           </div>
         )}

@@ -40,6 +40,7 @@ export interface OfflineEventData {
         youtube?: string;
         website?: string;
       };
+      custom_fields?: Record<string, any>;
       updated_at?: string;
     };
   };

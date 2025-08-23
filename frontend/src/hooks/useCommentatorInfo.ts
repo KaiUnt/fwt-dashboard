@@ -427,6 +427,15 @@ export function useMergedCommentatorInfo(athleteId: string) {
       if (item.social_media?.website && !fieldMapping.website) {
         fieldMapping.website = { value: item.social_media.website, author: authorName, isOwnData: item.is_own_data };
       }
+      
+      // Handle custom fields
+      if (item.custom_fields) {
+        Object.entries(item.custom_fields).forEach(([key, value]) => {
+          if (value && !fieldMapping[`custom_${key}`]) {
+            fieldMapping[`custom_${key}`] = { value: String(value), author: authorName, isOwnData: item.is_own_data };
+          }
+        });
+      }
     });
     
     // Convert back to CommentatorInfo format for compatibility
@@ -446,6 +455,14 @@ export function useMergedCommentatorInfo(athleteId: string) {
         youtube: fieldMapping.youtube?.value || '',
         website: fieldMapping.website?.value || '',
       },
+      // Extract custom fields from fieldMapping
+      custom_fields: Object.keys(fieldMapping).reduce((acc, key) => {
+        if (key.startsWith('custom_')) {
+          const customKey = key.replace('custom_', '');
+          acc[customKey] = fieldMapping[key].value;
+        }
+        return acc;
+      }, {} as Record<string, any>),
       // Add field mapping for enhanced display
       fieldAuthors: fieldMapping,
     };
@@ -459,4 +476,49 @@ export function useMergedCommentatorInfo(athleteId: string) {
     friendsData,
     isLoading: false, // Simplified for now
   };
+}
+
+// Hook for bulk import from CSV
+export function useBulkImportCommentatorInfo() {
+  const queryClient = useQueryClient();
+  const { getAccessToken } = useAccessToken();
+
+  return useMutation({
+    mutationFn: async (data: Array<{
+      athlete_id: string;
+      homebase?: string;
+      team?: string;
+      sponsors?: string;
+      favorite_trick?: string;
+      achievements?: string;
+      injuries?: string;
+      fun_facts?: string;
+      notes?: string;
+      instagram?: string;
+      youtube?: string;
+      website?: string;
+      custom_fields?: Record<string, any>;
+    }>) => {
+      try {
+        const result = await apiFetch(`${API_BASE_URL}/api/commentator-info/bulk-import`, {
+          method: 'POST',
+          body: data,
+          getAccessToken,
+          timeoutMs: 300000, // 5 Minuten für CSV Bulk Import
+        });
+        return result;
+      } catch (error) {
+        console.error('Bulk import failed:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      // Invalidate all commentator info queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ['commentator-info'] });
+      queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends'] });
+    },
+    onError: (error: unknown) => {
+      console.error('Failed to bulk import commentator info:', error);
+    },
+  });
 } 
