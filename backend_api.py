@@ -2070,11 +2070,12 @@ async def purchase_event_access(
             raise HTTPException(status_code=402, detail="Not enough credits to purchase event access")
         
         # 4. Execute purchase transaction
+        from datetime import datetime
         try:
             # Deduct credit
             await supabase_client.update(
                 "user_credits",
-                {"credits": current_credits - 1, "updated_at": "now()"},
+                {"credits": current_credits - 1, "updated_at": datetime.now().isoformat()},
                 {"user_id": current_user_id},
                 user_token=user_token
             )
@@ -2086,7 +2087,8 @@ async def purchase_event_access(
                     "user_id": current_user_id,
                     "event_id": event_id,
                     "event_name": request_data.event_name,
-                    "purchased_at": "now()"
+                    "granted_at": datetime.now().isoformat(),
+                    "access_type": "paid"
                 }],
                 user_token=user_token
             )
@@ -2099,7 +2101,7 @@ async def purchase_event_access(
                     "amount": -1,
                     "transaction_type": "purchase",
                     "description": f"Event access purchase: {request_data.event_name or event_id}",
-                    "created_at": "now()"
+                    "created_at": datetime.now().isoformat()
                 }],
                 user_token=user_token
             )
