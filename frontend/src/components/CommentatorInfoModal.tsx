@@ -208,7 +208,7 @@ export function CommentatorInfoModal({
     }));
   };
 
-  const handleCSVDataParsed = (csvData: any[]) => {
+  const handleCSVDataParsed = (csvData: Array<{ matchedAthleteId?: string; standardFields: Record<string, string>; customFields: Record<string, string> }>) => {
     // For now, just show the first matched athlete's data in the form
     const firstMatch = csvData.find(d => d.matchedAthleteId === athleteId);
     if (firstMatch) {
@@ -224,28 +224,30 @@ export function CommentatorInfoModal({
     }
   };
 
-  const handleBulkImport = async (csvData: any[]) => {
+  const handleBulkImport = async (csvData: Array<{ matchedAthleteId?: string; standardFields: Record<string, string>; customFields: Record<string, string> }>) => {
     try {
       setIsSaving(true);
       setError(null);
 
       // Transform CSV data to API format
-      const importData = csvData.map(item => {
-        const { instagram, youtube, website, ...otherStandardFields } = item.standardFields;
-        
-        return {
-          athlete_id: item.matchedAthleteId,
-          ...otherStandardFields,
-          social_media: {
-            instagram: instagram || '',
-            youtube: youtube || '',
-            website: website || '',
-          },
-          custom_fields: item.customFields,
-        };
-      });
+      const importData = csvData
+        .filter(item => item.matchedAthleteId) // Filter out items without matched athlete ID
+        .map(item => {
+          const { instagram, youtube, website, ...otherStandardFields } = item.standardFields;
+          
+          return {
+            athlete_id: item.matchedAthleteId!,
+            ...otherStandardFields,
+            social_media: {
+              instagram: instagram || '',
+              youtube: youtube || '',
+              website: website || '',
+            },
+            custom_fields: item.customFields,
+          };
+        });
 
-      const result = await bulkImportMutation.mutateAsync(importData);
+      await bulkImportMutation.mutateAsync(importData);
       
       setShowSuccess(true);
       setTimeout(() => {

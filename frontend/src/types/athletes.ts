@@ -44,7 +44,7 @@ export interface CommentatorInfo {
     youtube?: string;
     website?: string;
   };
-  custom_fields?: Record<string, any>;
+  custom_fields?: Record<string, string>;
   created_at?: string;
   updated_at?: string;
 }

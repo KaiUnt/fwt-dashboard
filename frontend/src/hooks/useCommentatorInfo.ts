@@ -462,7 +462,7 @@ export function useMergedCommentatorInfo(athleteId: string) {
           acc[customKey] = fieldMapping[key].value;
         }
         return acc;
-      }, {} as Record<string, any>),
+      }, {} as Record<string, string>),
       // Add field mapping for enhanced display
       fieldAuthors: fieldMapping,
     };
@@ -497,7 +497,7 @@ export function useBulkImportCommentatorInfo() {
       instagram?: string;
       youtube?: string;
       website?: string;
-      custom_fields?: Record<string, any>;
+      custom_fields?: Record<string, string>;
     }>) => {
       try {
         const result = await apiFetch(`${API_BASE_URL}/api/commentator-info/bulk-import`, {

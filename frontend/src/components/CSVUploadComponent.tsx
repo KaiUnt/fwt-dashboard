@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Upload, X, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react';
 import Papa from 'papaparse';
-import { useTranslation } from '@/hooks/useTranslation';
+
 import { Athlete } from '@/types/athletes';
 
 interface CSVRow {
@@ -33,14 +33,14 @@ export function CSVUploadComponent({
   onClose,
   onBulkImport
 }: CSVUploadComponentProps) {
-  const { t } = useTranslation();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isDragOver, setIsDragOver] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
-  const [csvData, setCsvData] = useState<CSVRow[]>([]);
+  const [_csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [_csvData, setCsvData] = useState<CSVRow[]>([]);
   const [parsedData, setParsedData] = useState<ParsedCSVData[]>([]);
 
   // Simple fuzzy matching for athlete names

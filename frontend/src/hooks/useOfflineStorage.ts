@@ -30,7 +30,7 @@ interface CommentatorInfo {
     youtube?: string;
     website?: string;
   };
-  custom_fields?: Record<string, any>;
+  custom_fields?: Record<string, string>;
   updated_at?: string;
 }
 
