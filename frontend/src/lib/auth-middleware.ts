@@ -244,7 +244,7 @@ export function withAuth<T extends unknown[]>(
       const response = await handler(user, ...args)
       
       // Log response time
-      const duration = Date.now() - startTime
+      const _duration = Date.now() - startTime
       
       return response
       
@@ -337,7 +337,7 @@ interface SecurityLog {
   details?: Record<string, unknown>
 }
 
-function logSecurityEvent(event: SecurityLog): void {
+function logSecurityEvent(_event: SecurityLog): void {
   
   // In production, send to external monitoring service
   // await sendToSecurityMonitoring(event)
