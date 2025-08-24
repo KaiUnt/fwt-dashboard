@@ -335,7 +335,9 @@
     "cancel": "Cancel",
     "tabs": {
       "mine": "My Notes",
-      "all": "All Info"
+      "all": "All Info",
+      "manualEntry": "Manual Entry",
+      "csvUpload": "CSV Upload"
     },
     "byAuthor": "By {author}",
     "you": "You"
@@ -521,7 +523,7 @@
       "needMoreCredits": "Need more credits? Please contact kai@open-faces.com and you will receive them for free."
     },
     "purchase": {
-      "stripeIntegrationComing": "Stripe integration for {price} coming in Phase 2! Contact kai@open-faces.com for immediate credits.",
+      "stripeIntegrationComing": "Need more credits? Simply contact kai@open-faces.com and you'll get them for free.",
       "eventAccessGranted": "Event access successfully granted!"
     },
     "csvUpload": {

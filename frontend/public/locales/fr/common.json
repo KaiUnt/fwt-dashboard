@@ -335,7 +335,9 @@
     "cancel": "Annuler",
     "tabs": {
       "mine": "Mes Notes",
-      "all": "Toutes les Infos"
+      "all": "Toutes les Infos",
+      "manualEntry": "Saisie Manuelle",
+      "csvUpload": "Import CSV"
     },
     "byAuthor": "Par {author}",
     "you": "Vous"
@@ -524,7 +526,7 @@
       "needMoreCredits": "Besoin de plus de crédits ? Veuillez contacter kai@open-faces.com et vous les recevrez gratuitement."
     },
     "purchase": {
-      "stripeIntegrationComing": "Intégration Stripe pour {price} arrive en Phase 2 ! Contactez kai@open-faces.com pour des crédits immédiats.",
+      "stripeIntegrationComing": "Besoin de plus de crédits ? Contactez simplement kai@open-faces.com et vous les obtiendrez gratuitement.",
       "eventAccessGranted": "Accès à l'événement accordé avec succès !"
     },
     "csvUpload": {

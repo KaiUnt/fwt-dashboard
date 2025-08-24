@@ -404,7 +404,7 @@ export function CommentatorInfoModal({
                     : 'text-blue-100 hover:text-white hover:bg-blue-500/20'
                 }`}
               >
-                Manual Entry
+                {t('commentatorInfo.tabs.manualEntry')}
               </button>
               <button
                 onClick={() => setActiveTab('csv')}
@@ -415,7 +415,7 @@ export function CommentatorInfoModal({
                 }`}
               >
                 <Upload className="h-4 w-4" />
-                <span>CSV Upload</span>
+                <span>{t('commentatorInfo.tabs.csvUpload')}</span>
               </button>
             </div>
           </div>
