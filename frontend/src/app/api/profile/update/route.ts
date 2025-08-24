@@ -25,6 +25,7 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
     }
 
     // Log profile update for audit trail
+    console.log('Profile update:', {
       fields: Object.keys(body),
       timestamp: new Date().toISOString()
     })

@@ -19,6 +19,7 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
     const body = await request.json();
     
     // Log purchase attempt for security monitoring
+    console.log('Multiple event purchase attempt:', {
       eventIds: body.eventIds || 'unknown',
       timestamp: new Date().toISOString()
     });

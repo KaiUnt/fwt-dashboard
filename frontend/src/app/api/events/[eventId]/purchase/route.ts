@@ -31,6 +31,7 @@ async function handler(
     const body = await request.json()
     
     // Log purchase attempt for security and business monitoring
+    console.log('Event purchase attempt:', {
       eventId,
       purchaseData: body,
       timestamp: new Date().toISOString(),

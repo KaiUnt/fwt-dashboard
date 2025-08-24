@@ -23,6 +23,7 @@ async function handler(
     const body = await request.json()
     
     // Log admin action for audit trail
+    console.log('Admin credit grant:', {
       targetUserId: userId,
       amount: body.amount || 'unknown',
       reason: body.reason || 'not specified',
