@@ -23,7 +23,11 @@ test('basic page load test', async ({ page }) => {
     
     console.log('Basic page load test passed');
   } catch (error) {
-    console.log('Page load test encountered an issue:', error.message);
+    if (error instanceof Error) {
+      console.log('Page load test encountered an issue:', error.message);
+    } else {
+      console.log('Page load test encountered an issue:', error);
+    }
     // Don't fail the test, just log the issue
   }
 });

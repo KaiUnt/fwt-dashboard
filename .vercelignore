@@ -1,0 +1,22 @@
+# Ignore backend Python and infra for Vercel
+api/
+backend_api.py
+start.py
+requirements.txt
+requirements-production.txt
+Dockerfile
+docker-compose.yml
+sql/
+utils/
+data/
+supabase/
+MD/
+open-faces-logo-red-white-s.png
+render-build.sh
+runtime.txt
+tests/
+
+# Keep only the frontend app
+!frontend/**
+
+

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { X, Coins, Mail, MessageCircle } from 'lucide-react'
+import { X, Coins, Mail } from 'lucide-react'
 import { isSupabaseConfigured } from '@/utils/supabase'
 import { useTranslation } from '@/providers/TranslationProvider'
 
