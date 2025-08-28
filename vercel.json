@@ -1,15 +1,10 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "frontend/**",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "frontend/.next" }
-    }
+    { "src": "frontend/package.json", "use": "@vercel/next" }
   ],
   "installCommand": "cd frontend && npm ci --no-audit --no-fund",
-  "buildCommand": "cd frontend && npm run build",
-  "routes": [ { "src": "/(.*)", "dest": "/$1" } ]
+  "buildCommand": "cd frontend && npm run build"
 }
 
 
