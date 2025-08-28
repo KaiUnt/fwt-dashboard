@@ -517,6 +517,17 @@
       "footer": {
         "systemName": "FWT Dashboard Credits-System",
         "phase": "Phase 2: Stripe-Integration folgt"
+      },
+      "simple": {
+        "currentCreditSingular": "Credit verfügbar",
+        "currentCreditPlural": "Credits verfügbar",
+        "needMoreCredits": "Benötigst du mehr Credits?",
+        "contactMessage": "Das ist ein Non-Profit Tool und jeder User erhält 5 Credits. Solltest du mehr Credits benötigen, kannst du dich gerne bei mir melden:",
+        "quickSupport": "Schneller Support",
+        "quickSupportDesc": "Unser Team antwortet schnell auf deine Anfragen",
+        "flexiblePackages": "Flexible Pakete",
+        "flexiblePackagesDesc": "Individuelle Credit-Pakete nach deinem Bedarf",
+        "footerMessage": "Non-Profit Tool - bei Bedarf einfach melden!"
       }
     },
     "balance": {

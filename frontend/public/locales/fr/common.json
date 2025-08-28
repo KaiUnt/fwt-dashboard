@@ -514,6 +514,17 @@
     "footer": {
       "systemName": "Système de Crédits FWT Dashboard",
       "phase": "Phase 2: Intégration Stripe à venir"
+    },
+    "simple": {
+      "currentCreditSingular": "Crédit disponible",
+      "currentCreditPlural": "Crédits disponibles",
+      "needMoreCredits": "Besoin de plus de crédits ?",
+      "contactMessage": "Ceci est un outil à but non lucratif et chaque utilisateur reçoit 5 crédits. Si vous avez besoin de plus de crédits, n'hésitez pas à me contacter :",
+      "quickSupport": "Support Rapide",
+      "quickSupportDesc": "Notre équipe répond rapidement à vos demandes",
+      "flexiblePackages": "Packs Flexibles",
+      "flexiblePackagesDesc": "Packs de crédits individuels selon vos besoins",
+      "footerMessage": "Outil à but non lucratif - contactez-moi si nécessaire !"
     }
   },
       "balance": {
