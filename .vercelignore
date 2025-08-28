@@ -23,6 +23,7 @@ tests/
 # Also exclude large frontend artifacts not needed for build
 frontend/node_modules/.cache/
 frontend/node_modules/
+frontend/.next/
 frontend/playwright-report/
 frontend/test-results/
 frontend/.pnpm-store/
