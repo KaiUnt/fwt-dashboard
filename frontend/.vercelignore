@@ -1,11 +1,17 @@
 # Ignore everything outside frontend on Vercel
 ../*
 !/package.json
-!/.next
 !/public
 !/next.config.ts
 !/src
-!/node_modules
+node_modules/
+.next/
+playwright-report/
+test-results/
+tests/
+.turbo/
+.pnpm-store/
+.vercel/
 !/tsconfig.json
 !/postcss.config.mjs
 !/eslint.config.mjs

@@ -199,3 +199,4 @@ nul
 !README.md
 !readme.md 
 *.md 
+.vercel

@@ -20,3 +20,13 @@ tests/
 !frontend/**
 
 
+# Also exclude large frontend artifacts not needed for build
+frontend/node_modules/.cache/
+frontend/node_modules/
+frontend/playwright-report/
+frontend/test-results/
+frontend/.pnpm-store/
+frontend/.turbo/
+frontend/.vercel/
+frontend/tests/
+
