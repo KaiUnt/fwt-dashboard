@@ -34,10 +34,80 @@ import secrets
 import time
 import jwt
 import json
+import base64
 try:
     import redis.asyncio as redis
 except Exception:
     redis = None
+
+# Upstash Redis HTTP client for serverless environments
+class UpstashRedisClient:
+    def __init__(self, rest_url: str, rest_token: str):
+        self.rest_url = rest_url.rstrip('/')
+        self.rest_token = rest_token
+        self.session = None
+    
+    async def _get_session(self):
+        if self.session is None:
+            import aiohttp
+            self.session = aiohttp.ClientSession(
+                headers={'Authorization': f'Bearer {self.rest_token}'}
+            )
+        return self.session
+    
+    async def get(self, key: str):
+        session = await self._get_session()
+        async with session.post(f'{self.rest_url}/get/{key}') as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                return data.get('result')
+            return None
+    
+    async def setex(self, key: str, ttl: int, value: str):
+        session = await self._get_session()
+        async with session.post(f'{self.rest_url}/setex/{key}/{ttl}', 
+                               data=value) as resp:
+            return resp.status == 200
+    
+    async def ttl(self, key: str):
+        session = await self._get_session()
+        async with session.post(f'{self.rest_url}/ttl/{key}') as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                return data.get('result', -1)
+            return -1
+
+# Universal Redis client factory
+async def get_redis_client(request):
+    """Get Redis client with Upstash fallback"""
+    if hasattr(request.app.state, "_redis_client") and request.app.state._redis_client is not None:
+        return request.app.state._redis_client
+    
+    # Try Upstash first
+    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
+    upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
+    
+    if upstash_url and upstash_token:
+        try:
+            request.app.state._redis_client = UpstashRedisClient(upstash_url, upstash_token)
+            logger.info("Using Upstash Redis client")
+            return request.app.state._redis_client
+        except Exception as e:
+            logger.warning(f"Upstash Redis init failed: {e}")
+    
+    # Fallback to standard Redis
+    if redis is not None:
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        try:
+            request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
+            logger.info("Using standard Redis client")
+            return request.app.state._redis_client
+        except Exception as e:
+            logger.warning(f"Standard Redis init failed: {e}")
+    
+    # No Redis available
+    request.app.state._redis_client = None
+    return None
 
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
@@ -605,16 +675,7 @@ async def get_future_events(
         # Prefer Redis shared cache if available, otherwise fallback to per-process memory cache
         cache_key = f"events:{'all' if include_past else 'future'}"
         ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-        redis_client = None
-        if redis is not None:
-            try:
-                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
-                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
-                redis_client = request.app.state._redis_client
-            except Exception as e:
-                logger.warning(f"Redis init failed, falling back to in-memory cache: {e}")
-                redis_client = None
+        redis_client = await get_redis_client(request)
 
         if redis_client and not force_refresh:
             try:
@@ -731,16 +792,7 @@ async def get_event_athletes(
         # Redis-backed cache for event athletes
         ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
         cache_key = f"eventAthletes:{event_id}"
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-        redis_client = None
-        if redis is not None:
-            try:
-                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
-                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
-                redis_client = request.app.state._redis_client
-            except Exception as e:
-                logger.warning(f"Redis init failed for event athletes: {e}")
-                redis_client = None
+        redis_client = await get_redis_client(request)
 
         if redis_client and not force_refresh:
             try:
@@ -793,16 +845,7 @@ async def get_series_rankings_for_event(
         # Redis client init
         ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
         cache_key = f"seriesRankings:{event_id}"
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-        redis_client = None
-        if redis is not None:
-            try:
-                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
-                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
-                redis_client = request.app.state._redis_client
-            except Exception as e:
-                logger.warning(f"Redis init failed, continuing without cache: {e}")
-                redis_client = None
+        redis_client = await get_redis_client(request)
 
         # Endpoint-level cache
         if redis_client and not force_refresh:
@@ -908,16 +951,7 @@ async def get_athlete_results(
 
         ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
         cache_key = f"athleteResults:{athlete_id}"
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-        redis_client = None
-        if redis is not None:
-            try:
-                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
-                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
-                redis_client = request.app.state._redis_client
-            except Exception as e:
-                logger.warning(f"Redis init failed, continuing without cache: {e}")
-                redis_client = None
+        redis_client = await get_redis_client(request)
 
         if redis_client and not force_refresh:
             try:
@@ -2818,16 +2852,7 @@ async def get_all_series(
 
         ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
         cache_key = "fullresults"
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-        redis_client = None
-        if redis is not None:
-            try:
-                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
-                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
-                redis_client = request.app.state._redis_client
-            except Exception as e:
-                logger.warning(f"Redis init failed, continuing without cache: {e}")
-                redis_client = None
+        redis_client = await get_redis_client(request)
 
         if redis_client and not force_refresh:
             try:
@@ -2913,16 +2938,7 @@ async def get_series_rankings(
         # Cache first
         ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
         cache_key = f"fullresults:{series_id}"
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-        redis_client = None
-        if redis is not None:
-            try:
-                if not hasattr(request.app.state, "_redis_client") or request.app.state._redis_client is None:
-                    request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
-                redis_client = request.app.state._redis_client
-            except Exception as e:
-                logger.warning(f"Redis init failed, continuing without cache: {e}")
-                redis_client = None
+        redis_client = await get_redis_client(request)
 
         if redis_client and not force_refresh:
             try:
