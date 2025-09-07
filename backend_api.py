@@ -1578,10 +1578,7 @@ async def get_all_commentator_info(
 # Friends System APIs
 
 @app.get("/api/users/check-username/{username}")
-async def check_username_availability(
-    username: str,
-    current_user_id: str = Depends(extract_user_id_from_token)
-):
+async def check_username_availability(username: str):
     """Check if a username/full name is available.
     Allows letters (incl. Unicode), numbers, spaces, dots, underscores and hyphens, 2-30 chars.
     """
