@@ -79,7 +79,7 @@ const nextConfig: NextConfig = {
 
 export default withPWA({
   dest: "public",
-  register: true,
+  register: false,
   disable: process.env.NODE_ENV === "development",
   // Use empty fallbacks object to avoid TypeScript error
   fallbacks: {

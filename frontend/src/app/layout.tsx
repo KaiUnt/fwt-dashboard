@@ -47,6 +47,30 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="FWT Dashboard" />
         <meta name="mobile-web-app-capable" content="yes" />
+        {/* Early manual Service Worker registration before interactive */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                if (typeof window === 'undefined') return;
+                if (!('serviceWorker' in navigator)) return;
+                // Avoid duplicate registrations
+                if (window.__swRegInitiated) return; 
+                window.__swRegInitiated = true;
+                var registerSW = function(){
+                  try {
+                    navigator.serviceWorker.register('/sw.js');
+                  } catch (e) {}
+                };
+                if (document.readyState === 'complete') {
+                  registerSW();
+                } else {
+                  window.addEventListener('load', registerSW, { once: true });
+                }
+              })();
+            `,
+          }}
+        />
       </head>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased font-sans`}
