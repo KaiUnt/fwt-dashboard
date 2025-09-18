@@ -609,6 +609,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 allowed_origins = [
     "http://localhost:3000",  # Next.js dev server
     "https://fwt-dashboard-1.onrender.com",  # Production frontend
+    "https://report.kais.world",  # Custom domain
 ]
 
 # Add additional origins from environment
