@@ -45,9 +45,10 @@ async function handler(
 
     if (!response.ok) {
       console.error(`Event access check failed for user ${user.id}, event ${eventId}:`, data)
-      const message = typeof data === 'object' && data && (data as any).detail
-        ? (data as any).detail
-        : typeof data === 'string' ? data : 'Failed to check event access'
+      const detail = (data as Record<string, unknown> | string)
+      const message = typeof detail === 'object' && detail && 'detail' in detail && typeof (detail as { detail?: unknown }).detail === 'string'
+        ? (detail as { detail: string }).detail
+        : typeof detail === 'string' ? detail : 'Failed to check event access'
       return NextResponse.json(
         { error: message },
         { status: response.status }
@@ -55,7 +56,7 @@ async function handler(
     }
 
     return NextResponse.json(
-      typeof data === 'object' ? data as any : { data }
+      typeof data === 'object' ? data as Record<string, unknown> : { data }
     )
   } catch (error) {
     console.error('Error in event access check API route:', error)

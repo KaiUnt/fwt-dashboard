@@ -34,10 +34,11 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
 
     if (!response.ok) {
       console.error('Backend error for user', user.id, ':', data)
-      const message = typeof data === 'object' && data && (data as any).detail
-        ? (data as any).detail
-        : typeof data === 'string'
-          ? data
+      const detail = (data as Record<string, unknown> | string)
+      const message = typeof detail === 'object' && detail && 'detail' in detail && typeof (detail as { detail?: unknown }).detail === 'string'
+        ? (detail as { detail: string }).detail
+        : typeof detail === 'string'
+          ? detail
           : 'Failed to fetch credits balance'
 
       return NextResponse.json(
@@ -47,7 +48,7 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
     }
 
     return NextResponse.json(
-      typeof data === 'object' ? data as any : { data }
+      typeof data === 'object' ? data as Record<string, unknown> : { data }
     )
   } catch (error) {
     console.error('Error in credits balance API route for user', user.id, ':', error)
