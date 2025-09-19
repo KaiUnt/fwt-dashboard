@@ -90,8 +90,20 @@ export function EventsPage() {
 
   const events = eventsWithStatus;
 
-  // Batch Access Check for Performance
-  const eventIds = useMemo(() => events.map(event => event.id), [events]);
+  // Helper: 7-day free rule (older than 7 days is free)
+  const isEventFree = useCallback((eventDateStr: string) => {
+    const eventDate = new Date(eventDateStr);
+    const now = new Date();
+    const daysDifference = (now.getTime() - eventDate.getTime()) / (1000 * 60 * 60 * 24);
+    return daysDifference > 7;
+  }, []);
+
+  // Batch Access Check for Performance (only for non-free events)
+  const eventIds = useMemo(() => (
+    events
+      .filter(event => !isEventFree(event.date))
+      .map(event => event.id)
+  ), [events, isEventFree]);
   const { accessStatus, loading: accessLoading, refetch: refetchAccessStatus } = useBatchEventAccess(eventIds);
 
   // Get unique years for filter
@@ -527,7 +539,7 @@ export function EventsPage() {
                 isSelected={selectedEventIds.includes(event.id)}
                 isSelectable={!isMultiEventMode || selectedEventIds.length < 2 || selectedEventIds.includes(event.id)}
                 showAccessStatus={true}
-                hasAccess={accessStatus[event.id] || null}
+                hasAccess={isEventFree(event.date) ? true : (accessStatus[event.id] ?? null)}
                 accessLoading={accessLoading}
               />
             ))}

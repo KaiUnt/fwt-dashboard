@@ -2029,6 +2029,29 @@ async def check_event_access(
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
+        # 7-day free rule: if event is older than 7 days, grant access
+        try:
+            event_info = await supabase_client.select("events", "date", {"id": event_id}, user_token=user_token)
+            if event_info and len(event_info) > 0:
+                from datetime import datetime, timezone, timedelta
+                event_date_str = event_info[0].get("date")
+                if event_date_str:
+                    try:
+                        event_date = datetime.fromisoformat(event_date_str.replace("Z", "+00:00"))
+                    except Exception:
+                        event_date = None
+                    if event_date:
+                        now = datetime.now(timezone.utc)
+                        if (now - event_date) > timedelta(days=7):
+                            return EventAccessResponse(
+                                success=True,
+                                has_access=True,
+                                message="Access granted: event older than 7 days"
+                            )
+        except Exception:
+            # If event date lookup fails, fall back to user_event_access check
+            pass
+
         # Direct table operation instead of RPC
         result = await supabase_client.select(
             "user_event_access", 
@@ -2069,13 +2092,38 @@ async def check_batch_event_access(
                 {"user_id": current_user_id},
                 user_token=user_token
             )
-            
+
+            # 7-day free rule: prefetch event dates
+            try:
+                events_info = await supabase_client.select(
+                    "events",
+                    "id,date",
+                    {},
+                    user_token=user_token
+                )
+                from datetime import datetime, timezone, timedelta
+                date_map = {}
+                for e in events_info or []:
+                    date_map[str(e.get("id"))] = e.get("date")
+            except Exception:
+                date_map = {}
+
             # Create set of accessible event IDs for fast lookup
             accessible_events = {item["event_id"] for item in user_access_result}
             
-            # Check each requested event ID
+            # Check each requested event ID with free rule
+            from datetime import datetime, timezone, timedelta
             for event_id in request_data.event_ids:
-                access_status[event_id] = event_id in accessible_events
+                # 7-day free
+                date_str = date_map.get(str(event_id))
+                is_free = False
+                if date_str:
+                    try:
+                        event_date = datetime.fromisoformat(str(date_str).replace("Z", "+00:00"))
+                        is_free = (datetime.now(timezone.utc) - event_date) > timedelta(days=7)
+                    except Exception:
+                        is_free = False
+                access_status[event_id] = is_free or (event_id in accessible_events)
         else:
             # No events to check
             pass
