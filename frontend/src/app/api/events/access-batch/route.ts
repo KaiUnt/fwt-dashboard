@@ -52,17 +52,28 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       body: JSON.stringify({ event_ids: eventIds })
     })
 
-    const data = await response.json()
+    const raw = await response.text()
+    let data: unknown = raw
+    try {
+      data = JSON.parse(raw)
+    } catch {
+      // non-JSON body
+    }
 
     if (!response.ok) {
       console.error(`Batch event access check failed for user ${user.id}:`, data)
+      const message = typeof data === 'object' && data && (data as any).detail
+        ? (data as any).detail
+        : typeof data === 'string' ? data : 'Failed to check batch event access'
       return NextResponse.json(
-        { error: data.detail || 'Failed to check batch event access' },
+        { error: message },
         { status: response.status }
       )
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(
+      typeof data === 'object' ? data as any : { data }
+    )
   } catch (error) {
     console.error(`Error in batch event access check API route for user ${user.id}:`, error)
     return NextResponse.json(

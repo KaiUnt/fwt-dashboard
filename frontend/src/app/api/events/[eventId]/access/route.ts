@@ -35,17 +35,28 @@ async function handler(
       }
     })
 
-    const data = await response.json()
+    const raw = await response.text()
+    let data: unknown = raw
+    try {
+      data = JSON.parse(raw)
+    } catch {
+      // non-JSON body
+    }
 
     if (!response.ok) {
       console.error(`Event access check failed for user ${user.id}, event ${eventId}:`, data)
+      const message = typeof data === 'object' && data && (data as any).detail
+        ? (data as any).detail
+        : typeof data === 'string' ? data : 'Failed to check event access'
       return NextResponse.json(
-        { error: data.detail || 'Failed to check event access' },
+        { error: message },
         { status: response.status }
       )
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(
+      typeof data === 'object' ? data as any : { data }
+    )
   } catch (error) {
     console.error('Error in event access check API route:', error)
     return NextResponse.json(

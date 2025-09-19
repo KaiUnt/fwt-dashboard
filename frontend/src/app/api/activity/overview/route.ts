@@ -33,16 +33,27 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       },
     })
 
-    const data = await response.json()
+    const raw = await response.text()
+    let data: unknown = raw
+    try {
+      data = JSON.parse(raw)
+    } catch {
+      // non-JSON body
+    }
     if (!response.ok) {
       console.error(`Activity overview request failed for user ${user.id}:`, data)
+      const message = typeof data === 'object' && data && (data as any).detail
+        ? (data as any).detail
+        : typeof data === 'string' ? data : 'Failed to fetch activity overview'
       return NextResponse.json(
-        { error: data.detail || 'Failed to fetch activity overview' }, 
+        { error: message }, 
         { status: response.status }
       )
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(
+      typeof data === 'object' ? data as any : { data }
+    )
   } catch (error) {
     console.error(`Error in activity overview API route for user ${user.id}:`, error)
     return NextResponse.json(
