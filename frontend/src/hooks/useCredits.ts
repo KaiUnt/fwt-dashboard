@@ -45,18 +45,13 @@ export function useCredits() {
     enabled: initialized,
   })
 
-  // Transactions query
-  const transactionsQuery = useQuery({
-    queryKey: ['credits', 'transactions'],
-    queryFn: async (): Promise<{ data: CreditTransaction[] }> => {
-      if (!isSupabaseConfigured()) {
-        return { data: [] }
-      }
-      return await apiFetch('/api/credits/transactions', { getAccessToken })
-    },
-    staleTime: 60 * 1000,
-    enabled: initialized,
-  })
+  // Transactions query disabled (not required for API protection mode)
+  const transactionsQuery = {
+    data: { data: [] as CreditTransaction[] },
+    isLoading: false,
+    isError: false,
+    refetch: async () => ({ data: [] as CreditTransaction[] }),
+  } as unknown as ReturnType<typeof useQuery<{ data: CreditTransaction[] }>>
 
   // Packages query
   const packagesQuery = useQuery({

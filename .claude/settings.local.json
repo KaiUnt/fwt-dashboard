@@ -6,7 +6,9 @@
       "Bash(npm run dev:*)",
       "Bash(rm:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm audit:*)",
+      "Bash(python -m pip list:*)"
     ],
     "deny": []
   }

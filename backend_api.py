@@ -1942,12 +1942,45 @@ async def get_user_credits(
         raise HTTPException(status_code=503, detail="Supabase not configured")
     
     try:
-        # Use RPC function to get/create user credits
-        result = await supabase_client.rpc("get_user_credits", {}, user_token=user_token)
-        
+        # Direct table read with initialization for new users
+        result = await supabase_client.select(
+            "user_credits",
+            "credits",
+            {"user_id": current_user_id},
+            user_token=user_token
+        )
+
+        credits_value = 0
+        if not result or len(result) == 0:
+            # Initialize with 5 credits for new users
+            from datetime import datetime
+            try:
+                await supabase_client.insert(
+                    "user_credits",
+                    [{
+                        "user_id": current_user_id,
+                        "credits": 5,
+                        "created_at": datetime.now().isoformat(),
+                        "updated_at": datetime.now().isoformat()
+                    }],
+                    user_token=user_token
+                )
+                credits_value = 5
+            except Exception:
+                # If insert fails (race/exists), try re-read
+                reread = await supabase_client.select(
+                    "user_credits",
+                    "credits",
+                    {"user_id": current_user_id},
+                    user_token=user_token
+                )
+                credits_value = (reread[0].get("credits", 0) if reread else 0)
+        else:
+            credits_value = result[0].get("credits", 0)
+
         return CreditsBalanceResponse(
             success=True,
-            credits=result if result is not None else 0,
+            credits=credits_value,
             message="Credits balance retrieved successfully"
         )
         
@@ -2174,9 +2207,38 @@ async def purchase_multiple_events(
     try:
         logger.info(f"Multi-event purchase request for user {current_user_id}: {request_data.event_ids}")
         
-        # Get current credits first
-        credits_result = await supabase_client.rpc("get_user_credits", user_token=user_token)
-        current_credits = credits_result if credits_result is not None else 0
+        # Get current credits first (direct read with initialization if missing)
+        credits_row = await supabase_client.select(
+            "user_credits",
+            "credits",
+            {"user_id": current_user_id},
+            user_token=user_token
+        )
+        if not credits_row or len(credits_row) == 0:
+            # Initialize with 5 credits for new users
+            from datetime import datetime
+            try:
+                await supabase_client.insert(
+                    "user_credits",
+                    [{
+                        "user_id": current_user_id,
+                        "credits": 5,
+                        "created_at": datetime.now().isoformat(),
+                        "updated_at": datetime.now().isoformat()
+                    }],
+                    user_token=user_token
+                )
+                current_credits = 5
+            except Exception:
+                reread = await supabase_client.select(
+                    "user_credits",
+                    "credits",
+                    {"user_id": current_user_id},
+                    user_token=user_token
+                )
+                current_credits = (reread[0].get("credits", 0) if reread else 0)
+        else:
+            current_credits = credits_row[0].get("credits", 0)
         
         event_ids = request_data.event_ids
         event_names = request_data.event_names or [None] * len(event_ids)
@@ -2231,37 +2293,64 @@ async def purchase_multiple_events(
         # Add already purchased events to the purchased list
         purchased_events.extend(already_purchased)
         
-        # Process only events that need to be purchased
+        # Process only events that need to be purchased (direct operations, no RPC)
         for event_id in events_to_purchase:
             # Find the corresponding event name
             event_index = event_ids.index(event_id)
             event_name = event_names[event_index] if event_index < len(event_names) else None
             
             try:
-                # Use RPC function to purchase access for each event
-                result = await supabase_client.rpc("purchase_event_access", {
-                    "event_id_param": event_id,
-                    "event_name_param": event_name
-                }, user_token=user_token)
-                
-                if not result:
-                    logger.error(f"No response from purchase function for event {event_id}")
-                    failed_events.append(event_id)
-                    continue
-                
-                logger.info(f"Purchase result for event {event_id}: {result}")
-                
-                if result.get("success"):
+                from datetime import datetime
+                # Re-check access defensively for each event
+                existing_access = await supabase_client.select(
+                    "user_event_access",
+                    "id",
+                    {"user_id": current_user_id, "event_id": event_id},
+                    user_token=user_token
+                )
+                if len(existing_access) > 0:
                     purchased_events.append(event_id)
-                    remaining_credits = result.get("credits_remaining", remaining_credits - 1)
-                else:
-                    error_msg = result.get("error", "unknown_error")
-                    if error_msg == "already_has_access":
-                        # If user already has access, don't count as failure
-                        purchased_events.append(event_id)
-                    else:
-                        failed_events.append(event_id)
-                        logger.warning(f"Failed to purchase event {event_id}: {error_msg}")
+                    continue
+
+                # Deduct credit
+                await supabase_client.update(
+                    "user_credits",
+                    {"credits": max(0, remaining_credits - 1), "updated_at": datetime.now().isoformat()},
+                    {"user_id": current_user_id},
+                    user_token=user_token
+                )
+
+                # Grant access
+                await supabase_client.insert(
+                    "user_event_access",
+                    [{
+                        "user_id": current_user_id,
+                        "event_id": event_id,
+                        "event_name": event_name,
+                        "granted_at": datetime.now().isoformat(),
+                        "access_type": "paid"
+                    }],
+                    user_token=user_token
+                )
+
+                # Log transaction (optional audit trail)
+                await supabase_client.insert(
+                    "credit_transactions",
+                    [{
+                        "user_id": current_user_id,
+                        "amount": -1,
+                        "transaction_type": "spend",
+                        "credits_before": remaining_credits,
+                        "credits_after": max(0, remaining_credits - 1),
+                        "description": f"Event access purchase: {event_name or event_id}",
+                        "event_id": event_id,
+                        "created_at": datetime.now().isoformat()
+                    }],
+                    user_token=user_token
+                )
+
+                purchased_events.append(event_id)
+                remaining_credits = max(0, remaining_credits - 1)
                         
             except Exception as e:
                 logger.error(f"Error purchasing event {event_id}: {e}")

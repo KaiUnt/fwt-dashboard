@@ -65,8 +65,9 @@ CREATE POLICY "Users can view own credits" ON user_credits
 CREATE POLICY "Users can insert own credits" ON user_credits 
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "System can update user credits" ON user_credits 
-    FOR UPDATE USING (true); -- Wird über sichere RPC functions gesteuert
+DROP POLICY IF EXISTS "System can update user credits" ON user_credits;
+CREATE POLICY "Users can update own credits" ON user_credits 
+FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- User Event Access RLS
 ALTER TABLE user_event_access ENABLE ROW LEVEL SECURITY;
