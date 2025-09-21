@@ -58,7 +58,32 @@ export async function authenticateRequest(request: NextRequest): Promise<Authent
     const userId = (payload.sub as string) || ''
     const email = (payload.email as string) || ''
     if (!userId) throw new AuthenticationError('Invalid or expired authentication')
-    return { id: userId, email: email || 'unknown@user', role: 'user' }
+
+    // Enrich role from Supabase user_profiles via REST using the verified user token
+    let role: string | undefined = 'user'
+    try {
+      const supabaseBase = issuer.replace(/\/auth\/v1$/, '')
+      const restUrl = `${supabaseBase}/rest/v1/user_profiles?id=eq.${encodeURIComponent(userId)}&select=role`
+      const apikey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      const resp = await fetch(restUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(apikey ? { apikey } : {}),
+          Accept: 'application/json',
+        },
+      })
+      if (resp.ok) {
+        const rows = (await resp.json()) as Array<{ role?: string }>
+        const fetchedRole = rows?.[0]?.role
+        if (typeof fetchedRole === 'string' && fetchedRole.length > 0) {
+          role = fetchedRole
+        }
+      }
+    } catch {
+      // Non-fatal: default to 'user'
+    }
+
+    return { id: userId, email: email || 'unknown@user', role }
   } catch (error) {
     if (error instanceof AuthenticationError) {
       throw error

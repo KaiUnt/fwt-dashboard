@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { isSupabaseConfigured } from '@/utils/supabase'
 import { offlinePurchaseStorage, OfflinePurchaseData } from '@/utils/offlineStorage'
 import { useIsOffline } from '@/hooks/useOfflineStorage'
 import { apiFetch } from '@/utils/api'
 import { useAccessToken } from '@/providers/AuthProvider'
-import { useTranslation } from '@/providers/TranslationProvider'
 
 interface CreditTransaction {
   id: string
@@ -18,18 +17,12 @@ interface CreditTransaction {
   event_id?: string
 }
 
-interface CreditPackage {
-  package_type: string
-  credits: number
-  price_cents: number
-  price_display: string
-}
+// Credit packages are deprecated and no longer used
 
 export function useCredits() {
   const [initialized, setInitialized] = useState(false)
   const isOffline = useIsOffline()
   const { getAccessToken } = useAccessToken()
-  const { t } = useTranslation()
   const queryClient = useQueryClient()
 
   // Balance query
@@ -53,18 +46,7 @@ export function useCredits() {
     refetch: async () => ({ data: [] as CreditTransaction[] }),
   } as unknown as ReturnType<typeof useQuery<{ data: CreditTransaction[] }>>
 
-  // Packages query
-  const packagesQuery = useQuery({
-    queryKey: ['credits', 'packages'],
-    queryFn: async (): Promise<{ packages: CreditPackage[] }> => {
-      return await apiFetch('/api/credits/packages')
-    },
-    staleTime: 5 * 60 * 1000,
-    enabled: initialized,
-  })
-
-  // Stable reference for packages to satisfy hook dependencies
-  const packages = useMemo(() => packagesQuery.data?.packages ?? [], [packagesQuery.data])
+  // Packages API is removed; always treat as unavailable
 
   const purchaseEventAccess = useCallback(async (eventIds: string | string[], eventNames?: string | string[]) => {
     try {
@@ -159,28 +141,13 @@ export function useCredits() {
     }
   }, [getAccessToken])
 
-  // Future: Stripe integration
-  const initiatePurchase = useCallback(async (packageType: string) => {
-    try {
-      // TODO: Implement Stripe Checkout Session creation
-      // This would redirect to Stripe checkout or open Stripe modal
-      
-      const selectedPackage = packages.find((p: CreditPackage) => p.package_type === packageType)
-      if (!selectedPackage) {
-        throw new Error('Package not found')
-      }
-
-      // For now, show a placeholder with contact info
-      alert(t('credits.purchase.stripeIntegrationComing', { price: selectedPackage.price_display }))
-      
-      return {
-        success: false,
-        message: 'Stripe integration not yet implemented'
-      }
-    } catch (err) {
-      throw err
+  // Purchase via packages has been removed
+  const initiatePurchase = useCallback(async (_packageType: string) => {
+    return {
+      success: false,
+      message: 'Credit packages are disabled'
     }
-  }, [packages, t])
+  }, [])
 
   // Sync offline purchases when coming back online
   const syncOfflinePurchases = useCallback(async () => {
@@ -244,7 +211,7 @@ export function useCredits() {
     loading: balanceQuery.isLoading || transactionsQuery.isLoading,
     error: (balanceQuery.error as Error | null)?.message ?? null,
     transactions: transactionsQuery.data?.data ?? [],
-    packages: packagesQuery.data?.packages ?? [],
+    packages: [],
     fetchCredits: () => balanceQuery.refetch(),
     fetchTransactions: () => transactionsQuery.refetch(),
     purchaseEventAccess,

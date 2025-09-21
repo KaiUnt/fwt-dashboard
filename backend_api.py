@@ -2514,37 +2514,18 @@ async def purchase_multiple_events(
         raise HTTPException(status_code=500, detail=f"Failed to purchase events: {str(e)}")
 
 @app.get("/api/credits/packages")
-async def get_credit_packages(
-    current_user_id: str = Depends(extract_user_id_from_token)
-):
-    """Get available credit packages for purchase"""
-    packages = [
-        CreditPackage(
-            package_type="single",
-            credits=1,
-            price_cents=1000,  # 10.00 EUR
-            price_display="10€"
-        ),
-        CreditPackage(
-            package_type="pack_5",
-            credits=5,
-            price_cents=4000,  # 40.00 EUR
-            price_display="40€"
-        ),
-        CreditPackage(
-            package_type="pack_10",
-            credits=10,
-            price_cents=7000,  # 70.00 EUR
-            price_display="70€"
-        )
-    ]
-    
-    return {
-        "success": True,
-        "packages": [package.dict() for package in packages],
-        "currency": "EUR",
-        "message": "Credit packages retrieved successfully"
-    }
+async def get_credit_packages_disabled():
+    """Credit packages are deprecated and disabled"""
+    from fastapi import Response
+    return Response(
+        content=json.dumps({
+            "success": False,
+            "packages": [],
+            "message": "Credit packages are disabled"
+        }),
+        status_code=410,
+        media_type="application/json"
+    )
 
 @app.get("/api/user/events")
 async def get_user_accessible_events(
