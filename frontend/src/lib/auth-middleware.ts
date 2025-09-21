@@ -1,5 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
-import { jwtVerify, createRemoteJWKSet } from 'jose'
+import { jwtVerify, createRemoteJWKSet, decodeJwt } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import type { Database } from '@/types/supabase'
@@ -59,9 +59,12 @@ export async function authenticateRequest(request: NextRequest): Promise<Authent
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
       if (!token) throw new AuthenticationError('Invalid or expired authentication')
 
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      if (!supabaseUrl) throw new AuthenticationError('Authentication service unavailable')
-      const issuer = `${supabaseUrl.replace(/\/$/, '')}/auth/v1`
+      // Derive issuer from token to avoid env drift; validate it's a Supabase issuer
+      const claims = decodeJwt(token)
+      const issuer = (claims.iss as string) || ''
+      if (!issuer || !issuer.startsWith('https://') || !issuer.endsWith('/auth/v1') || !issuer.includes('.supabase.co')) {
+        throw new AuthenticationError('Invalid token issuer')
+      }
       const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`))
       try {
         const { payload } = await jwtVerify(token, jwks, {
