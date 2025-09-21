@@ -79,7 +79,7 @@ export function CSVUploadComponent({
       }
       
       const score = (matchedParts / inputParts.length) * 100;
-      if (score > bestScore && score >= 60) { // Minimum 60% confidence
+      if (score > bestScore && score >=80) { // Minimum 60% confidence
         bestScore = score;
         bestMatch = athlete;
       }

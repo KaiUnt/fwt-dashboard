@@ -241,7 +241,8 @@ export function CommentatorInfoModal({
   };
 
   const handleCSVDataParsed = (csvData: Array<{ matchedAthleteId?: string; standardFields: Record<string, string>; customFields: Record<string, string> }>) => {
-    // For now, just show the first matched athlete's data in the form
+    // Prefill the form with the current athlete's data if present,
+    // but stay on the CSV tab to allow bulk import
     const firstMatch = csvData.find(d => d.matchedAthleteId === athleteId);
     if (firstMatch) {
       setFormData(prev => ({
@@ -252,7 +253,6 @@ export function CommentatorInfoModal({
           ...firstMatch.customFields,
         },
       }));
-      setActiveTab('form'); // Switch back to form tab to show the data
     }
   };
 
