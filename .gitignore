@@ -90,7 +90,8 @@ build
 frontend/public/sw.js
 frontend/public/workbox-*.js
 frontend/public/fallback-*.js
-frontend/public/offline*
+# Keep our static offline SVG tracked
+!frontend/public/offline-image.svg
 
 # Production
 dist
