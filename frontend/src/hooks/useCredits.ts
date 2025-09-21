@@ -18,6 +18,13 @@ interface CreditTransaction {
 }
 
 // Credit packages are deprecated and no longer used
+// Keep a minimal type for backward compatibility in legacy components
+export type DeprecatedCreditPackage = {
+  package_type: string
+  credits: number
+  price_cents: number
+  price_display: string
+}
 
 export function useCredits() {
   const [initialized, setInitialized] = useState(false)
@@ -211,7 +218,7 @@ export function useCredits() {
     loading: balanceQuery.isLoading || transactionsQuery.isLoading,
     error: (balanceQuery.error as Error | null)?.message ?? null,
     transactions: transactionsQuery.data?.data ?? [],
-    packages: [],
+    packages: [] as DeprecatedCreditPackage[],
     fetchCredits: () => balanceQuery.refetch(),
     fetchTransactions: () => transactionsQuery.refetch(),
     purchaseEventAccess,
