@@ -1,8 +1,5 @@
-import { createServerClient } from '@supabase/ssr'
 import { jwtVerify, createRemoteJWKSet, decodeJwt, decodeProtectedHeader } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import type { Database } from '@/types/supabase'
 
 export interface AuthenticatedUser {
   id: string
@@ -24,24 +21,7 @@ export class AuthorizationError extends Error {
   }
 }
 
-/**
- * Create Supabase server client for API routes
- */
-async function createSupabaseServerClient() {
-  const cookieStore = await cookies()
-  
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
-}
+// Supabase SSR client no longer used for API auth; we enforce Bearer verification only.
 
 /**
  * Authenticate API request and return user info
