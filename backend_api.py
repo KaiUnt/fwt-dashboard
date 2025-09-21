@@ -142,6 +142,7 @@ validate_environment()
 # Supabase configuration with validation
 SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", ""))
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY", os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", ""))
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
 
 # JWT token security
 security = HTTPBearer(auto_error=True)
@@ -154,60 +155,130 @@ def get_user_token(credentials: HTTPAuthorizationCredentials = Depends(security)
     
     return credentials.credentials
 
-def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
-    """Extract user ID from Supabase JWT token"""
+_JWKS_CACHE: dict = {"keys": None, "cached_at": 0}
+
+def _supabase_issuer() -> Optional[str]:
+    if not SUPABASE_URL:
+        return None
+    return f"{SUPABASE_URL.rstrip('/')}/auth/v1"
+
+async def _fetch_jwks() -> Optional[dict]:
+    """Fetch JWKS from Supabase and cache for a short TTL."""
     try:
-        if not credentials or not credentials.credentials:
-            raise HTTPException(status_code=401, detail="Authorization token required")
-        
-        token = credentials.credentials
-        token_parts = token.split('.')
-        
-        if len(token_parts) != 3:
-            raise HTTPException(status_code=401, detail="Invalid token format")
-        
-        # Decode the payload (second part)
-        payload = token_parts[1]
-        
-        # Add padding if needed for base64 decoding
-        padding_needed = 4 - len(payload) % 4
-        if padding_needed != 4:
-            payload += '=' * padding_needed
-        
-        # Decode base64
-        import base64
-        
+        jwks_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(jwks_url)
+            if resp.status_code != 200:
+                logger.error("Failed to fetch JWKS: HTTP %s", resp.status_code)
+                return None
+            data = resp.json()
+            return data
+    except Exception as e:
+        logger.error("JWKS fetch error: %s", str(e))
+        return None
+
+async def _get_public_key_from_jwks(token: str) -> Optional[str]:
+    """Get a PEM public key from JWKS matching the token's kid."""
+    try:
+        header = jwt.get_unverified_header(token)
+        kid = header.get('kid')
+        if not kid:
+            return None
+        now = int(time.time())
+        # Refresh cache every 10 minutes
+        if not _JWKS_CACHE["keys"] or now - _JWKS_CACHE["cached_at"] > 600:
+            jwks = await _fetch_jwks()
+            if jwks and isinstance(jwks.get('keys'), list):
+                _JWKS_CACHE["keys"] = jwks['keys']
+                _JWKS_CACHE["cached_at"] = now
+        keys = _JWKS_CACHE.get("keys") or []
+        for jwk in keys:
+            if jwk.get('kid') == kid:
+                try:
+                    # Convert JWK to PEM-compatible key
+                    public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+                    return public_key
+                except Exception as e:
+                    logger.error("Failed converting JWK to key: %s", str(e))
+                    return None
+        return None
+    except Exception:
+        return None
+
+async def verify_and_decode_jwt(token: str) -> dict:
+    """Verify JWT using HS256 (secret) or RS256 (JWKS) and return claims."""
+    if not token:
+        raise HTTPException(status_code=401, detail="Authorization token required")
+
+    expected_issuer = _supabase_issuer()
+    options = {"verify_aud": False}
+
+    # Prefer HS256 verification when secret is configured
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token header")
+
+    alg = (unverified_header.get('alg') or '').upper()
+
+    # 1) HS256 path if configured and algorithm matches HMAC family
+    if SUPABASE_JWT_SECRET and alg.startswith('HS'):
         try:
-            decoded_payload = base64.urlsafe_b64decode(payload).decode('utf-8')
-            token_data = json.loads(decoded_payload)
-        except Exception:
-            raise HTTPException(status_code=401, detail="Invalid token encoding")
-        
-        # Extract user ID (usually 'sub' field in JWT)
-        user_id = token_data.get('sub')
-        
-        if not user_id:
-            raise HTTPException(status_code=401, detail="User ID not found in token")
-        
-        # Validate user_id format (should be UUID for Supabase)
-        if not isinstance(user_id, str) or len(user_id.strip()) == 0:
-            raise HTTPException(status_code=401, detail="Invalid user ID format")
-        
-        # Check token expiration
-        exp = token_data.get('exp')
-        if exp:
-            import time
-            current_time = int(time.time())
-            if current_time > exp:
-                raise HTTPException(status_code=401, detail="Token has expired")
-        
-        return user_id.strip()
-        
+            claims = jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=[alg],
+                issuer=expected_issuer if expected_issuer else None,
+                options=options
+            )
+            return claims
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token has expired")
+        except jwt.InvalidIssuerError:
+            raise HTTPException(status_code=401, detail="Invalid token issuer")
+        except jwt.InvalidTokenError:
+            # Fall through to JWKS attempt
+            pass
+
+    # 2) RS256 path using JWKS (or for any non-HS alg)
+    try:
+        public_key = await _get_public_key_from_jwks(token)
+        if not public_key:
+            raise HTTPException(status_code=401, detail="Unable to obtain public key for token")
+        claims = jwt.decode(
+            token,
+            public_key,
+            algorithms=[alg] if alg else ["RS256"],
+            issuer=expected_issuer if expected_issuer else None,
+            options=options
+        )
+        return claims
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidIssuerError:
+        raise HTTPException(status_code=401, detail="Invalid token issuer")
+    except jwt.InvalidTokenError as e:
+        logger.warning("JWT verification failed: %s", str(e))
+        raise HTTPException(status_code=401, detail="Invalid authorization token")
     except HTTPException:
-        # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        logger.error(f"Token validation error: {e}")
+        logger.error("JWT verification error: %s", str(e))
+        raise HTTPException(status_code=500, detail="Authentication processing failed")
+
+async def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """Verify JWT and return the user id (sub)."""
+    try:
+        token = credentials.credentials if credentials else None
+        claims = await verify_and_decode_jwt(token)
+        user_id = (claims.get('sub') or '').strip()
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User ID not found in token")
+        return user_id
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Token processing error: %s", str(e))
         raise HTTPException(status_code=500, detail="Authentication processing failed")
 
 # Input validation schemas
