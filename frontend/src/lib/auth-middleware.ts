@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { jwtVerify, createRemoteJWKSet } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import type { Database } from '@/types/supabase'
@@ -50,19 +51,30 @@ export async function authenticateRequest(request: NextRequest): Promise<Authent
     const supabase = await createSupabaseServerClient()
 
     // Get user from Supabase session
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const { data: { user }, error: _error } = await supabase.auth.getUser()
 
-    if (error || !user) {
-      // Log failed authentication attempt
-      const ip = request.headers.get('x-forwarded-for') || 'unknown'
-      console.warn('API Authentication failed:', {
-        ip,
-        endpoint: request.nextUrl.pathname,
-        error: error?.message || 'No user found',
-        userAgent: request.headers.get('user-agent')
-      })
-      
-      throw new AuthenticationError('Invalid or expired authentication')
+    if (!user) {
+      // Strict: Verify Authorization Bearer via Supabase JWKS
+      const authHeader = request.headers.get('authorization') || request.headers.get('Authorization')
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
+      if (!token) throw new AuthenticationError('Invalid or expired authentication')
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl) throw new AuthenticationError('Authentication service unavailable')
+      const issuer = `${supabaseUrl.replace(/\/$/, '')}/auth/v1`
+      const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`))
+      try {
+        const { payload } = await jwtVerify(token, jwks, {
+          issuer,
+          audience: undefined,
+        })
+        const userId = (payload.sub as string) || ''
+        const email = (payload.email as string) || ''
+        if (!userId) throw new AuthenticationError('Invalid or expired authentication')
+        return { id: userId, email: email || 'unknown@user', role: 'user' }
+      } catch {
+        throw new AuthenticationError('Invalid or expired authentication')
+      }
     }
 
     // Extract role from user_profiles table (same as frontend)
