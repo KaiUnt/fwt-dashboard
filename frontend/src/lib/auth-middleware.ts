@@ -1,5 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
-import { jwtVerify, createRemoteJWKSet, decodeJwt } from 'jose'
+import { jwtVerify, createRemoteJWKSet, decodeJwt, decodeProtectedHeader } from 'jose'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import type { Database } from '@/types/supabase'
@@ -48,63 +48,41 @@ async function createSupabaseServerClient() {
  */
 export async function authenticateRequest(request: NextRequest): Promise<AuthenticatedUser> {
   try {
-    const supabase = await createSupabaseServerClient()
+    // Require Authorization header for protected APIs
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization')
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
+    if (!token) throw new AuthenticationError('Invalid or expired authentication')
 
-    // Get user from Supabase session
-    const { data: { user }, error: _error } = await supabase.auth.getUser()
+    // Derive issuer from token and validate Supabase format
+    const claims = decodeJwt(token)
+    const issuer = (claims.iss as string) || ''
+    if (!issuer || !issuer.startsWith('https://') || !issuer.endsWith('/auth/v1') || !issuer.includes('.supabase.co')) {
+      throw new AuthenticationError('Invalid token issuer')
+    }
 
-    if (!user) {
-      // Strict: Verify Authorization Bearer via Supabase JWKS
-      const authHeader = request.headers.get('authorization') || request.headers.get('Authorization')
-      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
-      if (!token) throw new AuthenticationError('Invalid or expired authentication')
-
-      // Derive issuer from token to avoid env drift; validate it's a Supabase issuer
-      const claims = decodeJwt(token)
-      const issuer = (claims.iss as string) || ''
-      if (!issuer || !issuer.startsWith('https://') || !issuer.endsWith('/auth/v1') || !issuer.includes('.supabase.co')) {
-        throw new AuthenticationError('Invalid token issuer')
-      }
+    // Verify depending on algorithm (HS* uses project secret, RS* uses JWKS)
+    const { alg } = decodeProtectedHeader(token)
+    let payload: Record<string, unknown>
+    if (typeof alg === 'string' && alg.toUpperCase().startsWith('HS')) {
+      const secret = process.env.SUPABASE_JWT_SECRET
+      if (!secret) throw new AuthenticationError('Authentication service unavailable')
+      const encoder = new TextEncoder()
+      const verified = await jwtVerify(token, encoder.encode(secret), { issuer })
+      payload = verified.payload as unknown as Record<string, unknown>
+    } else {
       const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`))
-      try {
-        const { payload } = await jwtVerify(token, jwks, {
-          issuer,
-          audience: undefined,
-        })
-        const userId = (payload.sub as string) || ''
-        const email = (payload.email as string) || ''
-        if (!userId) throw new AuthenticationError('Invalid or expired authentication')
-        return { id: userId, email: email || 'unknown@user', role: 'user' }
-      } catch {
-        throw new AuthenticationError('Invalid or expired authentication')
-      }
+      const verified = await jwtVerify(token, jwks, { issuer })
+      payload = verified.payload as unknown as Record<string, unknown>
     }
 
-    // Extract role from user_profiles table (same as frontend)
-    let role = 'user'
-    try {
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-      
-      role = profile?.role || 'user'
-    } catch (error) {
-      console.warn('Failed to load user role from user_profiles, using default:', error)
-      role = 'user'
-    }
-
-    return {
-      id: user.id,
-      email: user.email!,
-      role
-    }
+    const userId = (payload.sub as string) || ''
+    const email = (payload.email as string) || ''
+    if (!userId) throw new AuthenticationError('Invalid or expired authentication')
+    return { id: userId, email: email || 'unknown@user', role: 'user' }
   } catch (error) {
     if (error instanceof AuthenticationError) {
       throw error
     }
-    
     console.error('API Authentication service error:', error)
     throw new AuthenticationError('Authentication service unavailable')
   }
