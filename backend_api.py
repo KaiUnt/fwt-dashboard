@@ -1984,7 +1984,7 @@ class CreditsTransactionResponse(BaseModel):
     event_id: Optional[str] = None
 
 class BatchEventAccessRequest(BaseModel):
-    event_ids: List[str] = Field(..., min_items=1, max_items=50)
+    event_ids: List[str] = Field(..., min_items=1, max_items=500)
     
     @validator('event_ids')
     def validate_event_ids(cls, v):
