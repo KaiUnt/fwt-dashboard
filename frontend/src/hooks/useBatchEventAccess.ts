@@ -46,7 +46,8 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
       try {
         const data = await apiFetch<{ access_status: Record<string, boolean> }>('/api/events/access-batch', {
           method: 'POST',
-          body: { eventIds: ids },
+          // Send both keys for compatibility: backend expects snake_case; ensure proxy/backends both work
+          body: { event_ids: ids, eventIds: ids },
           getAccessToken,
         })
         return data.access_status || {}

@@ -14,29 +14,29 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
       )
     }
 
-    // Parse the request body to get event IDs
+    // Parse the request body to get event IDs (accept camelCase and snake_case)
     const body = await request.json()
-    const { eventIds } = body
+    const eventIds: unknown = body.eventIds ?? body.event_ids
 
-    if (!eventIds || !Array.isArray(eventIds) || eventIds.length === 0) {
+    if (!eventIds || !Array.isArray(eventIds) || (eventIds as unknown[]).length === 0) {
       return NextResponse.json(
-        { error: 'eventIds array is required' },
+        { error: 'eventIds/event_ids array is required' },
         { status: 400 }
       )
     }
 
     // Validate eventIds are strings and limit batch size
-    if (!eventIds.every(id => typeof id === 'string')) {
+    if (!(eventIds as unknown[]).every(id => typeof id === 'string')) {
       return NextResponse.json(
-        { error: 'All eventIds must be strings' },
+        { error: 'All eventIds/event_ids must be strings' },
         { status: 400 }
       )
     }
 
-    // Prevent abuse - limit batch size
-    if (eventIds.length > 50) {
+    // Prevent abuse - limit batch size (raised to 1000)
+    if ((eventIds as string[]).length > 1000) {
       return NextResponse.json(
-        { error: 'Maximum 50 events per batch request' },
+        { error: 'Maximum 1000 events per batch request' },
         { status: 400 }
       )
     }
@@ -49,7 +49,7 @@ async function handler(user: AuthenticatedUser, request: NextRequest): Promise<N
         'Authorization': authHeader,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ event_ids: eventIds })
+      body: JSON.stringify({ event_ids: eventIds as string[] })
     })
 
     const raw = await response.text()
