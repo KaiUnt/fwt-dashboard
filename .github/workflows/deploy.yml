@@ -1,0 +1,20 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: report.kais.world
+          username: kai
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            /opt/fwt-dashboard/deploy.sh

@@ -201,3 +201,8 @@ nul
 !readme.md 
 *.md 
 .vercel
+
+
+ssh.txt
+ssh.pub
+ssh
