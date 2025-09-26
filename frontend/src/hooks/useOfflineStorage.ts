@@ -83,17 +83,15 @@ export function useOfflineStorage() {
     // Defer heavy getAll() until after first paint / when the browser is idle
     // Use requestIdleCallback when available to avoid jank; fallback to timeout
     if (typeof window !== 'undefined') {
-      const idle = (cb: () => void) => {
-        // @ts-ignore
-        const ric: ((cb: () => void, opts?: { timeout?: number }) => number) | undefined = window.requestIdleCallback
-        if (ric) {
-          // If browser stays busy, guarantee execution via timeout
+      const ric = (window as unknown as { requestIdleCallback?: (cb: IdleRequestCallback, opts?: { timeout?: number }) => number }).requestIdleCallback;
+      const schedule = (cb: () => void) => {
+        if (typeof ric === 'function') {
           ric(() => cb(), { timeout: 1500 });
         } else {
           setTimeout(cb, 0);
         }
       };
-      idle(() => setDeferLoad(true));
+      schedule(() => setDeferLoad(true));
     } else {
       setDeferLoad(true);
     }

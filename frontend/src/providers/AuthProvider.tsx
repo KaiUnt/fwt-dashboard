@@ -283,7 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeout)
       subscription.unsubscribe()
     }
-  }, [supabase.auth, fetchProfile])
+  }, [supabase.auth, fetchProfile, getSessionOnce, queryClient])
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()

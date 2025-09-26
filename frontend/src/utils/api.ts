@@ -46,7 +46,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
 
   const finalHeaders: Record<string, string> = { ...headers };
 
-  const DEBUG = typeof window !== 'undefined' && (window as any).__FWT_DEBUG_LOAD__ === true || (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_LOAD === '1');
+  const DEBUG = (typeof window !== 'undefined' && (window as unknown as { __FWT_DEBUG_LOAD__?: boolean }).__FWT_DEBUG_LOAD__ === true) || (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_LOAD === '1');
 
   // Attach Authorization header if not present and token provider is given
   if (!finalHeaders['Authorization'] && getAccessToken) {
@@ -145,4 +145,3 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     clearTimeout(timeout);
   }
 }
-

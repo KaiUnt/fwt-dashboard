@@ -230,7 +230,8 @@ export function EventsPage() {
     setShowPurchaseModal(true);
   };
 
-  if (typeof window !== 'undefined' && (window as any).__FWT_DEBUG_LOAD__ === true) {
+  const DEBUG = typeof window !== 'undefined' && (window as unknown as { __FWT_DEBUG_LOAD__?: boolean }).__FWT_DEBUG_LOAD__ === true;
+  if (DEBUG) {
     console.log('[events-page] render', { isLoading, hasData: !!eventsData, error: !!error })
   }
   if (isLoading) {
