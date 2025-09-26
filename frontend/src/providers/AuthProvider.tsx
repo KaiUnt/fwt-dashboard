@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js'
 import type { UserProfile } from '@/types/supabase'
@@ -73,6 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessTokenExpiresAt, setAccessTokenExpiresAt] = useState<number | null>(null)
   const supabase = createClient()
   const queryClient = useQueryClient()
+  // Deduplicate concurrent session/token fetches
+  const inFlightSessionRef = useRef<Promise<Session | null> | null>(null)
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
@@ -113,6 +115,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase]) // ← REMOVED profile dependency!
 
+  // Single-flight wrapper for Supabase getSession to avoid concurrent duplicate calls
+  const getSessionOnce = useCallback(async (): Promise<Session | null> => {
+    if (inFlightSessionRef.current) {
+      return inFlightSessionRef.current
+    }
+    const p = (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        return session ?? null
+      } catch {
+        return null
+      }
+    })()
+    inFlightSessionRef.current = p
+    try {
+      return await p
+    } finally {
+      inFlightSessionRef.current = null
+    }
+  }, [supabase.auth])
+
   const refreshProfile = async () => {
     if (user) {
       const fetchedProfile = await fetchProfile(user.id)
@@ -129,14 +152,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initializeAuth = async () => {
       try {
-        // First, try to get current session
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // First, try to get current session (single-flight cached)
+        const session = await getSessionOnce()
         
         if (!mounted) return
-        
-        if (error) {
-          // no-op
-        }
 
         // Set user from current session if available
         if (session?.user) {
@@ -297,11 +316,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (accessToken && accessTokenExpiresAt && now < (accessTokenExpiresAt - safetyWindowMs)) {
         return accessToken
       }
-      // Ask Supabase for the current session (this may refresh token if needed)
-      const { data: { session }, error } = await supabase.auth.getSession()
-      if (error) {
-        // no-op
-      }
+      // Ask Supabase for the current session via single-flight helper (may refresh token)
+      const session = await getSessionOnce()
       const newToken = session?.access_token ?? null
       const newExpiry = session?.expires_at ? session.expires_at * 1000 : null
       setAccessToken(newToken)
@@ -310,7 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return null
     }
-  }, [accessToken, accessTokenExpiresAt, supabase.auth])
+  }, [accessToken, accessTokenExpiresAt, getSessionOnce])
 
   const value = {
     user,

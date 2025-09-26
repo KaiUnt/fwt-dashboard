@@ -24,6 +24,7 @@ from datetime import datetime
 from datetime import timedelta
 import uvicorn
 import logging
+import time as _time
 import httpx
 import re
 from pydantic import BaseModel, Field, validator
@@ -40,71 +41,30 @@ try:
 except Exception:
     redis = None
 
-# Upstash Redis HTTP client for serverless environments
-class UpstashRedisClient:
-    def __init__(self, rest_url: str, rest_token: str):
-        self.rest_url = rest_url.rstrip('/')
-        self.rest_token = rest_token
-        self.session = None
-    
-    async def _get_session(self):
-        if self.session is None:
-            import aiohttp
-            self.session = aiohttp.ClientSession(
-                headers={'Authorization': f'Bearer {self.rest_token}'}
-            )
-        return self.session
-    
-    async def get(self, key: str):
-        session = await self._get_session()
-        async with session.post(f'{self.rest_url}/get/{key}') as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                return data.get('result')
-            return None
-    
-    async def setex(self, key: str, ttl: int, value: str):
-        session = await self._get_session()
-        async with session.post(f'{self.rest_url}/setex/{key}/{ttl}', 
-                               data=value) as resp:
-            return resp.status == 200
-    
-    async def ttl(self, key: str):
-        session = await self._get_session()
-        async with session.post(f'{self.rest_url}/ttl/{key}') as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                return data.get('result', -1)
-            return -1
-
-# Universal Redis client factory
+# Redis client factory (standard Redis only)
 async def get_redis_client(request):
-    """Get Redis client with Upstash fallback"""
+    """Get Redis client (standard server)."""
     if hasattr(request.app.state, "_redis_client") and request.app.state._redis_client is not None:
         return request.app.state._redis_client
-    
-    # Try Upstash first
-    upstash_url = os.getenv("UPSTASH_REDIS_REST_URL")
-    upstash_token = os.getenv("UPSTASH_REDIS_REST_TOKEN")
-    
-    if upstash_url and upstash_token:
-        try:
-            request.app.state._redis_client = UpstashRedisClient(upstash_url, upstash_token)
-            logger.info("Using Upstash Redis client")
-            return request.app.state._redis_client
-        except Exception as e:
-            logger.warning(f"Upstash Redis init failed: {e}")
-    
-    # Fallback to standard Redis
+
+    # Standard Redis (server-side)
     if redis is not None:
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        # Default to local Redis when running via systemd
+        redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
         try:
-            request.app.state._redis_client = redis.from_url(redis_url, decode_responses=True)
-            logger.info("Using standard Redis client")
-            return request.app.state._redis_client
+            client = redis.from_url(redis_url, decode_responses=True)
+            # Validate connectivity (fast ping)
+            try:
+                pong = await client.ping()
+                if pong:
+                    request.app.state._redis_client = client
+                    logger.info(f"Using Redis at {redis_url}")
+                    return request.app.state._redis_client
+            except Exception as e:
+                logger.warning(f"Redis ping failed for {redis_url}: {e}")
         except Exception as e:
-            logger.warning(f"Standard Redis init failed: {e}")
-    
+            logger.warning(f"Redis init failed for {redis_url}: {e}")
+
     # No Redis available
     request.app.state._redis_client = None
     return None
@@ -207,6 +167,7 @@ async def _get_public_key_from_jwks(token: str) -> Optional[str]:
 
 async def verify_and_decode_jwt(token: str) -> dict:
     """Verify JWT using HS256 (secret) or RS256 (JWKS) and return claims."""
+    _t0 = _time.perf_counter()
     if not token:
         raise HTTPException(status_code=401, detail="Authorization token required")
 
@@ -265,6 +226,9 @@ async def verify_and_decode_jwt(token: str) -> dict:
     except Exception as e:
         logger.error("JWT verification error: %s", str(e))
         raise HTTPException(status_code=500, detail="Authentication processing failed")
+    finally:
+        if os.getenv("DEBUG_TIMING") == "1":
+            logger.info(f"TIMING jwt_verify: {(_time.perf_counter()-_t0):.4f}s")
 
 async def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """Verify JWT and return the user id (sub)."""
@@ -744,6 +708,7 @@ async def get_future_events(
 ):
     """Get FWT events for event selection."""
     try:
+        _t_all = _time.perf_counter()
         # Prefer Redis shared cache if available, otherwise fallback to per-process memory cache
         cache_key = f"events:{'all' if include_past else 'future'}"
         ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
@@ -751,6 +716,7 @@ async def get_future_events(
 
         if redis_client and not force_refresh:
             try:
+                _t0 = _time.perf_counter()
                 cached_json = await redis_client.get(cache_key)
                 if cached_json:
                     try:
@@ -759,6 +725,9 @@ async def get_future_events(
                         payload = None
                     ttl_remaining = await redis_client.ttl(cache_key)
                     if payload is not None and ttl_remaining and ttl_remaining > 0:
+                        if os.getenv("DEBUG_TIMING") == "1":
+                            logger.info(f"TIMING redis_get+ttl: {(_time.perf_counter()-_t0):.4f}s, ttl={ttl_remaining}")
+                            logger.info(f"TIMING total_before_return: {(_time.perf_counter()-_t_all):.4f}s (cache hit)")
                         response = JSONResponse(content=payload)
                         response.headers["Cache-Control"] = f"public, max-age={int(ttl_remaining)}"
                         return response
@@ -836,6 +805,8 @@ async def get_future_events(
         else:
             cache_store[cache_key] = (payload, now_ts)
 
+        if os.getenv("DEBUG_TIMING") == "1":
+            logger.info(f"TIMING total_before_return: {(_time.perf_counter()-_t_all):.4f}s (cache miss) ")
         response = JSONResponse(content=payload)
         response.headers["Cache-Control"] = f"public, max-age={ttl_seconds}"
         return response
