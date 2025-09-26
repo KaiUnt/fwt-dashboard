@@ -217,10 +217,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Only fetch profile on actual auth changes, not on token refreshes
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          // On explicit sign-in/out, clear user-scoped query caches to prevent leakage
-          try {
-            queryClient.clear()
-          } catch {}
+          // Only clear cache on SIGNED_OUT to avoid nuking global queries (e.g., translations) on fresh tab loads
+          if (event === 'SIGNED_OUT') {
+            try {
+              queryClient.clear()
+            } catch {}
+          }
           try {
             if (session?.user) {
               const fetchedProfile = await fetchProfile(session.user.id)
