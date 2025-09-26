@@ -230,6 +230,9 @@ export function EventsPage() {
     setShowPurchaseModal(true);
   };
 
+  if (typeof window !== 'undefined' && (window as any).__FWT_DEBUG_LOAD__ === true) {
+    console.log('[events-page] render', { isLoading, hasData: !!eventsData, error: !!error })
+  }
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">

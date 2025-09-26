@@ -16,13 +16,22 @@ export async function fetchEvents(includePast: boolean = false, forceRefresh: bo
     url.searchParams.set('force_refresh', 'true');
   }
 
-  return await apiFetch(url.toString(), { getAccessToken });
+  if (typeof window !== 'undefined' && (window as any).__FWT_DEBUG_LOAD__ === true) {
+    console.time(`[events] fetch includePast=${includePast} forceRefresh=${forceRefresh}`)
+  }
+  const data = await apiFetch(url.toString(), { getAccessToken });
+  if (typeof window !== 'undefined' && (window as any).__FWT_DEBUG_LOAD__ === true) {
+    console.timeEnd(`[events] fetch includePast=${includePast} forceRefresh=${forceRefresh}`)
+  }
+  return data;
 }
 
 export function useEvents(includePast: boolean = false) {
   const { getAccessToken } = useAccessToken();
   const ttlSeconds = Number(process.env.NEXT_PUBLIC_EVENTS_TTL_SECONDS || process.env.NEXT_PUBLIC_EVENTS_TTL || '3600');
   
+  const DEBUG = typeof window !== 'undefined' && (window as any).__FWT_DEBUG_LOAD__ === true || (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_LOAD === '1');
+
   return useQuery({
     queryKey: ['events', includePast],
     queryFn: () => fetchEvents(includePast, false, getAccessToken),
@@ -31,5 +40,19 @@ export function useEvents(includePast: boolean = false) {
     // Keep data fresh by default; browser HTTP cache (public, max-age=...) prevents redundant network
     staleTime: 0,
     gcTime: ttlSeconds * 1000, // keep in cache up to backend TTL
+    onSuccess: (data) => {
+      if (DEBUG) console.log('[events] onSuccess', { count: (data as any)?.events?.length })
+      if (typeof performance !== 'undefined' && performance.mark) performance.mark('events:onSuccess')
+    },
+    onError: (err) => {
+      if (DEBUG) console.warn('[events] onError', err)
+      if (typeof performance !== 'undefined' && performance.mark) performance.mark('events:onError')
+    },
+    onSettled: () => {
+      if (DEBUG) console.log('[events] onSettled')
+      if (typeof performance !== 'undefined' && performance.measure && performance.getEntriesByName) {
+        try { performance.measure('events:total', 'events:start', 'events:onSuccess') } catch {}
+      }
+    }
   });
 } 

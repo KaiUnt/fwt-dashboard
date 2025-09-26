@@ -59,6 +59,8 @@ export interface SaveOfflineOptions {
 
 export function useOfflineStorage() {
   const [isInitialized, setIsInitialized] = useState(false);
+  // Defer IndexedDB heavy reads until after initial paint/idle to avoid blocking initial UI
+  const [deferLoad, setDeferLoad] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
@@ -78,6 +80,23 @@ export function useOfflineStorage() {
     };
 
     initStorage();
+    // Defer heavy getAll() until after first paint / when the browser is idle
+    // Use requestIdleCallback when available to avoid jank; fallback to timeout
+    if (typeof window !== 'undefined') {
+      const idle = (cb: () => void) => {
+        // @ts-ignore
+        const ric: ((cb: () => void, opts?: { timeout?: number }) => number) | undefined = window.requestIdleCallback
+        if (ric) {
+          // If browser stays busy, guarantee execution via timeout
+          ric(() => cb(), { timeout: 1500 });
+        } else {
+          setTimeout(cb, 0);
+        }
+      };
+      idle(() => setDeferLoad(true));
+    } else {
+      setDeferLoad(true);
+    }
   }, []);
 
   // Query for offline events
@@ -87,9 +106,11 @@ export function useOfflineStorage() {
       if (!isInitialized) return [];
       return await offlineStorage.getAllEvents();
     },
-    enabled: isInitialized,
+    // Load only after init AND after initial paint/idle
+    enabled: isInitialized && deferLoad,
     refetchOnWindowFocus: false,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 5 * 60 * 1000, // 5 minutes (metadata changes rarely)
+    gcTime: 10 * 60 * 1000,
   });
 
   // Query for storage stats
@@ -99,9 +120,10 @@ export function useOfflineStorage() {
       if (!isInitialized) return null;
       return await offlineStorage.getStorageStats();
     },
-    enabled: isInitialized,
+    enabled: isInitialized && deferLoad,
     refetchOnWindowFocus: false,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
   });
 
   // Save event data for offline use

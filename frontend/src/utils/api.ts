@@ -46,10 +46,14 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
 
   const finalHeaders: Record<string, string> = { ...headers };
 
+  const DEBUG = typeof window !== 'undefined' && (window as any).__FWT_DEBUG_LOAD__ === true || (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_LOAD === '1');
+
   // Attach Authorization header if not present and token provider is given
   if (!finalHeaders['Authorization'] && getAccessToken) {
     try {
+      if (DEBUG) console.time(`[auth] getAccessToken`)
       const token = await getAccessToken();
+      if (DEBUG) console.timeEnd(`[auth] getAccessToken`)
       if (token) {
         finalHeaders['Authorization'] = `Bearer ${token}`;
       }
@@ -83,12 +87,14 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     const isAbsolute = /^https?:\/\//i.test(path);
     const url = isAbsolute ? path : path; // relative paths go to same origin (Next.js API)
 
+    if (DEBUG) console.time(`[api] ${method} ${url}`)
     const response = await fetch(url, {
       method,
       headers: finalHeaders,
       body: requestBody,
       signal: controller.signal,
     });
+    if (DEBUG) console.timeEnd(`[api] ${method} ${url}`)
 
     // Try to parse JSON when content-type indicates JSON
     const contentTypeHeader = response.headers.get('content-type') || '';
@@ -121,7 +127,10 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     if (isJson) {
       // If no content (204), return undefined as any
       if (response.status === 204) return undefined as unknown as T;
-      return (await response.json()) as T;
+      if (DEBUG) console.time(`[api-parse] ${method} ${url}`)
+      const parsed = (await response.json()) as T;
+      if (DEBUG) console.timeEnd(`[api-parse] ${method} ${url}`)
+      return parsed;
     }
 
     // For non-JSON responses, return as text
@@ -136,5 +145,4 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     clearTimeout(timeout);
   }
 }
-
 
