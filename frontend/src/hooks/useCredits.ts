@@ -5,6 +5,7 @@ import { offlinePurchaseStorage, OfflinePurchaseData } from '@/utils/offlineStor
 import { useIsOffline } from '@/hooks/useOfflineStorage'
 import { apiFetch } from '@/utils/api'
 import { useAccessToken } from '@/providers/AuthProvider'
+import { useAuth } from '@/providers/AuthProvider'
 
 interface CreditTransaction {
   id: string
@@ -31,10 +32,11 @@ export function useCredits() {
   const isOffline = useIsOffline()
   const { getAccessToken } = useAccessToken()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   // Balance query
   const balanceQuery = useQuery({
-    queryKey: ['credits', 'balance'],
+    queryKey: ['credits', 'balance', user?.id],
     queryFn: async (): Promise<{ credits: number }> => {
       if (!isSupabaseConfigured()) {
         throw new Error('Credits system not available - Supabase not configured')
@@ -42,7 +44,7 @@ export function useCredits() {
       return await apiFetch('/api/credits/balance', { getAccessToken })
     },
     staleTime: 60 * 1000,
-    enabled: initialized,
+    enabled: initialized && !!user?.id,
   })
 
   // Transactions query disabled (not required for API protection mode)

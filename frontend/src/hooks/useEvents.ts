@@ -21,11 +21,15 @@ export async function fetchEvents(includePast: boolean = false, forceRefresh: bo
 
 export function useEvents(includePast: boolean = false) {
   const { getAccessToken } = useAccessToken();
+  const ttlSeconds = Number(process.env.NEXT_PUBLIC_EVENTS_TTL_SECONDS || process.env.NEXT_PUBLIC_EVENTS_TTL || '3600');
   
   return useQuery({
     queryKey: ['events', includePast],
     queryFn: () => fetchEvents(includePast, false, getAccessToken),
     refetchOnWindowFocus: false,
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours - Events change rarely
+    // Honor server-side Cache-Control/Redis TTL instead of pinning 24h here
+    // Keep data fresh by default; browser HTTP cache (public, max-age=...) prevents redundant network
+    staleTime: 0,
+    gcTime: ttlSeconds * 1000, // keep in cache up to backend TTL
   });
 } 

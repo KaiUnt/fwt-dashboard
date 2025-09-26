@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { createClient } from '@/lib/supabase'
 import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js'
 import type { UserProfile } from '@/types/supabase'
+import { useQueryClient } from '@tanstack/react-query'
 
 // Helper functions for offline auth state caching
 const setOfflineAuthState = (user: User | null) => {
@@ -71,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [accessTokenExpiresAt, setAccessTokenExpiresAt] = useState<number | null>(null)
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
@@ -215,6 +217,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Only fetch profile on actual auth changes, not on token refreshes
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          // On explicit sign-in/out, clear user-scoped query caches to prevent leakage
+          try {
+            queryClient.clear()
+          } catch {}
           try {
             if (session?.user) {
               const fetchedProfile = await fetchProfile(session.user.id)
@@ -269,6 +275,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear token cache
     setAccessToken(null)
     setAccessTokenExpiresAt(null)
+    // Clear all react-query cache to remove user A data before user B logs in
+    try {
+      queryClient.clear()
+    } catch {}
   }
 
   const isAdmin = profile?.role === 'admin'

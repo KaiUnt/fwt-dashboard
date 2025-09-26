@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { isSupabaseConfigured } from '@/utils/supabase'
 import { apiFetch } from '@/utils/api'
 import { useAccessToken } from '@/providers/AuthProvider'
+import { useAuth } from '@/providers/AuthProvider'
 
 interface BatchAccessResult {
   [eventId: string]: boolean
@@ -19,6 +20,10 @@ interface UseBatchEventAccessResult {
 export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResult {
   const [error, setError] = useState<string | null>(null)
   const { getAccessToken } = useAccessToken()
+  const { user } = useAuth()
+
+  // Stable, sorted key for event IDs without mutating input
+  const eventIdsKey = [...eventIds].sort()
 
   // Use React Query for caching and background refetching
   const {
@@ -27,9 +32,9 @@ export function useBatchEventAccess(eventIds: string[]): UseBatchEventAccessResu
     refetch,
     error: queryError
   } = useQuery({
-    queryKey: ['batchEventAccess', eventIds.sort()], // Sort for consistent cache key
+    queryKey: ['batchEventAccess', user?.id, eventIdsKey],
     queryFn: () => fetchBatchAccess(eventIds),
-    enabled: eventIds.length > 0 && isSupabaseConfigured(),
+    enabled: eventIds.length > 0 && isSupabaseConfigured() && !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
     refetchOnWindowFocus: false,
