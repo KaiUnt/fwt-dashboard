@@ -166,15 +166,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Supabase returns expires_at in seconds; convert to ms
           setAccessTokenExpiresAt(session.expires_at ? session.expires_at * 1000 : null)
           
+          // Fetch profile in background; don't block initial render
           try {
-            const fetchedProfile = await fetchProfile(session.user.id)
-            if (mounted) {
-              // Only update profile if we got a result (not timeout)
+            void fetchProfile(session.user.id).then((fetchedProfile) => {
+              if (!mounted) return
               if (fetchedProfile !== null) {
                 setProfile(fetchedProfile)
               }
-              // On timeout (null), keep existing profile
-            }
+            })
           } catch {
             if (mounted) {
               setProfile(null)
@@ -204,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } finally {
         if (mounted) {
+          // Do not wait for profile fetch; clear loading immediately
           setLoading(false)
           isInitialLoad = false
         }
@@ -244,13 +244,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           try {
             if (session?.user) {
-              const fetchedProfile = await fetchProfile(session.user.id)
-              if (mounted) {
-                // Only update profile if we got a result (not timeout)
+              // Kick off background profile load; do not await
+              void fetchProfile(session.user.id).then((fetchedProfile) => {
+                if (!mounted) return
                 if (fetchedProfile !== null) {
                   setProfile(fetchedProfile)
                 }
-                // On timeout (null), keep existing profile
+              })
+              if (mounted) {
                 setLoading(false)
                 isInitialLoad = false
               }
