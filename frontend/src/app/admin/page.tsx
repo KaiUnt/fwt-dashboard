@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
-import { useAuth } from '@/providers/AuthProvider'
+import { useAuth, useAccessToken } from '@/providers/AuthProvider'
 import { apiFetch } from '@/utils/api'
 import type { UserProfile, ActiveSession, UserAction } from '@/types/supabase'
 import { AppHeader } from '@/components/AppHeader'
@@ -39,6 +39,7 @@ interface FailedLoginAttempt {
 
 export default function AdminDashboard() {
   const { isAdmin, loading: authLoading } = useAuth()
+  const { getAccessToken } = useAccessToken()
   const [stats, setStats] = useState<AdminStats>({ 
     totalUsers: 0, 
     activeUsers: 0, 
@@ -69,7 +70,7 @@ export default function AdminDashboard() {
           today_actions_count: number
           failed_attempts: FailedLoginAttempt[]
         }
-      }>('/api/admin/overview')
+      }>('/api/admin/overview', { getAccessToken })
 
       // minimal client-side enrichment for alerts
       const alerts: SecurityAlert[] = []
@@ -125,7 +126,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [getAccessToken])
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
