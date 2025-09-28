@@ -72,53 +72,20 @@ export default function AdminDashboard() {
         }
       }>('/api/admin/overview', { getAccessToken })
 
-      // minimal client-side enrichment for alerts
+      // No failed attempts tracking anymore
       const alerts: SecurityAlert[] = []
-      const ipAttempts: { [key: string]: FailedLoginAttempt[] } = {}
-      const emailAttempts: { [key: string]: FailedLoginAttempt[] } = {}
-      overview.data.failed_attempts.forEach(attempt => {
-        const ip = attempt.ip_address || 'unknown'
-        const email = attempt.email || 'unknown'
-        if (!ipAttempts[ip]) ipAttempts[ip] = []
-        if (!emailAttempts[email]) emailAttempts[email] = []
-        ipAttempts[ip].push(attempt)
-        emailAttempts[email].push(attempt)
-      })
-      Object.entries(ipAttempts).forEach(([ip, attempts]) => {
-        if (attempts.length > 5) {
-          alerts.push({
-            type: 'high_failed_attempts_ip',
-            severity: 'high',
-            message: `IP ${ip} has ${attempts.length} failed attempts`,
-            data: { ip, count: attempts.length },
-            timestamp: new Date().toISOString()
-          })
-        }
-      })
-      Object.entries(emailAttempts).forEach(([email, attempts]) => {
-        if (attempts.length > 3) {
-          alerts.push({
-            type: 'high_failed_attempts_email',
-            severity: 'medium',
-            message: `Email ${email} has ${attempts.length} failed attempts`,
-            data: { email, count: attempts.length },
-            timestamp: new Date().toISOString()
-          })
-        }
-      })
 
       setAllUsers(overview.data.users)
       setActiveSessions(overview.data.active_sessions)
       setRecentActions(overview.data.recent_actions)
       setSecurityAlerts(alerts)
-      setFailedAttempts(overview.data.failed_attempts)
       setStats({
         totalUsers: overview.data.users.length,
         activeUsers: overview.data.active_sessions.length,
         todayLogins: overview.data.today_logins_count,
         totalActions: overview.data.today_actions_count,
         securityAlerts: alerts.length,
-        failedAttempts: overview.data.failed_attempts.length
+        failedAttempts: 0
       })
 
     } catch (err: unknown) {
@@ -427,33 +394,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Failed Login Attempts */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Failed Login Attempts</h2>
-                <p className="text-sm text-gray-500">Last 24 hours</p>
-              </div>
-              <div className="p-6">
-                {failedAttempts.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No failed attempts</p>
-                ) : (
-                  <div className="space-y-3">
-                    {failedAttempts.slice(0, 10).map((attempt) => (
-                      <div key={attempt.id} className="p-3 border rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-900">{attempt.email}</span>
-                          <span className="text-xs text-gray-500">{formatTime(attempt.attempt_timestamp)}</span>
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          <p>IP: {attempt.ip_address}</p>
-                          <p>Reason: {attempt.failure_reason}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
 
