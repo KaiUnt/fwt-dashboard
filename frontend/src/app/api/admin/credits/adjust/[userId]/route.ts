@@ -3,14 +3,18 @@ import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
 const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-async function handler(user: AuthenticatedUser, request: NextRequest, ctx: { params: { userId: string } }): Promise<NextResponse> {
+async function handler(
+  user: AuthenticatedUser,
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+): Promise<NextResponse> {
   try {
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
       return NextResponse.json({ error: 'Authorization header required' }, { status: 400 })
     }
 
-    const { userId } = ctx.params
+    const { userId } = await params
     const body = await request.json()
 
     const response = await fetch(`${API_BASE_URL}/api/admin/credits/adjust/${encodeURIComponent(userId)}`, {
@@ -42,4 +46,3 @@ export const POST = withAuth(handler, {
   requireAdmin: true,
   rateLimit: RATE_LIMITS.admin,
 })
-
