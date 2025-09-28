@@ -28,14 +28,6 @@ interface SecurityAlert {
   timestamp: string
 }
 
-interface FailedLoginAttempt {
-  id: string
-  email: string
-  ip_address: string
-  failure_reason: string
-  user_agent: string
-  attempt_timestamp: string
-}
 
 export default function AdminDashboard() {
   const { isAdmin, loading: authLoading } = useAuth()
@@ -52,7 +44,6 @@ export default function AdminDashboard() {
   const [recentActions, setRecentActions] = useState<UserAction[]>([])
   const [allUsers, setAllUsers] = useState<UserProfile[]>([])
   const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([])
-  const [failedAttempts, setFailedAttempts] = useState<FailedLoginAttempt[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'users'>('overview')
@@ -68,7 +59,6 @@ export default function AdminDashboard() {
           recent_actions: UserAction[]
           today_logins_count: number
           today_actions_count: number
-          failed_attempts: FailedLoginAttempt[]
         }
       }>('/api/admin/overview', { getAccessToken })
 
