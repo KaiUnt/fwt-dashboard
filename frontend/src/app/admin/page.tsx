@@ -8,7 +8,7 @@ import { useAuth, useAccessToken } from '@/providers/AuthProvider'
 import { apiFetch } from '@/utils/api'
 import type { UserProfile, ActiveSession, UserAction } from '@/types/supabase'
 import { AppHeader } from '@/components/AppHeader'
-import { Users, Activity, Clock, Eye, AlertTriangle, Shield, Lock, AlertCircle } from 'lucide-react'
+import { Users, Clock, Eye, AlertTriangle, Shield, Lock, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
 interface AdminStats {
@@ -40,13 +40,35 @@ export default function AdminDashboard() {
     securityAlerts: 0,
     failedAttempts: 0
   })
-  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
+  // Active sessions UI/metric removed (GA4 later)
   const [recentActions, setRecentActions] = useState<UserAction[]>([])
   const [allUsers, setAllUsers] = useState<UserProfile[]>([])
   const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'users'>('overview')
+
+  // Admin users summary with credits and purchases
+  interface AdminUserSummary {
+    id: string
+    full_name: string | null
+    email: string | null
+    role: string | null
+    organization?: string | null
+    is_active?: boolean | null
+    created_at?: string | null
+    credits: number
+    purchased_events_count: number
+  }
+  const [summary, setSummary] = useState<AdminUserSummary[]>([])
+  const [summaryTotal, setSummaryTotal] = useState(0)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summarySearch, setSummarySearch] = useState('')
+  const [summaryLimit, setSummaryLimit] = useState(20)
+  const [summaryOffset, setSummaryOffset] = useState(0)
+  const [adjustDelta, setAdjustDelta] = useState<Record<string, number>>({})
+  const [adjustNote, setAdjustNote] = useState<Record<string, string>>({})
+  const [adjusting, setAdjusting] = useState<Record<string, boolean>>({})
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -66,12 +88,12 @@ export default function AdminDashboard() {
       const alerts: SecurityAlert[] = []
 
       setAllUsers(overview.data.users)
-      setActiveSessions(overview.data.active_sessions)
+      // Active sessions ignored per product decision
       setRecentActions(overview.data.recent_actions)
       setSecurityAlerts(alerts)
       setStats({
         totalUsers: overview.data.users.length,
-        activeUsers: overview.data.active_sessions.length,
+        activeUsers: 0,
         todayLogins: overview.data.today_logins_count,
         totalActions: overview.data.today_actions_count,
         securityAlerts: alerts.length,
@@ -85,6 +107,53 @@ export default function AdminDashboard() {
     }
   }, [getAccessToken])
 
+  const fetchUsersSummary = useCallback(async () => {
+    if (!isAdmin) return
+    try {
+      setSummaryLoading(true)
+      const params = new URLSearchParams()
+      if (summarySearch) params.set('search', summarySearch)
+      params.set('limit', String(summaryLimit))
+      params.set('offset', String(summaryOffset))
+      const data = await apiFetch<{ success: boolean; users: AdminUserSummary[]; total: number }>(
+        `/api/admin/users/summary?${params.toString()}`,
+        { getAccessToken }
+      )
+      setSummary(data.users)
+      setSummaryTotal(data.total)
+    } catch (e) {
+      console.error('Failed to load users summary', e)
+    } finally {
+      setSummaryLoading(false)
+    }
+  }, [getAccessToken, isAdmin, summaryLimit, summaryOffset, summarySearch])
+
+  const applyAdjust = useCallback(async (userId: string) => {
+    const delta = adjustDelta[userId]
+    const note = adjustNote[userId]
+    if (!delta || delta === 0) return
+    try {
+      setAdjusting(prev => ({ ...prev, [userId]: true }))
+      await apiFetch<{ success: boolean; credits_total: number }>(
+        `/api/admin/credits/adjust/${userId}`,
+        {
+          method: 'POST',
+          getAccessToken,
+          body: { delta, note },
+        }
+      )
+      // Refresh just this row locally
+      setSummary(prev => prev.map(u => u.id === userId ? { ...u, credits: (u.credits || 0) + delta } : u))
+      setAdjustDelta(prev => ({ ...prev, [userId]: 0 }))
+      setAdjustNote(prev => ({ ...prev, [userId]: '' }))
+    } catch (e) {
+      console.error('Failed to adjust credits', e)
+      alert('Fehler beim Anpassen der Credits')
+    } finally {
+      setAdjusting(prev => ({ ...prev, [userId]: false }))
+    }
+  }, [adjustDelta, adjustNote, getAccessToken])
+
   useEffect(() => {
     if (!authLoading && !isAdmin) {
       return
@@ -92,6 +161,12 @@ export default function AdminDashboard() {
 
     fetchAdminData()
   }, [isAdmin, authLoading, fetchAdminData])
+
+  useEffect(() => {
+    if (!authLoading && isAdmin) {
+      fetchUsersSummary()
+    }
+  }, [authLoading, isAdmin, fetchUsersSummary])
 
   const formatTime = (timestamp: string | null) => {
     if (!timestamp) return 'N/A'
@@ -104,12 +179,7 @@ export default function AdminDashboard() {
     })
   }
 
-  const formatDuration = (minutes: number | null) => {
-    if (!minutes) return 'N/A'
-    const hours = Math.floor(minutes / 60)
-    const mins = Math.round(minutes % 60)
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
-  }
+  // formatDuration removed (no longer used)
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -207,23 +277,13 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <Users className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Total Users</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <Activity className="h-8 w-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Active Now</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activeUsers}</p>
               </div>
             </div>
           </div>
@@ -271,42 +331,7 @@ export default function AdminDashboard() {
 
         {/* Content based on active tab */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Active Sessions */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Active Sessions</h2>
-                <p className="text-sm text-gray-500">Users currently online</p>
-              </div>
-              <div className="p-6">
-                {activeSessions.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No active sessions</p>
-                ) : (
-                  <div className="space-y-4">
-                    {activeSessions.slice(0, 5).map((session, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                            {session.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{session.full_name}</p>
-                            <p className="text-xs text-gray-500">{session.email}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-gray-500">Online for</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {formatDuration(session.session_minutes)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
             {/* Recent Activity */}
             <div className="bg-white rounded-lg shadow">
               <div className="p-6 border-b border-gray-200">
@@ -384,6 +409,123 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+          </div>
+        )}
+
+        {activeTab === 'overview' && (
+          <div className="mt-8 bg-white rounded-lg shadow">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Credits & Purchases</h2>
+                <p className="text-sm text-gray-500">Verwalte Credits und Käufe pro Benutzer</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="Suche Name oder E-Mail"
+                  value={summarySearch}
+                  onChange={(e) => { setSummaryOffset(0); setSummarySearch(e.target.value) }}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={fetchUsersSummary}
+                  className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
+                >Suchen</button>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600">Pro Seite</label>
+                  <select
+                    value={summaryLimit}
+                    onChange={(e) => { const v = parseInt(e.target.value, 10) || 20; setSummaryLimit(v); setSummaryOffset(0); }}
+                    className="border border-gray-300 rounded-lg px-2 py-2 text-sm"
+                  >
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Purchased</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adjust</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {summaryLoading ? (
+                    <tr><td className="px-6 py-4" colSpan={6}>Lade Daten...</td></tr>
+                  ) : summary.length === 0 ? (
+                    <tr><td className="px-6 py-4" colSpan={6}>Keine Benutzer gefunden</td></tr>
+                  ) : (
+                    summary.map(u => (
+                      <tr key={u.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.full_name || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.email || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            u.role === 'admin' ? 'bg-red-100 text-red-800' :
+                            u.role === 'commentator' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">{u.credits}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">{u.purchased_events_count}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              className="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm"
+                              placeholder="Δ"
+                              value={adjustDelta[u.id] ?? 0}
+                              onChange={(e) => setAdjustDelta(prev => ({ ...prev, [u.id]: parseInt(e.target.value || '0', 10) }))}
+                            />
+                            <input
+                              type="text"
+                              className="w-48 border border-gray-300 rounded-lg px-2 py-1 text-sm"
+                              placeholder="Notiz (optional)"
+                              value={adjustNote[u.id] ?? ''}
+                              onChange={(e) => setAdjustNote(prev => ({ ...prev, [u.id]: e.target.value }))}
+                            />
+                            <button
+                              onClick={() => applyAdjust(u.id)}
+                              disabled={!!adjusting[u.id] || !((adjustDelta[u.id] ?? 0) !== 0)}
+                              className={`px-3 py-1.5 rounded-lg text-sm text-white ${adjusting[u.id] ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}
+                            >
+                              {adjusting[u.id] ? 'Speichere…' : 'Anwenden'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 flex items-center justify-between text-sm text-gray-600">
+              <div>
+                Einträge {summary.length > 0 ? summaryOffset + 1 : 0}
+                –{Math.min(summaryOffset + summaryLimit, summaryTotal)} von {summaryTotal}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                  disabled={summaryOffset === 0}
+                  onClick={() => setSummaryOffset(Math.max(0, summaryOffset - summaryLimit))}
+                >Zurück</button>
+                <button
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                  disabled={summaryOffset + summaryLimit >= summaryTotal}
+                  onClick={() => setSummaryOffset(summaryOffset + summaryLimit)}
+                >Weiter</button>
+              </div>
+            </div>
           </div>
         )}
 

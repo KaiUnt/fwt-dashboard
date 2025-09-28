@@ -347,7 +347,22 @@ class SupabaseClient:
                 # Validate filter keys
                 if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', key):
                     raise ValueError(f"Invalid filter key: {key}")
-                params[f"{key}"] = f"eq.{value}"
+                # Support basic operators: eq and in (for list values)
+                if isinstance(value, (list, tuple)):
+                    # Build PostgREST in.("a","b") syntax; escape double quotes
+                    if len(value) == 0:
+                        # Empty IN should yield no results; use impossible condition
+                        params[f"{key}"] = "in.("
+                    else:
+                        def _quote(v):
+                            if isinstance(v, (int, float)):
+                                return str(v)
+                            s = str(v).replace('"', '\\"')
+                            return f'"{s}"'
+                        joined = ",".join(_quote(v) for v in value)
+                        params[f"{key}"] = f"in.({joined})"
+                else:
+                    params[f"{key}"] = f"eq.{value}"
         
         headers = self._get_headers(user_token)
         
@@ -2760,6 +2775,215 @@ async def get_admin_overview(
     except Exception as e:
         logger.error(f"Error building admin overview: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get admin overview: {str(e)}")
+
+# Admin users summary with credits and purchases count
+class AdminCreditsAdjustRequest(BaseModel):
+    delta: int = Field(..., ge=-1000, le=1000)
+    note: Optional[str] = Field(None, max_length=500)
+
+@app.get("/api/admin/users/summary")
+async def get_admin_users_summary(
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """List users with credits and purchased events count (Admin only)."""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Check admin role
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        # Fetch users minimal fields
+        users = await supabase_client.select(
+            "user_profiles",
+            "id, full_name, email, role, organization, created_at, is_active",
+            {},
+            user_token=user_token,
+        )
+        users = users or []
+
+        # Optional search (in-memory)
+        normalized = (search or "").strip().lower()
+        if normalized:
+            def _match(u):
+                return (normalized in (u.get("full_name") or "").lower()) or (normalized in (u.get("email") or "").lower())
+            users = [u for u in users if _match(u)]
+
+        # Sort by name then email
+        users.sort(key=lambda u: ((u.get("full_name") or "").lower(), (u.get("email") or "").lower()))
+
+        total = len(users)
+        start = max(offset, 0)
+        end = start + max(min(limit, 200), 0)
+        page = users[start:end]
+
+        # Build list of user_ids on the page
+        user_ids = [u.get("id") for u in page if u.get("id")]
+
+        credits_map = {uid: 0 for uid in user_ids}
+        purchases_count = {uid: 0 for uid in user_ids}
+
+        if user_ids:
+            # Fetch credits for these users via IN filter
+            credits_rows = await supabase_client.select(
+                "user_credits",
+                "user_id, credits",
+                {"user_id": user_ids},
+                user_token=user_token,
+            )
+            for row in (credits_rows or []):
+                uid = row.get("user_id")
+                if uid in credits_map:
+                    credits_map[uid] = int(row.get("credits") or 0)
+
+            # Fetch purchases count for these users
+            uea_rows = await supabase_client.select(
+                "user_event_access",
+                "user_id, event_id",
+                {"user_id": user_ids, "access_type": "paid"},
+                user_token=user_token,
+            )
+            # Count distinct event_ids per user
+            seen = {}
+            for row in (uea_rows or []):
+                uid = row.get("user_id")
+                eid = row.get("event_id")
+                if uid in purchases_count and uid is not None and eid is not None:
+                    key = (uid, eid)
+                    if key not in seen:
+                        seen[key] = True
+                        purchases_count[uid] += 1
+
+        # Build summary
+        summary = []
+        for u in page:
+            uid = u.get("id")
+            summary.append({
+                "id": uid,
+                "full_name": u.get("full_name"),
+                "email": u.get("email"),
+                "role": u.get("role"),
+                "organization": u.get("organization"),
+                "is_active": u.get("is_active"),
+                "created_at": u.get("created_at"),
+                "credits": credits_map.get(uid, 0),
+                "purchased_events_count": purchases_count.get(uid, 0),
+            })
+
+        return {
+            "success": True,
+            "users": summary,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error building users summary: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get users summary: {str(e)}")
+
+
+@app.post("/api/admin/credits/adjust/{target_user_id}")
+async def admin_adjust_credits(
+    target_user_id: str,
+    req: AdminCreditsAdjustRequest,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Adjust a user's credits by a delta (positive or negative)."""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Check admin role
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        # Read or initialize credits for target user
+        credits_row = await supabase_client.select(
+            "user_credits",
+            "id, credits",
+            {"user_id": target_user_id},
+            user_token=user_token
+        )
+
+        current_credits = 0
+        record_id = None
+        from datetime import datetime
+        if not credits_row or len(credits_row) == 0:
+            # Initialize with 0 credits for admin-managed users if missing
+            insert_res = await supabase_client.insert(
+                "user_credits",
+                [{
+                    "user_id": target_user_id,
+                    "credits": 0,
+                    "created_at": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat()
+                }],
+                user_token=user_token
+            )
+            # Try reread to get id/current credits
+            credits_row = await supabase_client.select(
+                "user_credits",
+                "id, credits",
+                {"user_id": target_user_id},
+                user_token=user_token
+            )
+            if credits_row and len(credits_row) > 0:
+                record_id = credits_row[0].get("id")
+                current_credits = int(credits_row[0].get("credits") or 0)
+        else:
+            record_id = credits_row[0].get("id")
+            current_credits = int(credits_row[0].get("credits") or 0)
+
+        delta = int(req.delta)
+        new_total = current_credits + delta
+        if new_total < 0:
+            raise HTTPException(status_code=400, detail="Credits cannot be negative")
+
+        # Update credits
+        await supabase_client.update(
+            "user_credits",
+            {"credits": new_total, "updated_at": datetime.now().isoformat()},
+            {"id": record_id} if record_id else {"user_id": target_user_id},
+            user_token=user_token
+        )
+
+        # Insert transaction record
+        description = f"Admin adjust: {req.note}" if req.note else "Admin adjust"
+        await supabase_client.insert(
+            "credit_transactions",
+            [{
+                "user_id": target_user_id,
+                "transaction_type": "admin_adjust",
+                "amount": delta,
+                "credits_before": current_credits,
+                "credits_after": new_total,
+                "description": description,
+                "created_at": datetime.now().isoformat()
+            }],
+            user_token=user_token
+        )
+
+        return {
+            "success": True,
+            "message": "Credits adjusted successfully",
+            "credits_total": new_total
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adjusting credits for {target_user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to adjust credits: {str(e)}")
 
 # Activity overview endpoint for a user
 @app.get("/api/activity/overview")
