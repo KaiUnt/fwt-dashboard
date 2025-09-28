@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, AuthenticatedUser, RATE_LIMITS } from '@/lib/auth-middleware'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// Prefer server-only API_URL to avoid recursive calls when NEXT_PUBLIC_API_URL points
+// to the same domain handled by Next.js. Fallback to NEXT_PUBLIC_API_URL, then localhost.
+const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 async function handler(user: AuthenticatedUser, request: NextRequest): Promise<NextResponse> {
   try {
@@ -45,5 +47,4 @@ export const GET = withAuth(handler, {
   requireAdmin: true, 
   rateLimit: RATE_LIMITS.admin 
 })
-
 

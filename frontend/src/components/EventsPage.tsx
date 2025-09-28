@@ -158,16 +158,29 @@ export function EventsPage() {
       return;
     }
 
-    // Check if all selected events have access
+    // Check if all selected events have access (either purchased or free due to 7-day rule)
     const allHaveAccess = selectedEventIds.every(eventId => {
+      const event = events.find(e => e.id === eventId);
+      // First check if event is free due to 7-day rule
+      if (event && isEventFree(event.date)) {
+        return true;
+      }
+      // Then check access status from batch request
       return accessStatus[eventId] === true;
     });
 
     setHasPurchasedSelectedEvents(allHaveAccess);
-  }, [selectedEventIds, accessStatus]);
+  }, [selectedEventIds, accessStatus, events, isEventFree]);
 
   // Event Access Check - relies on batch data; no network fallback here
   const checkEventAccess = async (eventId: string): Promise<boolean> => {
+    // First check if event is free due to 7-day rule
+    const event = events.find(e => e.id === eventId);
+    if (event && isEventFree(event.date)) {
+      return true;
+    }
+
+    // Then check access status from batch request
     if (accessStatus.hasOwnProperty(eventId)) {
       return accessStatus[eventId] || false;
     }
@@ -328,18 +341,34 @@ export function EventsPage() {
                     <span className="text-lg">💳</span>
                     <span>
                       {(() => {
-                        // Calculate how many events actually need to be purchased
-                        const eventsToPurchase = selectedEventIds.filter(eventId => !accessStatus[eventId]);
+                        // Calculate how many events actually need to be purchased (not free due to 7-day rule and not already purchased)
+                        const eventsToPurchase = selectedEventIds.filter(eventId => {
+                          const event = events.find(e => e.id === eventId);
+                          // Skip if event is free due to 7-day rule
+                          if (event && isEventFree(event.date)) {
+                            return false;
+                          }
+                          // Include if not purchased
+                          return !accessStatus[eventId];
+                        });
                         const purchaseCount = eventsToPurchase.length;
-                        return purchaseCount === 1 
+                        return purchaseCount === 1
                           ? t('purchase.buyEvent')
                           : t('purchase.buyEvents', { count: purchaseCount });
                       })()}
                     </span>
                     <span className="bg-green-500 text-white px-2 py-1 rounded text-sm">
                       {(() => {
-                        // Calculate how many events actually need to be purchased
-                        const eventsToPurchase = selectedEventIds.filter(eventId => !accessStatus[eventId]);
+                        // Calculate how many events actually need to be purchased (not free due to 7-day rule and not already purchased)
+                        const eventsToPurchase = selectedEventIds.filter(eventId => {
+                          const event = events.find(e => e.id === eventId);
+                          // Skip if event is free due to 7-day rule
+                          if (event && isEventFree(event.date)) {
+                            return false;
+                          }
+                          // Include if not purchased
+                          return !accessStatus[eventId];
+                        });
                         const purchaseCount = eventsToPurchase.length;
                         return `${purchaseCount} ${purchaseCount === 1 ? t('credits.credit') : t('credits.credits')}`;
                       })()}
