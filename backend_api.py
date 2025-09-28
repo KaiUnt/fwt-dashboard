@@ -1796,6 +1796,26 @@ async def accept_friend_request(
         if not result:
             raise HTTPException(status_code=404, detail="Friend request not found")
         
+        # Log user action (friend acceptance)
+        try:
+            updated = result[0] if result else None
+            if isinstance(updated, dict):
+                friend_id = updated.get("requester_id") if updated.get("addressee_id") == current_user_id else updated.get("addressee_id")
+                await supabase_client.insert(
+                    "user_actions",
+                    [{
+                        "user_id": current_user_id,
+                        "action_type": "friend_accept",
+                        "resource_type": "user",
+                        "resource_id": friend_id,
+                        "action_details": {"connection_id": connection_id},
+                        "timestamp": datetime.utcnow().isoformat()
+                    }],
+                    user_token=user_token
+                )
+        except Exception as _log_err:
+            logger.warning(f"Failed to log friend acceptance action: {_log_err}")
+
         return {
             "success": True,
             "data": result[0] if result else None,
@@ -2984,6 +3004,117 @@ async def admin_adjust_credits(
     except Exception as e:
         logger.error(f"Error adjusting credits for {target_user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to adjust credits: {str(e)}")
+
+# Login activity logging
+class LogLoginRequest(BaseModel):
+    login_method: Optional[str] = Field(None, description="email|google|github|microsoft|other")
+    ip: Optional[str] = None
+    user_agent: Optional[str] = None
+
+@app.post("/api/activity/log-login")
+async def log_login_activity(
+    payload: LogLoginRequest,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+    try:
+        from datetime import datetime
+        data = [{
+            "user_id": current_user_id,
+            "login_timestamp": datetime.utcnow().isoformat(),
+            "ip_address": payload.ip,
+            "user_agent": payload.user_agent,
+            "login_method": (payload.login_method or "email"),
+        }]
+        await supabase_client.insert("user_login_activity", data, user_token=user_token)
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error logging login activity: {e}")
+        # Do not fail hard for logging
+        raise HTTPException(status_code=500, detail="Failed to log login activity")
+
+
+@app.get("/api/admin/credits/purchases")
+async def admin_list_paid_purchases(
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """List paid event accesses (purchases) with user info (Admin only)."""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Admin check
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        # Fetch all paid accesses (will be filtered/paginated in memory)
+        accesses = await supabase_client.select(
+            "user_event_access",
+            "user_id, event_id, event_name, granted_at, access_type",
+            {"access_type": "paid"},
+            user_token=user_token,
+        )
+        accesses = accesses or []
+
+        # Gather user profiles for displayed set
+        user_ids = list({a.get("user_id") for a in accesses if a.get("user_id")})
+        profiles_map = {}
+        if user_ids:
+            profiles = await supabase_client.select(
+                "user_profiles", "id, full_name, email", {"id": user_ids}, user_token
+            )
+            for p in (profiles or []):
+                profiles_map[p.get("id")] = {"full_name": p.get("full_name"), "email": p.get("email")}
+
+        # Build enriched list
+        enriched = []
+        for a in accesses:
+            uid = a.get("user_id")
+            prof = profiles_map.get(uid, {})
+            enriched.append({
+                "user_id": uid,
+                "user_full_name": prof.get("full_name"),
+                "user_email": prof.get("email"),
+                "event_id": a.get("event_id"),
+                "event_name": a.get("event_name"),
+                "granted_at": a.get("granted_at"),
+                "access_type": a.get("access_type"),
+            })
+
+        # Optional search across user/email/event fields
+        q = (search or "").strip().lower()
+        if q:
+            def match(row):
+                return (
+                    q in (str(row.get("user_full_name") or "").lower()) or
+                    q in (str(row.get("user_email") or "").lower()) or
+                    q in (str(row.get("event_name") or "").lower()) or
+                    q in (str(row.get("event_id") or "").lower())
+                )
+            enriched = [r for r in enriched if match(r)]
+
+        # Sort by granted_at desc
+        enriched.sort(key=lambda r: (r.get("granted_at") or ""), reverse=True)
+
+        total = len(enriched)
+        start = max(offset, 0)
+        end = start + max(min(limit, 200), 0)
+        page = enriched[start:end]
+
+        return {"success": True, "purchases": page, "total": total, "limit": limit, "offset": offset}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing purchases: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list purchases: {str(e)}")
 
 # Activity overview endpoint for a user
 @app.get("/api/activity/overview")

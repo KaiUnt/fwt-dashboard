@@ -251,6 +251,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   setProfile(fetchedProfile)
                 }
               })
+              // Log login activity (fire-and-forget)
+              if (event === 'SIGNED_IN') {
+                try {
+                  const token = session?.access_token
+                  const provider = (session?.user?.app_metadata as any)?.provider || 'email'
+                  if (token) {
+                    void fetch('/api/activity/log-login', {
+                      method: 'POST',
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ login_method: provider }),
+                    }).catch(() => {})
+                  }
+                } catch {}
+              }
               if (mounted) {
                 setLoading(false)
                 isInitialLoad = false

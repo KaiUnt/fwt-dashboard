@@ -150,8 +150,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Log user activity for non-API routes
-  if (!pathname.startsWith('/api')) {
+  // Log user activity only for event dashboard routes (reduce noise)
+  if (!pathname.startsWith('/api') && pathname.startsWith('/dashboard/')) {
     try {
       await supabase.rpc('log_user_action', {
         p_action_type: 'page_view',

@@ -46,7 +46,7 @@ export default function AdminDashboard() {
   const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'users'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'users' | 'credits'>('overview')
 
   // Admin users summary with credits and purchases
   interface AdminUserSummary {
@@ -128,6 +128,44 @@ export default function AdminDashboard() {
     }
   }, [getAccessToken, isAdmin, summaryLimit, summaryOffset, summarySearch])
 
+  // Purchases (paid accesses) state
+  interface PurchaseRow {
+    user_id: string
+    user_full_name: string | null
+    user_email: string | null
+    event_id: string | null
+    event_name: string | null
+    granted_at: string | null
+    access_type: string | null
+  }
+  const [purchases, setPurchases] = useState<PurchaseRow[]>([])
+  const [purchasesTotal, setPurchasesTotal] = useState(0)
+  const [purchasesLoading, setPurchasesLoading] = useState(false)
+  const [purchasesSearch, setPurchasesSearch] = useState('')
+  const [purchasesLimit, setPurchasesLimit] = useState(20)
+  const [purchasesOffset, setPurchasesOffset] = useState(0)
+
+  const fetchPurchases = useCallback(async () => {
+    if (!isAdmin) return
+    try {
+      setPurchasesLoading(true)
+      const params = new URLSearchParams()
+      if (purchasesSearch) params.set('search', purchasesSearch)
+      params.set('limit', String(purchasesLimit))
+      params.set('offset', String(purchasesOffset))
+      const data = await apiFetch<{ success: boolean; purchases: PurchaseRow[]; total: number }>(
+        `/api/admin/credits/purchases?${params.toString()}`,
+        { getAccessToken }
+      )
+      setPurchases(data.purchases)
+      setPurchasesTotal(data.total)
+    } catch (e) {
+      console.error('Failed to load purchases', e)
+    } finally {
+      setPurchasesLoading(false)
+    }
+  }, [getAccessToken, isAdmin, purchasesLimit, purchasesOffset, purchasesSearch])
+
   const applyAdjust = useCallback(async (userId: string) => {
     const delta = adjustDelta[userId]
     const note = adjustNote[userId]
@@ -167,6 +205,12 @@ export default function AdminDashboard() {
       fetchUsersSummary()
     }
   }, [authLoading, isAdmin, fetchUsersSummary])
+
+  useEffect(() => {
+    if (!authLoading && isAdmin && activeTab === 'credits') {
+      fetchPurchases()
+    }
+  }, [authLoading, isAdmin, activeTab, fetchPurchases])
 
   const formatTime = (timestamp: string | null) => {
     if (!timestamp) return 'N/A'
@@ -273,6 +317,16 @@ export default function AdminDashboard() {
             >
               Users
             </button>
+            <button
+              onClick={() => setActiveTab('credits')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'credits'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Credits
+            </button>
           </nav>
         </div>
 
@@ -365,6 +419,90 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'credits' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Käufe (bezahlte Zugriffe)</h2>
+                <p className="text-sm text-gray-500">Welche Nutzer welche Events gekauft haben</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="Suche Nutzer/Email/Event"
+                  value={purchasesSearch}
+                  onChange={(e) => { setPurchasesOffset(0); setPurchasesSearch(e.target.value) }}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={fetchPurchases}
+                  className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg"
+                >Suchen</button>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600">Pro Seite</label>
+                  <select
+                    value={purchasesLimit}
+                    onChange={(e) => { const v = parseInt(e.target.value, 10) || 20; setPurchasesLimit(v); setPurchasesOffset(0); fetchPurchases() }}
+                    className="border border-gray-300 rounded-lg px-2 py-2 text-sm"
+                  >
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nutzer</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event ID</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {purchasesLoading ? (
+                    <tr><td className="px-6 py-4" colSpan={5}>Lade Daten...</td></tr>
+                  ) : purchases.length === 0 ? (
+                    <tr><td className="px-6 py-4" colSpan={5}>Keine Käufe gefunden</td></tr>
+                  ) : (
+                    purchases.map((p, idx) => (
+                      <tr key={`${p.user_id}-${p.event_id}-${p.granted_at}-${idx}`}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatTime(p.granted_at)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.user_full_name || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.user_email || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{p.event_name || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.event_id || 'N/A'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 flex items-center justify-between text-sm text-gray-600">
+              <div>
+                Einträge {purchases.length > 0 ? purchasesOffset + 1 : 0}
+                –{Math.min(purchasesOffset + purchasesLimit, purchasesTotal)} von {purchasesTotal}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                  disabled={purchasesOffset === 0}
+                  onClick={() => setPurchasesOffset(Math.max(0, purchasesOffset - purchasesLimit))}
+                >Zurück</button>
+                <button
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                  disabled={purchasesOffset + purchasesLimit >= purchasesTotal}
+                  onClick={() => setPurchasesOffset(purchasesOffset + purchasesLimit)}
+                >Weiter</button>
               </div>
             </div>
           </div>
