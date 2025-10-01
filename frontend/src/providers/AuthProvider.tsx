@@ -252,19 +252,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
               })
               // Log login activity (fire-and-forget)
+              // Only log once per browser session to track real logins, not refreshes
               if (event === 'SIGNED_IN') {
                 try {
-                  const token = session?.access_token
-                  const provider = (session?.user?.app_metadata as any)?.provider || 'email'
-                  if (token) {
-                    void fetch('/api/activity/log-login', {
-                      method: 'POST',
-                      headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({ login_method: provider }),
-                    }).catch(() => {})
+                  const sessionKey = `login_logged_${session?.user?.id}`
+                  const alreadyLogged = sessionStorage.getItem(sessionKey)
+
+                  if (!alreadyLogged) {
+                    const token = session?.access_token
+                    const provider = (session?.user?.app_metadata as any)?.provider || 'email'
+                    if (token) {
+                      void fetch('/api/activity/log-login', {
+                        method: 'POST',
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ login_method: provider }),
+                      }).catch(() => {})
+
+                      // Mark as logged for this session
+                      sessionStorage.setItem(sessionKey, 'true')
+                    }
                   }
                 } catch {}
               }

@@ -10,14 +10,12 @@ import { useFriends } from '@/hooks/useFriends';
 interface CommentatorInfoSectionProps {
   athleteId: string;
   athleteName: string;
-  commentatorInfo?: CommentatorInfo | null;
   onEdit: () => void;
 }
 
 export function CommentatorInfoSection({
   athleteId,
   athleteName: _athleteName,
-  commentatorInfo,
   onEdit,
 }: CommentatorInfoSectionProps) {
   const { t } = useTranslation();
@@ -79,20 +77,9 @@ export function CommentatorInfoSection({
     }
   ];
 
-  // Check if we have any commentator info to display
-  const hasInfo = commentatorInfo && (
-    commentatorInfo.homebase ||
-    commentatorInfo.team ||
-    commentatorInfo.sponsors ||
-    commentatorInfo.favorite_trick ||
-    commentatorInfo.achievements ||
-    commentatorInfo.injuries ||
-    commentatorInfo.fun_facts ||
-    commentatorInfo.notes ||
-    commentatorInfo.social_media?.instagram ||
-    commentatorInfo.social_media?.youtube ||
-    commentatorInfo.social_media?.website
-  );
+  // Check if we have any commentator info to display from all sources (mine + friends)
+  const hasInfo = (myData && myData.length > 0 && countFields(myData[0]) > 0) ||
+                  (friendsData && friendsData.length > 0);
 
   const handleToggle = () => {
     setIsExpanded(!isExpanded);
@@ -377,8 +364,8 @@ export function CommentatorInfoSection({
             </span>
             {hasInfo && (
               <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full">
-                {t('commentatorInfo.fieldsCount', { 
-                  count: countFields(commentatorInfo)
+                {t('commentatorInfo.fieldsCount', {
+                  count: tabs.find(t => t.id === activeTab)?.count || 0
                 })}
               </span>
             )}
@@ -416,13 +403,7 @@ export function CommentatorInfoSection({
       {/* Content */}
       {isExpanded && (
         <div className="px-4 py-4">
-          {tabs.length > 1 ? (
-            // Friends System: Show tab-specific content
-            renderCommentatorInfo(tabs.find(t => t.id === activeTab)?.data || [])
-          ) : (
-            // Fallback to original behavior
-            renderCommentatorInfo([commentatorInfo as CommentatorInfoWithAuthor])
-          )}
+          {renderCommentatorInfo(tabs.find(t => t.id === activeTab)?.data || [])}
         </div>
       )}
     </div>
