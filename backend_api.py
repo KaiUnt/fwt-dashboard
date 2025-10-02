@@ -3009,11 +3009,13 @@ async def admin_adjust_credits(
 
         # Insert transaction record
         description = f"Admin adjust: {req.note}" if req.note else "Admin adjust"
+        transaction_type = "grant" if delta >= 0 else "spend"
+
         await admin_client.insert(
             "credit_transactions",
             [{
                 "user_id": target_user_id,
-                "transaction_type": "admin_adjust",
+                "transaction_type": transaction_type,
                 "amount": delta,
                 "credits_before": current_credits,
                 "credits_after": new_total,

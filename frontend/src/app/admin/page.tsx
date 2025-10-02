@@ -76,7 +76,6 @@ export default function AdminDashboard() {
   const [summaryLimit, setSummaryLimit] = useState(20)
   const [summaryOffset, setSummaryOffset] = useState(0)
   const [adjustDelta, setAdjustDelta] = useState<Record<string, number>>({})
-  const [adjustNote, setAdjustNote] = useState<Record<string, string>>({})
   const [adjusting, setAdjusting] = useState<Record<string, boolean>>({})
 
   const [purchases, setPurchases] = useState<PurchaseRow[]>([])
@@ -156,7 +155,6 @@ export default function AdminDashboard() {
 
   const applyAdjust = useCallback(async (userId: string) => {
     const delta = adjustDelta[userId]
-    const note = adjustNote[userId]
     if (!delta || delta === 0) return
     try {
       setAdjusting(prev => ({ ...prev, [userId]: true }))
@@ -165,19 +163,17 @@ export default function AdminDashboard() {
         {
           method: 'POST',
           getAccessToken,
-          body: { delta, note },
+          body: { delta },
         }
       )
       setSummary(prev => prev.map(u => (u.id === userId ? { ...u, credits: (u.credits || 0) + delta } : u)))
       setAdjustDelta(prev => ({ ...prev, [userId]: 0 }))
-      setAdjustNote(prev => ({ ...prev, [userId]: '' }))
     } catch (e) {
       console.error('Failed to adjust credits', e)
-      alert('Fehler beim Anpassen der Credits')
     } finally {
       setAdjusting(prev => ({ ...prev, [userId]: false }))
     }
-  }, [adjustDelta, adjustNote, getAccessToken])
+  }, [adjustDelta, getAccessToken])
 
   useEffect(() => {
     if (!authLoading && !isAdmin) {
@@ -664,13 +660,6 @@ export default function AdminDashboard() {
                               placeholder="0"
                               value={adjustDelta[u.id] ?? 0}
                               onChange={(e) => setAdjustDelta(prev => ({ ...prev, [u.id]: parseInt(e.target.value || '0', 10) }))}
-                            />
-                            <input
-                              type="text"
-                              className="w-48 border border-gray-300 rounded-lg px-2 py-1 text-sm text-gray-900 placeholder:text-gray-400"
-                              placeholder="Notiz (optional)"
-                              value={adjustNote[u.id] ?? ''}
-                              onChange={(e) => setAdjustNote(prev => ({ ...prev, [u.id]: e.target.value }))}
                             />
                             <button
                               onClick={() => applyAdjust(u.id)}
