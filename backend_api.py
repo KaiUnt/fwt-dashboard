@@ -3045,7 +3045,8 @@ async def log_login_activity(
     current_user_id: str = Depends(extract_user_id_from_token),
     user_token: str = Depends(get_user_token)
 ):
-    if not supabase_client:
+    client = get_admin_client() or supabase_client
+    if not client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
     try:
         from datetime import datetime
@@ -3056,7 +3057,8 @@ async def log_login_activity(
             "user_agent": payload.user_agent,
             "login_method": (payload.login_method or "email"),
         }]
-        await supabase_client.insert("user_login_activity", data, user_token=user_token)
+        token_for_request = None if client is service_supabase_client else user_token
+        await client.insert("user_login_activity", data, user_token=token_for_request)
         return {"success": True}
     except Exception as e:
         logger.error(f"Error logging login activity: {e}")
