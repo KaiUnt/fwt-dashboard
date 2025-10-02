@@ -525,6 +525,21 @@ if SUPABASE_URL and SUPABASE_KEY:
 else:
     logger.warning("Supabase credentials not provided. Commentator info features will be disabled.")
 
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+service_supabase_client: Optional[SupabaseClient] = None
+if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+    try:
+        service_supabase_client = SupabaseClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        logger.info("Supabase service client initialized successfully")
+    except Exception as e:
+        service_supabase_client = None
+        logger.error(f"Failed to initialize Supabase service client: {e}")
+
+
+def get_admin_client() -> Optional[SupabaseClient]:
+    """Return Supabase client with elevated privileges when available."""
+    return service_supabase_client or supabase_client
+
 # Enhanced Pydantic models with validation
 class CommentatorInfoCreate(BaseModel):
     athlete_id: str = Field(..., min_length=1, max_length=100, pattern=r'^[a-zA-Z0-9_-]+$')
@@ -2702,13 +2717,14 @@ async def get_admin_users(
             logger.warning(f"Admin access denied for user {current_user_id}: profile={user_profile}")
             raise HTTPException(status_code=403, detail="Admin privileges required")
 
+        admin_client = get_admin_client() or supabase_client
+
         # Fetch users - select minimal fields
         # Note: Supabase client helper may not support complex filters/sorting; do it in Python
-        users = await supabase_client.select(
+        users = await admin_client.select(
             "user_profiles",
             "id, full_name, email, role, organization",
             {},
-            user_token=user_token,
         )
 
         if users is None:
@@ -2760,21 +2776,36 @@ async def get_admin_overview(
         if not user_profile or user_profile[0].get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin privileges required")
 
+        admin_client = get_admin_client() or supabase_client
+
         # Users
-        users = await supabase_client.select("user_profiles", "*", {}, user_token)
+        users = await admin_client.select("user_profiles", "*", {})
 
         # Active sessions
-        sessions = await supabase_client.select("active_sessions", "*", {}, user_token)
+        sessions = await admin_client.select("active_sessions", "*", {})
 
         # Recent actions (last 24h)
         since_iso = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-        actions = await supabase_client.select("user_actions", "*", {}, user_token)
+        actions = await admin_client.select("user_actions", "*", {})
         recent_actions = [a for a in (actions or []) if a.get("timestamp", "") >= since_iso]
 
         # Login activity today
         today_str = datetime.utcnow().strftime("%Y-%m-%d")
-        login_activity = await supabase_client.select("user_login_activity", "*", {}, user_token)
+        login_activity = await admin_client.select("user_login_activity", "*", {})
         today_logins = [x for x in (login_activity or []) if x.get("login_timestamp", "").startswith(today_str)]
+        today_logins_sorted = sorted(today_logins, key=lambda entry: entry.get("login_timestamp", ""), reverse=True)[:50]
+        user_lookup = {u.get("id"): u for u in (users or [])}
+        today_login_details = [
+            {
+                "user_id": entry.get("user_id"),
+                "full_name": (user_lookup.get(entry.get("user_id")) or {}).get("full_name"),
+                "email": (user_lookup.get(entry.get("user_id")) or {}).get("email"),
+                "login_timestamp": entry.get("login_timestamp"),
+                "ip_address": entry.get("ip_address"),
+                "user_agent": entry.get("user_agent"),
+            }
+            for entry in today_logins_sorted
+        ]
 
         # Actions count today
         today_actions = [x for x in (actions or []) if x.get("timestamp", "").startswith(today_str)]
@@ -2788,6 +2819,7 @@ async def get_admin_overview(
                 "recent_actions": recent_actions,
                 "today_logins_count": len(today_logins),
                 "today_actions_count": len(today_actions),
+                "today_logins": today_login_details,
             }
         }
     except HTTPException:
@@ -2819,12 +2851,13 @@ async def get_admin_users_summary(
         if not user_profile or user_profile[0].get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin privileges required")
 
+        admin_client = get_admin_client() or supabase_client
+
         # Fetch users minimal fields
-        users = await supabase_client.select(
+        users = await admin_client.select(
             "user_profiles",
             "id, full_name, email, role, organization, created_at, is_active",
             {},
-            user_token=user_token,
         )
         users = users or []
 
@@ -2851,11 +2884,10 @@ async def get_admin_users_summary(
 
         if user_ids:
             # Fetch credits for these users via IN filter
-            credits_rows = await supabase_client.select(
+            credits_rows = await admin_client.select(
                 "user_credits",
                 "user_id, credits",
                 {"user_id": user_ids},
-                user_token=user_token,
             )
             for row in (credits_rows or []):
                 uid = row.get("user_id")
@@ -2863,11 +2895,10 @@ async def get_admin_users_summary(
                     credits_map[uid] = int(row.get("credits") or 0)
 
             # Fetch purchases count for these users
-            uea_rows = await supabase_client.select(
+            uea_rows = await admin_client.select(
                 "user_event_access",
                 "user_id, event_id",
                 {"user_id": user_ids, "access_type": "paid"},
-                user_token=user_token,
             )
             # Count distinct event_ids per user
             seen = {}
@@ -2928,12 +2959,13 @@ async def admin_adjust_credits(
         if not user_profile or user_profile[0].get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin privileges required")
 
+        admin_client = get_admin_client() or supabase_client
+
         # Read or initialize credits for target user
-        credits_row = await supabase_client.select(
+        credits_row = await admin_client.select(
             "user_credits",
             "id, credits",
             {"user_id": target_user_id},
-            user_token=user_token
         )
 
         current_credits = 0
@@ -2941,22 +2973,20 @@ async def admin_adjust_credits(
         from datetime import datetime
         if not credits_row or len(credits_row) == 0:
             # Initialize with 0 credits for admin-managed users if missing
-            insert_res = await supabase_client.insert(
+            insert_res = await admin_client.insert(
                 "user_credits",
                 [{
                     "user_id": target_user_id,
                     "credits": 0,
                     "created_at": datetime.now().isoformat(),
                     "updated_at": datetime.now().isoformat()
-                }],
-                user_token=user_token
+                }]
             )
             # Try reread to get id/current credits
-            credits_row = await supabase_client.select(
+            credits_row = await admin_client.select(
                 "user_credits",
                 "id, credits",
                 {"user_id": target_user_id},
-                user_token=user_token
             )
             if credits_row and len(credits_row) > 0:
                 record_id = credits_row[0].get("id")
@@ -2971,16 +3001,15 @@ async def admin_adjust_credits(
             raise HTTPException(status_code=400, detail="Credits cannot be negative")
 
         # Update credits
-        await supabase_client.update(
+        await admin_client.update(
             "user_credits",
             {"credits": new_total, "updated_at": datetime.now().isoformat()},
             {"id": record_id} if record_id else {"user_id": target_user_id},
-            user_token=user_token
         )
 
         # Insert transaction record
         description = f"Admin adjust: {req.note}" if req.note else "Admin adjust"
-        await supabase_client.insert(
+        await admin_client.insert(
             "credit_transactions",
             [{
                 "user_id": target_user_id,
@@ -2990,8 +3019,7 @@ async def admin_adjust_credits(
                 "credits_after": new_total,
                 "description": description,
                 "created_at": datetime.now().isoformat()
-            }],
-            user_token=user_token
+            }]
         )
 
         return {
@@ -3054,12 +3082,13 @@ async def admin_list_paid_purchases(
         if not user_profile or user_profile[0].get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin privileges required")
 
+        admin_client = get_admin_client() or supabase_client
+
         # Fetch all paid accesses (will be filtered/paginated in memory)
-        accesses = await supabase_client.select(
+        accesses = await admin_client.select(
             "user_event_access",
             "user_id, event_id, event_name, granted_at, access_type",
             {"access_type": "paid"},
-            user_token=user_token,
         )
         accesses = accesses or []
 
@@ -3067,8 +3096,8 @@ async def admin_list_paid_purchases(
         user_ids = list({a.get("user_id") for a in accesses if a.get("user_id")})
         profiles_map = {}
         if user_ids:
-            profiles = await supabase_client.select(
-                "user_profiles", "id, full_name, email", {"id": user_ids}, user_token
+            profiles = await admin_client.select(
+                "user_profiles", "id, full_name, email", {"id": user_ids}
             )
             for p in (profiles or []):
                 profiles_map[p.get("id")] = {"full_name": p.get("full_name"), "email": p.get("email")}

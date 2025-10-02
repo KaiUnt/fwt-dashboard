@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -16,6 +16,17 @@ type Section = 'users' | 'logins' | 'purchases' | 'credits'
 interface AdminStats {
   totalUsers: number
   todayLogins: number
+}
+
+type UserSortKey = 'full_name' | 'role' | 'organization' | 'created_at' | 'is_active'
+
+interface TodayLoginEntry {
+  user_id: string | null
+  full_name: string | null
+  email: string | null
+  login_timestamp: string | null
+  ip_address: string | null
+  user_agent: string | null
 }
 
 interface AdminUserSummary {
@@ -50,8 +61,13 @@ export default function AdminDashboard() {
     todayLogins: 0,
   })
   const [allUsers, setAllUsers] = useState<UserProfile[]>([])
+  const [todayLogins, setTodayLogins] = useState<TodayLoginEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [userSort, setUserSort] = useState<{ key: UserSortKey; direction: 'asc' | 'desc' }>({
+    key: 'full_name',
+    direction: 'asc',
+  })
 
   const [summary, setSummary] = useState<AdminUserSummary[]>([])
   const [summaryTotal, setSummaryTotal] = useState(0)
@@ -78,10 +94,12 @@ export default function AdminDashboard() {
         data: {
           users: UserProfile[]
           today_logins_count: number
+          today_logins?: TodayLoginEntry[]
         }
       }>('/api/admin/overview', { getAccessToken })
 
       setAllUsers(overview.data.users)
+      setTodayLogins(overview.data.today_logins ?? [])
       setStats({
         totalUsers: overview.data.users.length,
         todayLogins: overview.data.today_logins_count,
@@ -199,6 +217,56 @@ export default function AdminDashboard() {
   const summaryCreditsTotal = summary.reduce((acc, user) => acc + (typeof user.credits === 'number' ? user.credits : 0), 0)
   const summaryCreditsDisplay = summary.length > 0 ? summaryCreditsTotal.toLocaleString('de-DE') : '--'
   const purchasesDisplay = purchasesTotal !== null ? purchasesTotal.toLocaleString('de-DE') : '--'
+
+  const sortedUsers = useMemo(() => {
+    const list = [...allUsers]
+    list.sort((a, b) => {
+      const { key, direction } = userSort
+      const multiplier = direction === 'asc' ? 1 : -1
+
+      const getValue = (user: UserProfile) => {
+        switch (key) {
+          case 'full_name':
+            return (user.full_name ?? '').toLowerCase()
+          case 'role':
+            return (user.role ?? '').toLowerCase()
+          case 'organization':
+            return (user.organization ?? '').toLowerCase()
+          case 'created_at':
+            return user.created_at ?? ''
+          case 'is_active':
+            return user.is_active ? 1 : 0
+          default:
+            return ''
+        }
+      }
+
+      const aValue = getValue(a)
+      const bValue = getValue(b)
+
+      if (aValue < bValue) return -1 * multiplier
+      if (aValue > bValue) return 1 * multiplier
+      return 0
+    })
+    return list
+  }, [allUsers, userSort])
+
+  const handleUserSort = (key: UserSortKey) => {
+    setUserSort((current) => {
+      if (current.key === key) {
+        return {
+          key,
+          direction: current.direction === 'asc' ? 'desc' : 'asc',
+        }
+      }
+      return { key, direction: 'asc' }
+    })
+  }
+
+  const renderSortIndicator = (key: UserSortKey) => {
+    if (userSort.key !== key) return null
+    return <span className="ml-1 text-xs">{userSort.direction === 'asc' ? '▲' : '▼'}</span>
+  }
 
   const cards: Array<{
     key: Section
@@ -322,15 +390,35 @@ export default function AdminDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Organization</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button type="button" className="flex items-center" onClick={() => handleUserSort('full_name')}>
+                        User {renderSortIndicator('full_name')}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button type="button" className="flex items-center" onClick={() => handleUserSort('role')}>
+                        Role {renderSortIndicator('role')}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button type="button" className="flex items-center" onClick={() => handleUserSort('organization')}>
+                        Organization {renderSortIndicator('organization')}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button type="button" className="flex items-center" onClick={() => handleUserSort('created_at')}>
+                        Created {renderSortIndicator('created_at')}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <button type="button" className="flex items-center" onClick={() => handleUserSort('is_active')}>
+                        Status {renderSortIndicator('is_active')}
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {allUsers.map((user) => (
+                  {sortedUsers.map((user) => (
                     <tr key={user.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -383,11 +471,36 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Today's Logins</h2>
-              <p className="text-sm text-gray-500">Detailansicht folgt bald.</p>
+              <p className="text-sm text-gray-500">Aktuelle Übersicht der heutigen Anmeldungen.</p>
             </div>
             <div className="p-6 space-y-4 text-sm text-gray-600">
               <p>Erfasste Logins heute: <span className="font-semibold text-gray-900">{stats.todayLogins.toLocaleString('de-DE')}</span></p>
-              <p>Eine eigene Ansicht wird bald Logins mit Zeitstempel auflisten.</p>
+              {todayLogins.length === 0 ? (
+                <p>Keine Logins registriert.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-left">
+                    <thead className="bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+                      <tr>
+                        <th className="px-4 py-2">User</th>
+                        <th className="px-4 py-2">Email</th>
+                        <th className="px-4 py-2">Zeit</th>
+                        <th className="px-4 py-2">IP</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200 text-sm">
+                      {todayLogins.map((entry) => (
+                        <tr key={`${entry.user_id}-${entry.login_timestamp}`}>
+                          <td className="px-4 py-2 text-gray-900">{entry.full_name || 'Unbekannt'}</td>
+                          <td className="px-4 py-2 text-gray-600">{entry.email || 'n/a'}</td>
+                          <td className="px-4 py-2 text-gray-600">{formatTime(entry.login_timestamp)}</td>
+                          <td className="px-4 py-2 text-gray-600">{entry.ip_address || 'n/a'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -405,7 +518,7 @@ export default function AdminDashboard() {
                   placeholder="Suche Nutzer/Email/Event"
                   value={purchasesSearch}
                   onChange={(e) => { setPurchasesOffset(0); setPurchasesSearch(e.target.value) }}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
                 />
                 <button
                   onClick={fetchPurchases}
@@ -416,7 +529,7 @@ export default function AdminDashboard() {
                   <select
                     value={purchasesLimit}
                     onChange={(e) => { const v = parseInt(e.target.value, 10) || 20; setPurchasesLimit(v); setPurchasesOffset(0); fetchPurchases() }}
-                    className="border border-gray-300 rounded-lg px-2 py-2 text-sm"
+                    className="border border-gray-300 rounded-lg px-2 py-2 text-sm text-gray-900"
                   >
                     <option value={20}>20</option>
                     <option value={50}>50</option>
@@ -486,7 +599,7 @@ export default function AdminDashboard() {
                   placeholder="Suche Name oder E-Mail"
                   value={summarySearch}
                   onChange={(e) => { setSummaryOffset(0); setSummarySearch(e.target.value) }}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
                 />
                 <button
                   onClick={fetchUsersSummary}
@@ -497,7 +610,7 @@ export default function AdminDashboard() {
                   <select
                     value={summaryLimit}
                     onChange={(e) => { const v = parseInt(e.target.value, 10) || 20; setSummaryLimit(v); setSummaryOffset(0); }}
-                    className="border border-gray-300 rounded-lg px-2 py-2 text-sm"
+                    className="border border-gray-300 rounded-lg px-2 py-2 text-sm text-gray-900"
                   >
                     <option value={20}>20</option>
                     <option value={50}>50</option>
@@ -547,14 +660,14 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2">
                             <input
                               type="number"
-                              className="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm"
+                              className="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm text-gray-900 placeholder:text-gray-400"
                               placeholder="0"
                               value={adjustDelta[u.id] ?? 0}
                               onChange={(e) => setAdjustDelta(prev => ({ ...prev, [u.id]: parseInt(e.target.value || '0', 10) }))}
                             />
                             <input
                               type="text"
-                              className="w-48 border border-gray-300 rounded-lg px-2 py-1 text-sm"
+                              className="w-48 border border-gray-300 rounded-lg px-2 py-1 text-sm text-gray-900 placeholder:text-gray-400"
                               placeholder="Notiz (optional)"
                               value={adjustNote[u.id] ?? ''}
                               onChange={(e) => setAdjustNote(prev => ({ ...prev, [u.id]: e.target.value }))}
