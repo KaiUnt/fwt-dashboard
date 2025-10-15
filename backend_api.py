@@ -1530,102 +1530,36 @@ async def update_commentator_info(
         raise HTTPException(status_code=500, detail=f"Failed to update commentator info: {str(e)}")
 
 @app.delete("/api/commentator-info/{athlete_id}")
-async def soft_delete_commentator_info(
+async def delete_commentator_info(
     athlete_id: str,
-    current_user_id: str = Depends(extract_user_id_from_token)
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(extract_token)
 ):
-    """Soft delete commentator info for an athlete"""
+    """Delete commentator info for an athlete"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
-    
+
     try:
-        # Use the soft_delete function
-        result = await supabase_client.rpc("soft_delete_commentator_info", {"p_athlete_id": athlete_id})
-        
+        # Direct delete - RLS will ensure user can only delete their own data
+        result = await supabase_client.delete(
+            "commentator_info",
+            {"athlete_id": athlete_id},
+            user_token=user_token
+        )
+
         if not result:
-            raise HTTPException(status_code=404, detail="Commentator info not found")
-        
+            raise HTTPException(status_code=404, detail="Commentator info not found or you don't have permission to delete it")
+
         return {
             "success": True,
-            "message": "Commentator info soft deleted successfully"
+            "message": "Commentator info deleted successfully"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error soft deleting commentator info for athlete {athlete_id}: {e}")
+        logger.error(f"Error deleting commentator info for athlete {athlete_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete commentator info: {str(e)}")
-
-@app.post("/api/commentator-info/{athlete_id}/restore")
-async def restore_commentator_info(
-    athlete_id: str,
-    current_user_id: str = Depends(extract_user_id_from_token)
-):
-    """Restore soft-deleted commentator info for an athlete"""
-    if not supabase_client:
-        raise HTTPException(status_code=503, detail="Supabase not configured")
-    
-    try:
-        # Use the restore function
-        result = await supabase_client.rpc("restore_commentator_info", {"p_athlete_id": athlete_id})
-        
-        if not result:
-            raise HTTPException(status_code=404, detail="No deleted commentator info found for this athlete")
-        
-        return {
-            "success": True,
-            "message": "Commentator info restored successfully"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error restoring commentator info for athlete {athlete_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to restore commentator info: {str(e)}")
-
-@app.get("/api/commentator-info/deleted")
-async def get_deleted_commentator_info(
-    current_user_id: str = Depends(extract_user_id_from_token)
-):
-    """Get all soft-deleted commentator info records"""
-    if not supabase_client:
-        raise HTTPException(status_code=503, detail="Supabase not configured")
-    
-    try:
-        result = await supabase_client.select("deleted_commentator_info", "*")
-        
-        return {
-            "success": True,
-            "data": result,
-            "total": len(result)
-        }
-        
-    except Exception as e:
-        logger.error(f"Error fetching deleted commentator info: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch deleted commentator info: {str(e)}")
-
-@app.post("/api/commentator-info/cleanup")
-async def cleanup_old_deleted_commentator_info(
-    current_user_id: str = Depends(extract_user_id_from_token)
-):
-    """Clean up old deleted commentator info records (older than 30 days)"""
-    if not supabase_client:
-        raise HTTPException(status_code=503, detail="Supabase not configured")
-    
-    try:
-        result = await supabase_client.rpc("cleanup_old_deleted_commentator_info", {})
-        
-        deleted_count = result if result else 0
-        
-        return {
-            "success": True,
-            "deleted_count": deleted_count,
-            "message": f"Cleaned up {deleted_count} old deleted records"
-        }
-        
-    except Exception as e:
-        logger.error(f"Error cleaning up old deleted commentator info: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to cleanup old deleted records: {str(e)}")
 
 @app.get("/api/commentator-info")
 async def get_all_commentator_info(
@@ -2237,97 +2171,47 @@ async def purchase_event_access(
     current_user_id: str = Depends(extract_user_id_from_token),
     user_token: str = Depends(get_user_token)
 ):
-    """Purchase access to an event using credits"""
+    """Purchase access to an event using credits (using secure RPC function)"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
-    
+
     try:
         logger.info(f"Single event purchase request for user {current_user_id}: {event_id}")
-        
+
         # Validate that URL param matches body param
         if event_id != request_data.event_id:
             raise HTTPException(status_code=400, detail="Event ID mismatch")
-        
-        # Direct table operations instead of RPC
-        # 1. Check if user already has access
-        existing_access = await supabase_client.select(
-            "user_event_access",
-            "id",
-            {"user_id": current_user_id, "event_id": event_id},
+
+        # Use secure RPC function with built-in transaction safety and race condition protection
+        result = await supabase_client.rpc(
+            "purchase_event_access",
+            {
+                "event_id_param": event_id,
+                "event_name_param": request_data.event_name
+            },
             user_token=user_token
         )
-        
-        if len(existing_access) > 0:
-            raise HTTPException(status_code=409, detail="User already has access to this event")
-        
-        # 2. Get current credits
-        credits_result = await supabase_client.select(
-            "user_credits",
-            "credits",
-            {"user_id": current_user_id},
-            user_token=user_token
+
+        # Handle different response scenarios
+        if not result.get("success", False):
+            error_type = result.get("error", "unknown")
+            message = result.get("message", "Purchase failed")
+
+            if error_type == "already_has_access":
+                raise HTTPException(status_code=409, detail=message)
+            elif error_type == "insufficient_credits":
+                raise HTTPException(status_code=402, detail=message)
+            else:
+                raise HTTPException(status_code=500, detail=message)
+
+        # Success
+        return PurchaseEventAccessResponse(
+            success=True,
+            message=result.get("message", "Event access purchased successfully"),
+            credits_remaining=result.get("credits_remaining", 0),
+            event_id=event_id
         )
-        
-        if not credits_result or len(credits_result) == 0:
-            current_credits = 0
-        else:
-            current_credits = credits_result[0].get("credits", 0)
-        
-        # 3. Check sufficient credits
-        if current_credits < 1:
-            raise HTTPException(status_code=402, detail="Not enough credits to purchase event access")
-        
-        # 4. Execute purchase transaction
-        from datetime import datetime
-        try:
-            # Deduct credit
-            await supabase_client.update(
-                "user_credits",
-                {"credits": current_credits - 1, "updated_at": datetime.now().isoformat()},
-                {"user_id": current_user_id},
-                user_token=user_token
-            )
-            
-            # Grant access
-            await supabase_client.insert(
-                "user_event_access",
-                [{
-                    "user_id": current_user_id,
-                    "event_id": event_id,
-                    "event_name": request_data.event_name,
-                    "granted_at": datetime.now().isoformat(),
-                    "access_type": "paid"
-                }],
-                user_token=user_token
-            )
-            
-            # Log transaction
-            await supabase_client.insert(
-                "credit_transactions",
-                [{
-                    "user_id": current_user_id,
-                    "amount": -1,
-                    "transaction_type": "spend",
-                    "credits_before": current_credits,
-                    "credits_after": current_credits - 1,
-                    "description": f"Event access purchase: {request_data.event_name or event_id}",
-                    "event_id": event_id,
-                    "created_at": datetime.now().isoformat()
-                }],
-                user_token=user_token
-            )
-            
-            return PurchaseEventAccessResponse(
-                success=True,
-                message="Event access purchased successfully",
-                credits_remaining=current_credits - 1,
-                event_id=event_id
-            )
-            
-        except Exception as transaction_error:
-            logger.error(f"Purchase transaction failed for user {current_user_id}: {transaction_error}")
-            raise HTTPException(status_code=500, detail="Failed to complete purchase transaction")
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -3707,12 +3591,52 @@ async def bulk_import_commentator_info(
                 }
                 
                 if existing:
-                    # Update existing record
-                    update_data = {k: v for k, v in info_data.items() if k != "athlete_id"}
-                    result = await supabase_client.update("commentator_info", update_data, {
-                        "athlete_id": athlete_id,
-                        "created_by": effective_user_id
-                    }, user_token=user_token)
+                    # Merge: Only update fields that have non-empty values in CSV
+                    # This preserves existing data that isn't in the CSV
+                    existing_record = existing[0]
+                    update_data = {}
+
+                    # Standard text fields - only update if CSV has a value
+                    for field in ["homebase", "team", "sponsors", "favorite_trick",
+                                  "achievements", "injuries", "fun_facts", "notes"]:
+                        csv_value = info_data.get(field, "")
+                        if csv_value and csv_value.strip():  # Non-empty in CSV
+                            update_data[field] = csv_value
+
+                    # Social media - merge individual fields
+                    csv_social = info_data.get("social_media", {})
+                    existing_social = existing_record.get("social_media", {})
+                    merged_social = existing_social.copy() if existing_social else {}
+
+                    for social_field in ["instagram", "youtube", "website"]:
+                        csv_social_value = csv_social.get(social_field, "")
+                        if csv_social_value and csv_social_value.strip():
+                            merged_social[social_field] = csv_social_value
+
+                    if merged_social != existing_social:
+                        update_data["social_media"] = merged_social
+
+                    # Custom fields - merge with existing
+                    csv_custom = info_data.get("custom_fields", {})
+                    existing_custom = existing_record.get("custom_fields", {})
+                    merged_custom = existing_custom.copy() if existing_custom else {}
+
+                    for custom_key, custom_value in csv_custom.items():
+                        if custom_value and str(custom_value).strip():
+                            merged_custom[custom_key] = custom_value
+
+                    if merged_custom != existing_custom:
+                        update_data["custom_fields"] = merged_custom
+
+                    # Only perform update if there are changes
+                    if update_data:
+                        result = await supabase_client.update("commentator_info", update_data, {
+                            "athlete_id": athlete_id,
+                            "created_by": effective_user_id
+                        }, user_token=user_token)
+                        logger.info(f"Merged CSV data for athlete {athlete_id}: updated {len(update_data)} fields")
+                    else:
+                        logger.info(f"No changes needed for athlete {athlete_id} - CSV data matches existing")
                 else:
                     # Create new record - add user info
                     info_data["created_by"] = effective_user_id
