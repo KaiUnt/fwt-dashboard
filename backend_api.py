@@ -1533,7 +1533,7 @@ async def update_commentator_info(
 async def delete_commentator_info(
     athlete_id: str,
     current_user_id: str = Depends(extract_user_id_from_token),
-    user_token: str = Depends(extract_token)
+    user_token: str = Depends(get_user_token)
 ):
     """Delete commentator info for an athlete"""
     if not supabase_client:
