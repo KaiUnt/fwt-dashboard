@@ -437,6 +437,8 @@
     "userNotFound": "Kein Benutzer mit diesem Benutzernamen gefunden",
     "cannotSendToSelf": "Du kannst dir keine Freundschaftsanfrage senden",
     "requestAlreadyExists": "Eine Freundschaftsanfrage wurde bereits an diesen Benutzer gesendet",
+    "requestAlreadyReceived": "Dieser Benutzer hat dir bereits eine Freundschaftsanfrage gesendet. Bitte akzeptiere sie stattdessen.",
+    "alreadyFriends": "Du bist bereits mit diesem Benutzer befreundet",
     "loginRequired": "Bitte melde dich an, um Freundschaftsanfragen zu senden",
     "pendingTitle": "Ausstehende Freundschaftsanfragen ({count})",
     "pendingSubtitle": "Überprüfe und beantworte eingehende Anfragen",

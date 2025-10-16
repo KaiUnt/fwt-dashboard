@@ -48,7 +48,13 @@ const createFriendsApi = (getAccessToken: () => Promise<string | null>) => ({
             errorMessage = 'No user found with this username';
             break;
           case 409:
-            errorMessage = 'A friend request has already been sent to this user';
+            if (detail?.includes?.('already sent you a friend request')) {
+              errorMessage = 'This user has already sent you a friend request. Please accept it instead.';
+            } else if (detail?.includes?.('already friends')) {
+              errorMessage = 'You are already friends with this user';
+            } else {
+              errorMessage = 'A friend request has already been sent to this user';
+            }
             break;
           case 503:
             errorMessage = 'Service temporarily unavailable. Please try again later.';

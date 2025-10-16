@@ -436,6 +436,8 @@
     "userNotFound": "No user found with this username",
     "cannotSendToSelf": "You cannot send a friend request to yourself",
     "requestAlreadyExists": "A friend request has already been sent to this user",
+    "requestAlreadyReceived": "This user has already sent you a friend request. Please accept it instead.",
+    "alreadyFriends": "You are already friends with this user",
     "loginRequired": "Please log in to send friend requests",
     "pendingTitle": "Pending Friend Requests ({count})",
     "pendingSubtitle": "Review and respond to incoming requests",

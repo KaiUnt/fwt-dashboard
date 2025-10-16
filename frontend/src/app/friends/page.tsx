@@ -79,6 +79,10 @@ export default function FriendsPage() {
           errorMessage = t('friends.userNotFound');
         } else if (error.message.includes('Cannot send friend request to yourself')) {
           errorMessage = t('friends.cannotSendToSelf');
+        } else if (error.message.includes('already sent you a friend request')) {
+          errorMessage = t('friends.requestAlreadyReceived');
+        } else if (error.message.includes('already friends')) {
+          errorMessage = t('friends.alreadyFriends');
         } else if (error.message.includes('Friend request already exists')) {
           errorMessage = t('friends.requestAlreadyExists');
         } else if (error.message.includes('Authorization token required')) {

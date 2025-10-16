@@ -436,6 +436,8 @@
     "userNotFound": "Aucun utilisateur trouvé avec ce nom d'utilisateur",
     "cannotSendToSelf": "Vous ne pouvez pas vous envoyer une demande d'ami",
     "requestAlreadyExists": "Une demande d'ami a déjà été envoyée à cet utilisateur",
+    "requestAlreadyReceived": "Cet utilisateur vous a déjà envoyé une demande d'ami. Veuillez l'accepter à la place.",
+    "alreadyFriends": "Vous êtes déjà ami avec cet utilisateur",
     "loginRequired": "Veuillez vous connecter pour envoyer des demandes d'ami",
     "pendingTitle": "Demandes d'ami en attente ({count})",
     "pendingSubtitle": "Examinez et répondez aux demandes entrantes",

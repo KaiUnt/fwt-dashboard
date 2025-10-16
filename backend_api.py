@@ -1646,20 +1646,43 @@ async def create_friend_request(
         
         if target_user["id"] == current_user_id:
             raise HTTPException(status_code=400, detail="Cannot send friend request to yourself")
-        
-        # Check if connection already exists - use user token for user's own data
-        existing_connection = await supabase_client.select(
-            "user_connections", 
-            "*", 
+
+        # Check if connection already exists in EITHER direction - use user token for user's own data
+        # Check for outgoing request (current_user -> target_user)
+        outgoing_connection = await supabase_client.select(
+            "user_connections",
+            "*",
             {
                 "requester_id": current_user_id,
                 "addressee_id": target_user["id"]
             },
             user_token
         )
-        
-        if existing_connection:
+
+        # Check for incoming request (target_user -> current_user)
+        incoming_connection = await supabase_client.select(
+            "user_connections",
+            "*",
+            {
+                "requester_id": target_user["id"],
+                "addressee_id": current_user_id
+            },
+            user_token
+        )
+
+        # If connection exists in either direction, reject the request
+        if outgoing_connection:
             raise HTTPException(status_code=409, detail="Friend request already exists")
+
+        if incoming_connection:
+            # Check if it's pending - if so, suggest accepting it instead
+            if incoming_connection[0].get("status") == "pending":
+                raise HTTPException(status_code=409, detail="This user has already sent you a friend request. Please accept it instead.")
+            elif incoming_connection[0].get("status") == "accepted":
+                raise HTTPException(status_code=409, detail="You are already friends with this user")
+            else:
+                # If declined, allow sending a new request
+                pass
         
         # Create friend request
         connection_data = {
