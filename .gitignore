@@ -206,3 +206,7 @@ nul
 ssh.txt
 ssh.pub
 ssh
+
+.doc
+*.docx
+UserManual.docx

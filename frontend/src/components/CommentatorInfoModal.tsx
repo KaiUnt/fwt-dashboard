@@ -728,6 +728,7 @@ export function CommentatorInfoModal({
               </div>
             </div>
             )}
+            {activeTab !== 'csv' && (
             <div className="mt-6">
               <button
                 type="button"
@@ -818,6 +819,7 @@ export function CommentatorInfoModal({
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Footer */}
