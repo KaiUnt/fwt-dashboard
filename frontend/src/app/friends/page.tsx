@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { UserPlus, UserCheck, Mail, Check, X, Users, UserMinus, AlertCircle } from 'lucide-react';
-import { useFriends, usePendingFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useDeclineFriendRequest, useRemoveFriend } from '@/hooks/useFriends';
+import { useFriends, usePendingFriendRequests, useSentFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useDeclineFriendRequest, useRemoveFriend } from '@/hooks/useFriends';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AppHeader } from '@/components/AppHeader';
 
@@ -27,6 +27,7 @@ export default function FriendsPage() {
   // Friends System Hooks
   const { data: friends, isLoading: friendsLoading } = useFriends();
   const { data: pendingRequests, isLoading: pendingLoading } = usePendingFriendRequests();
+  const { data: sentRequests, isLoading: sentLoading } = useSentFriendRequests();
   const sendFriendRequest = useSendFriendRequest();
   const acceptFriendRequest = useAcceptFriendRequest();
   const declineFriendRequest = useDeclineFriendRequest();
@@ -244,16 +245,16 @@ export default function FriendsPage() {
               </form>
             </div>
 
-            {/* Pending Requests */}
+            {/* Received Friend Requests */}
             <div className="bg-white rounded-lg shadow">
               <div className="p-6 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <UserCheck className="h-5 w-5 mr-2" />
-                  {t('friends.pendingTitle', { count: pendingRequests?.data?.length || 0 })}
+                  {t('friends.receivedRequestsTitle', { count: pendingRequests?.data?.length || 0 })}
                 </h3>
-                <p className="text-sm text-gray-500">{t('friends.pendingSubtitle')}</p>
+                <p className="text-sm text-gray-500">{t('friends.receivedRequestsSubtitle')}</p>
               </div>
-              
+
               <div className="p-6">
                 {pendingLoading ? (
                   <div className="text-gray-500 flex items-center justify-center py-8">
@@ -300,7 +301,56 @@ export default function FriendsPage() {
                   </div>
                 ) : (
                   <div className="text-gray-500 text-center py-8">
-                    {t('friends.noPendingRequests')}
+                    {t('friends.noReceivedRequests')}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sent Friend Requests */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <Mail className="h-5 w-5 mr-2" />
+                  {t('friends.sentRequestsTitle', { count: sentRequests?.data?.length || 0 })}
+                </h3>
+                <p className="text-sm text-gray-500">{t('friends.sentRequestsSubtitle')}</p>
+              </div>
+
+              <div className="p-6">
+                {sentLoading ? (
+                  <div className="text-gray-500 flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                    {t('friends.loadingSent')}
+                  </div>
+                ) : sentRequests?.data && sentRequests.data.length > 0 ? (
+                  <div className="space-y-3">
+                    {sentRequests.data.map((request) => (
+                      <div key={request.id} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {request.addressee?.full_name || request.addressee?.email || t('friends.unknownUser')}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {request.addressee?.email}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {t('friends.sentOn', { date: new Date(request.created_at).toLocaleDateString() })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              {t('friends.statusPending')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-center py-8">
+                    {t('friends.noSentRequests')}
                   </div>
                 )}
               </div>

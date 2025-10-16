@@ -1682,27 +1682,27 @@ async def create_friend_request(
         logger.error(f"Error creating friend request: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to create friend request: {str(e)}")
 
-@app.get("/api/friends/pending")
-async def get_pending_friend_requests(
+@app.get("/api/friends/pending/received")
+async def get_received_pending_friend_requests(
     current_user_id: str = Depends(extract_user_id_from_token),
     user_token: str = Depends(get_user_token)
 ):
-    """Get pending friend requests for current user"""
+    """Get pending friend requests received by current user (where user is addressee)"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
-    
+
     try:
         # Get pending requests where user is the addressee
         result = await supabase_client.select(
-            "user_connections", 
-            "*", 
+            "user_connections",
+            "*",
             {
                 "addressee_id": current_user_id,
                 "status": "pending"
             },
             user_token
         )
-        
+
         # Get requester details - now possible with RLS policy
         pending_requests = []
         for connection in result:
@@ -1712,13 +1712,95 @@ async def get_pending_friend_requests(
                     **connection,
                     "requester": requester[0]
                 })
-        
+
         return {
             "success": True,
             "data": pending_requests,
             "total": len(pending_requests)
         }
-        
+
+    except Exception as e:
+        logger.error(f"Error fetching received pending friend requests: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch received pending requests: {str(e)}")
+
+@app.get("/api/friends/pending/sent")
+async def get_sent_pending_friend_requests(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Get pending friend requests sent by current user (where user is requester)"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Get pending requests where user is the requester
+        result = await supabase_client.select(
+            "user_connections",
+            "*",
+            {
+                "requester_id": current_user_id,
+                "status": "pending"
+            },
+            user_token
+        )
+
+        # Get addressee details - now possible with RLS policy
+        sent_requests = []
+        for connection in result:
+            addressee = await supabase_client.select("user_profiles", "*", {"id": connection["addressee_id"]}, user_token)
+            if addressee:
+                sent_requests.append({
+                    **connection,
+                    "addressee": addressee[0]
+                })
+
+        return {
+            "success": True,
+            "data": sent_requests,
+            "total": len(sent_requests)
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching sent pending friend requests: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch sent pending requests: {str(e)}")
+
+@app.get("/api/friends/pending")
+async def get_pending_friend_requests(
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Get all pending friend requests (both received and sent) - deprecated, use /received or /sent instead"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Get pending requests where user is the addressee
+        result = await supabase_client.select(
+            "user_connections",
+            "*",
+            {
+                "addressee_id": current_user_id,
+                "status": "pending"
+            },
+            user_token
+        )
+
+        # Get requester details - now possible with RLS policy
+        pending_requests = []
+        for connection in result:
+            requester = await supabase_client.select("user_profiles", "*", {"id": connection["requester_id"]}, user_token)
+            if requester:
+                pending_requests.append({
+                    **connection,
+                    "requester": requester[0]
+                })
+
+        return {
+            "success": True,
+            "data": pending_requests,
+            "total": len(pending_requests)
+        }
+
     except Exception as e:
         logger.error(f"Error fetching pending friend requests: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch pending requests: {str(e)}")

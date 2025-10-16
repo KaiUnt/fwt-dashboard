@@ -14,9 +14,14 @@ const createFriendsApi = (getAccessToken: () => Promise<string | null>) => ({
     return await apiFetch(`${API_BASE_URL}/api/friends`, { getAccessToken });
   },
 
-  // Get pending friend requests
+  // Get pending friend requests (received)
   getPendingRequests: async (): Promise<{ success: boolean; data: FriendRequest[]; total: number }> => {
-    return await apiFetch(`${API_BASE_URL}/api/friends/pending`, { getAccessToken });
+    return await apiFetch(`${API_BASE_URL}/api/friends/pending/received`, { getAccessToken });
+  },
+
+  // Get sent friend requests
+  getSentRequests: async (): Promise<{ success: boolean; data: FriendRequest[]; total: number }> => {
+    return await apiFetch(`${API_BASE_URL}/api/friends/pending/sent`, { getAccessToken });
   },
 
   // Send friend request
@@ -105,7 +110,7 @@ export const useFriends = () => {
   });
 };
 
-// Hook to get pending friend requests
+// Hook to get pending friend requests (received)
 export const usePendingFriendRequests = () => {
   const { getAccessToken } = useAccessToken();
   const friendsApi = createFriendsApi(getAccessToken);
@@ -125,6 +130,26 @@ export const usePendingFriendRequests = () => {
   });
 };
 
+// Hook to get sent friend requests
+export const useSentFriendRequests = () => {
+  const { getAccessToken } = useAccessToken();
+  const friendsApi = createFriendsApi(getAccessToken);
+  return useQuery({
+    queryKey: ['sent-friend-requests'],
+    queryFn: async () => {
+      try {
+        return await friendsApi.getSentRequests();
+      } catch (error) {
+        console.warn('Sent friend requests API failed:', error);
+        // If friends API fails, return empty response to prevent UI crashes
+        return { success: true, data: [], total: 0 };
+      }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: false, // Don't retry friends API failures
+  });
+};
+
 // Hook to send friend request
 export const useSendFriendRequest = () => {
   const { getAccessToken } = useAccessToken();
@@ -134,9 +159,10 @@ export const useSendFriendRequest = () => {
   return useMutation({
     mutationFn: friendsApi.sendFriendRequest,
     onSuccess: () => {
-      // Invalidate and refetch friends list
+      // Invalidate and refetch friends list and sent requests
       queryClient.invalidateQueries({ queryKey: ['friends'] });
       queryClient.invalidateQueries({ queryKey: ['pending-friend-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['sent-friend-requests'] });
     },
   });
 };

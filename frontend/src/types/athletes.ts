@@ -80,6 +80,7 @@ export interface FriendRequest {
   created_at: string;
   updated_at: string;
   requester?: UserProfile;
+  addressee?: UserProfile;
 }
 
 export interface UserProfile {
