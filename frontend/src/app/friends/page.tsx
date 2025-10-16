@@ -154,21 +154,6 @@ export default function FriendsPage() {
       />
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Messages */}
-        {message && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-            <Check className="h-5 w-5 text-green-600" />
-            <span className="text-green-700">{message}</span>
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <span className="text-red-700">{error}</span>
-          </div>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Friends Overview */}
           <div className="lg:col-span-1">
@@ -246,6 +231,21 @@ export default function FriendsPage() {
                     )}
                   </button>
                 </div>
+
+                {/* Messages directly below input field */}
+                {message && (
+                  <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                    <Check className="h-5 w-5 text-green-600" />
+                    <span className="text-green-700">{message}</span>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                    <span className="text-red-700">{error}</span>
+                  </div>
+                )}
               </form>
             </div>
 
