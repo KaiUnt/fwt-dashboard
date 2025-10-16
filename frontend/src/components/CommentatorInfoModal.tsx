@@ -1,12 +1,41 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe, Upload } from 'lucide-react';
+import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe, Upload, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { CommentatorInfo, Athlete } from '@/types/athletes';
 import { useUpdateCommentatorInfo, useBulkImportCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth, useAccessToken } from '@/providers/AuthProvider';
 import { CSVUploadComponent } from './CSVUploadComponent';
+
+type CustomFieldEntry = { id: string; key: string; value: string };
+
+const generateFieldId = (): string =>
+  (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2, 10));
+
+const mapObjectToEntries = (fields?: Record<string, string>): CustomFieldEntry[] =>
+  Object.entries(fields || {}).map(([key, value]) => ({
+    id: generateFieldId(),
+    key,
+    value: String(value ?? ''),
+  }));
+
+const mapEntriesToObject = (entries: CustomFieldEntry[]): Record<string, string> => {
+  const result: Record<string, string> = {};
+  entries.forEach(({ key, value }) => {
+    const trimmedKey = key.trim();
+    if (!trimmedKey) {
+      return;
+    }
+    if (!value.trim()) {
+      return;
+    }
+    result[trimmedKey] = value;
+  });
+  return result;
+};
 
 interface CommentatorInfoModalProps {
   athleteId: string;
@@ -45,6 +74,21 @@ export function CommentatorInfoModal({
     },
     custom_fields: {},
   });
+  const [customFields, setCustomFields] = useState<CustomFieldEntry[]>([]);
+  const [isCustomFieldsOpen, setIsCustomFieldsOpen] = useState(false);
+
+  const applyCustomFieldsUpdate = (
+    updater: (prev: CustomFieldEntry[]) => CustomFieldEntry[]
+  ) => {
+    setCustomFields(prev => {
+      const next = updater(prev);
+      setFormData(current => ({
+        ...current,
+        custom_fields: mapEntriesToObject(next),
+      }));
+      return next;
+    });
+  };
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +148,9 @@ export function CommentatorInfoModal({
           },
           custom_fields: initialData.custom_fields || {},
         });
+        const initialCustomEntries = mapObjectToEntries(initialData.custom_fields);
+        setCustomFields(initialCustomEntries);
+        setIsCustomFieldsOpen(initialCustomEntries.length > 0);
       } else {
         // Reset form for new data
         setFormData({
@@ -122,6 +169,8 @@ export function CommentatorInfoModal({
           },
           custom_fields: {},
         });
+        setCustomFields([]);
+        setIsCustomFieldsOpen(false);
       }
     }
   }, [isOpen, initialData, athleteId]);
@@ -143,21 +192,42 @@ export function CommentatorInfoModal({
           youtube: initialData.social_media?.youtube || '',
           website: initialData.social_media?.website || '',
         },
+        custom_fields: initialData.custom_fields || {},
       });
+        setCustomFields(mapObjectToEntries(initialData.custom_fields));
     }
   }, [initialData, isOpen, isSaving, showSuccess]); // ✅ Removed formData dependency!
 
   const handleSave = async () => {
     if (isSaving) return; // Prevent double-clicks
-    
+
+    const activeCustomFields = customFields.filter(field => field.key.trim().length > 0 || field.value.trim().length > 0);
+    const hasEmptyKey = activeCustomFields.some(field => field.key.trim().length === 0);
+    const hasEmptyValue = activeCustomFields.some(field => field.key.trim().length > 0 && field.value.trim().length === 0);
+    const normalizedKeys = activeCustomFields
+      .map(field => field.key.trim().toLowerCase())
+      .filter(key => key.length > 0);
+    const hasDuplicateKeys = new Set(normalizedKeys).size !== normalizedKeys.length;
+
+    if (hasEmptyKey || hasEmptyValue || hasDuplicateKeys) {
+      setError('Bitte prüfe die Custom Fields: Key und Value müssen gefüllt sein und jeder Key darf nur einmal vorkommen.');
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
-    
-    
+
+    const customFieldsPayload = mapEntriesToObject(activeCustomFields);
+
     try {
+      const payload: Partial<CommentatorInfo> = {
+        ...formData,
+        custom_fields: Object.keys(customFieldsPayload).length > 0 ? customFieldsPayload : {},
+      };
+
       await updateMutation.mutateAsync({
         athleteId,
-        info: formData,
+        info: payload,
       });
       
       // Show success message briefly before closing
@@ -245,14 +315,22 @@ export function CommentatorInfoModal({
     // but stay on the CSV tab to allow bulk import
     const firstMatch = csvData.find(d => d.matchedAthleteId === athleteId);
     if (firstMatch) {
+      const currentCustomFieldsObject = mapEntriesToObject(customFields);
+      const mergedCustomFields = {
+        ...currentCustomFieldsObject,
+        ...firstMatch.customFields,
+      };
       setFormData(prev => ({
         ...prev,
         ...firstMatch.standardFields,
         custom_fields: {
-          ...prev.custom_fields,
-          ...firstMatch.customFields,
+          ...mergedCustomFields,
         },
       }));
+      setCustomFields(mapObjectToEntries(mergedCustomFields));
+      if (Object.keys(mergedCustomFields).length > 0) {
+        setIsCustomFieldsOpen(true);
+      }
     }
   };
 
@@ -648,34 +726,92 @@ export function CommentatorInfoModal({
                 </div>
 
                 {/* Custom Fields */}
-                {formData.custom_fields && Object.keys(formData.custom_fields).length > 0 && (
-                  <div className="col-span-full">
-                    <label className="text-sm font-medium text-gray-900 mb-3 block">
-                      Custom Fields (from CSV)
-                    </label>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                      {Object.entries(formData.custom_fields).map(([key, value]) => (
-                        <div key={key}>
-                          <label className="flex items-center space-x-2 text-xs font-medium text-blue-800 mb-1">
-                            <span>{key}</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={String(value) || ''}
-                            onChange={(e) => setFormData(prev => ({
-                              ...prev,
-                              custom_fields: {
-                                ...prev.custom_fields,
-                                [key]: e.target.value,
-                              },
-                            }))}
-                            className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 bg-white"
-                          />
-                        </div>
-                      ))}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomFieldsOpen(prev => !prev)}
+                    className="flex w-full items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-left text-sm font-medium text-blue-800 transition-colors hover:bg-blue-100"
+                  >
+                    <span>Custom Fields</span>
+                    {isCustomFieldsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </button>
+                  {isCustomFieldsOpen && (
+                    <div className="mt-3 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                      {customFields.length === 0 && (
+                        <p className="text-sm text-blue-700">Noch keine Custom Fields vorhanden.</p>
+                      )}
+                      {customFields.map((field) => {
+                        const normalizedKey = field.key.trim().toLowerCase();
+                        const duplicated = normalizedKey.length > 0 && customFields.filter(entry => entry.id !== field.id && entry.key.trim().toLowerCase() === normalizedKey).length > 0;
+                        const keyMissing = field.key.trim().length === 0;
+                        const valueMissing = field.value.trim().length === 0;
+                        return (
+                          <div key={field.id} className="rounded-lg bg-white p-3 shadow-sm">
+                            <div className="flex items-center space-x-3">
+                              <div className="flex-1">
+                                <label className="text-xs font-medium text-blue-800">Key</label>
+                                <input
+                                  type="text"
+                                  value={field.key}
+                                  onChange={(e) => {
+                                    const nextKey = e.target.value;
+                                    applyCustomFieldsUpdate(prev => prev.map(entry => entry.id === field.id ? { ...entry, key: nextKey } : entry));
+                                  }}
+                                  className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${keyMissing || duplicated ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-blue-200 focus:border-blue-400 focus:ring-blue-400'}`}
+                                />
+                                {(keyMissing || duplicated) && (
+                                  <p className="mt-1 text-xs text-red-600">
+                                    {keyMissing ? 'Key darf nicht leer sein.' : 'Key muss eindeutig sein.'}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-xs font-medium text-blue-800">Value</label>
+                                <input
+                                  type="text"
+                                  value={field.value}
+                                  onChange={(e) => {
+                                    const nextValue = e.target.value;
+                                    applyCustomFieldsUpdate(prev => prev.map(entry => entry.id === field.id ? { ...entry, value: nextValue } : entry));
+                                  }}
+                                  className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${valueMissing ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-blue-200 focus:border-blue-400 focus:ring-blue-400'}`}
+                                />
+                                {valueMissing && (
+                                  <p className="mt-1 text-xs text-red-600">Value darf nicht leer sein.</p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => applyCustomFieldsUpdate(prev => prev.filter(entry => entry.id !== field.id))}
+                                className="self-end rounded-md border border-red-200 bg-white px-2 py-2 text-red-600 transition-colors hover:bg-red-50"
+                                aria-label="Custom Field löschen"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomFieldsOpen(true);
+                          applyCustomFieldsUpdate(prev => (
+                            [...prev, {
+                              id: generateFieldId(),
+                              key: '',
+                              value: '',
+                            }]
+                          ));
+                        }}
+                        className="flex items-center space-x-2 rounded-lg border border-blue-300 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Feld hinzufügen</span>
+                      </button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
             )}

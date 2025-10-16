@@ -260,7 +260,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                   if (!alreadyLogged) {
                     const token = session?.access_token
-                    const provider = (session?.user?.app_metadata as any)?.provider || 'email'
+                    const providerMetadata = session?.user?.app_metadata as { provider?: string } | undefined
+                    const provider = providerMetadata?.provider ?? 'email'
                     if (token) {
                       void fetch('/api/activity/log-login', {
                         method: 'POST',
