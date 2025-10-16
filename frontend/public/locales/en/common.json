@@ -640,7 +640,7 @@
           },
           "multiEvent": {
             "title": "Multi-Event Mode",
-            "description": "The Multi-Event Mode is designed for cases where two events take place simultaneously at the same venue — for example, when Junior and Qualifier runs are held in parallel with alternating bib numbers. Both events are shown side by side and sorted by bib number. Make sure the bib numbers are correctly configured in Liveheats."
+            "description": "The Multi-Event Mode is designed for cases where two events take place simultaneously at the same venue — for example, when Junior and Qualifier runs are held in parallel with alternating bib numbers. Both events are merged into a single dashboard and sorted by bib number. Make sure the bib numbers are correctly configured in Liveheats."
           },
           "select": {
             "title": "Select Event",
@@ -662,11 +662,11 @@
           },
           "refreshOffline": {
             "title": "Refresh and Save Offline",
-            "description": "The 'Refresh and Save Offline' button lets you update the event and simultaneously store it for offline use — ideal for locations with poor internet connectivity."
+            "description": "There are two separate buttons: The 'Refresh' button updates the event data, and the 'Save Offline' button stores the event for offline use — ideal for locations with poor internet connectivity."
           },
           "riderInfo": {
             "title": "Rider Info",
-            "description": "In the Rider Info section, you'll find detailed information on each athlete — including personal data, nationality, and current rankings — helping you deliver professional commentary."
+            "description": "In the Rider Info section, you'll find detailed information on each athlete — including birthdate, nationality, status, and division — helping you deliver professional commentary."
           },
           "commentatorInfo": {
             "title": "Commentator Info",
@@ -674,7 +674,7 @@
           },
           "eventHistory": {
             "title": "Event History",
-            "description": "The Event History shows all past competitions at this venue or within this series. This allows you to quickly check how athletes performed previously and make historical comparisons."
+            "description": "The Event History shows all past competitions at this venue. This allows you to quickly check how athletes performed previously at this location and make historical comparisons."
           },
           "performanceHistory": {
             "title": "Performance History",
@@ -682,7 +682,7 @@
           },
           "allResults": {
             "title": "All Results",
-            "description": "The All Results section provides an overview of all results for the event. By clicking Series Rankings, you can view the full ranking across all events — perfect for placing current results in overall context."
+            "description": "The All Results section displays all results of the rider. You can select different series the rider has participated in, or view all results at once. Sorting is available by chronological order, best ranking, or most points."
           },
           "seriesRanking": {
             "title": "FWT Series Ranking",

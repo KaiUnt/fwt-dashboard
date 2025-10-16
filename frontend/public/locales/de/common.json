@@ -646,7 +646,7 @@
           },
           "multiEvent": {
             "title": "Multi-Event Modus",
-            "description": "Der Multi-Event-Modus ist für Fälle gedacht, in denen zwei Events gleichzeitig an derselben Location stattfinden – zum Beispiel, wenn Junior- und Qualifier-Runs parallel mit abwechselnden BIB-Nummern durchgeführt werden. Beide Events werden nebeneinander angezeigt und nach BIB-Nummer sortiert. Stelle sicher, dass die BIB-Nummern in Liveheats korrekt konfiguriert sind."
+            "description": "Der Multi-Event-Modus ist für Fälle gedacht, in denen zwei Events gleichzeitig an derselben Location stattfinden – zum Beispiel, wenn Junior- und Qualifier-Runs parallel mit abwechselnden BIB-Nummern durchgeführt werden. Beide Events werden in einem gemeinsamen Dashboard zusammengeführt und nach BIB-Nummer sortiert. Stelle sicher, dass die BIB-Nummern in Liveheats korrekt konfiguriert sind."
           },
           "select": {
             "title": "Event auswählen",
@@ -668,11 +668,11 @@
           },
           "refreshOffline": {
             "title": "Refresh und Offline speichern",
-            "description": "Der 'Refresh and Save Offline'-Button ermöglicht es dir, das Event zu aktualisieren und gleichzeitig für die Offline-Nutzung zu speichern – ideal für Orte mit schlechter Internetverbindung."
+            "description": "Es gibt zwei separate Buttons: Der 'Refresh'-Button aktualisiert die Event-Daten, und der 'Save Offline'-Button speichert das Event für die Offline-Nutzung – ideal für Orte mit schlechter Internetverbindung."
           },
           "riderInfo": {
             "title": "Rider-Info",
-            "description": "In der Rider-Info-Sektion findest du detaillierte Informationen zu jedem Athleten – einschließlich persönlicher Daten, Nationalität und aktueller Rankings – die dir helfen, professionelle Kommentare zu liefern."
+            "description": "In der Rider-Info-Sektion findest du detaillierte Informationen zu jedem Athleten – einschließlich Geburtsdatum, Nationalität, Status und Division – die dir helfen, professionelle Kommentare zu liefern."
           },
           "commentatorInfo": {
             "title": "Kommentatoren-Info",
@@ -680,7 +680,7 @@
           },
           "eventHistory": {
             "title": "Event-Historie",
-            "description": "Die Event-Historie zeigt alle vergangenen Wettkämpfe an diesem Veranstaltungsort oder innerhalb dieser Serie. So kannst du schnell überprüfen, wie Athleten zuvor abgeschnitten haben, und historische Vergleiche anstellen."
+            "description": "Die Event-Historie zeigt alle vergangenen Wettkämpfe an diesem Veranstaltungsort. So kannst du schnell überprüfen, wie Athleten zuvor an dieser Location abgeschnitten haben, und historische Vergleiche anstellen."
           },
           "performanceHistory": {
             "title": "Performance-Historie",
@@ -688,7 +688,7 @@
           },
           "allResults": {
             "title": "Alle Ergebnisse",
-            "description": "Die Sektion 'Alle Ergebnisse' bietet eine Übersicht aller Ergebnisse für das Event. Durch Klicken auf 'Series Rankings' kannst du das vollständige Ranking über alle Events hinweg ansehen – perfekt, um aktuelle Ergebnisse in den Gesamtkontext zu setzen."
+            "description": "Die Sektion 'Alle Ergebnisse' zeigt alle Ergebnisse des Riders. Du kannst verschiedene Serien auswählen, an denen der Rider teilgenommen hat, oder alle Ergebnisse auf einmal anzeigen lassen. Die Sortierung ist möglich nach Chronologie, bester Platzierung oder meisten Punkten."
           },
           "seriesRanking": {
             "title": "FWT Series Ranking",
