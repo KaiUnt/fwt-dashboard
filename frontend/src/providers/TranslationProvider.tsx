@@ -29,6 +29,8 @@ interface TranslationContextType {
 
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
 
+const TRANSLATION_VERSION = '2025-02-12-custom-fields';
+
 // Prevent multiple simultaneous requests for the same locale
 const translationCache = new Map<string, Promise<Translations>>();
 
@@ -63,7 +65,7 @@ async function fetchTranslations(locale: string): Promise<Translations> {
   // Create new fetch promise and cache it
   const fetchPromise = (async () => {
     try {
-      const response = await fetch(`/locales/${locale}/common.json`);
+      const response = await fetch(`/locales/${locale}/common.json?v=${TRANSLATION_VERSION}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch translations: ${response.status}`);
@@ -73,7 +75,7 @@ async function fetchTranslations(locale: string): Promise<Translations> {
       
       // Cache in localStorage for offline fallback
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`translations-${locale}`, JSON.stringify(data));
+        localStorage.setItem(`translations-${TRANSLATION_VERSION}-${locale}`, JSON.stringify(data));
       }
       
       return data;
@@ -92,7 +94,7 @@ function getOfflineTranslations(locale: string): Translations | null {
   if (typeof window === 'undefined') return null;
   
   try {
-    const cached = localStorage.getItem(`translations-${locale}`);
+    const cached = localStorage.getItem(`translations-${TRANSLATION_VERSION}-${locale}`);
     return cached ? JSON.parse(cached) : null;
   } catch {
     return null;

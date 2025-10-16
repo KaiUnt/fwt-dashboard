@@ -732,15 +732,15 @@ export function CommentatorInfoModal({
               <button
                 type="button"
                 onClick={() => setIsCustomFieldsOpen(prev => !prev)}
-                className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100"
+                className="flex w-full items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-left text-sm font-medium text-blue-900 transition-colors hover:bg-blue-100"
               >
                 <span>{t('commentatorInfo.customFields.sectionTitle')}</span>
                 {isCustomFieldsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               </button>
               {isCustomFieldsOpen && (
-                <div className="mt-3 space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="mt-3 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4 shadow-sm">
                   {customFields.length === 0 && (
-                    <p className="text-sm text-gray-600">{t('commentatorInfo.customFields.emptyState')}</p>
+                    <p className="text-sm text-blue-700">{t('commentatorInfo.customFields.emptyState')}</p>
                   )}
                   {customFields.map((field) => {
                     const normalizedKey = field.key.trim().toLowerCase();
@@ -748,10 +748,10 @@ export function CommentatorInfoModal({
                     const keyMissing = field.key.trim().length === 0;
                     const valueMissing = field.value.trim().length === 0;
                     return (
-                      <div key={field.id} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <div key={field.id} className="rounded-lg border border-blue-100 bg-white p-4">
                         <div className="flex flex-col gap-4 md:flex-row">
                           <div className="flex-1">
-                            <label className="text-xs font-medium text-gray-900">{t('commentatorInfo.customFields.fieldLabel')}</label>
+                            <label className="text-xs font-medium text-blue-900">{t('commentatorInfo.customFields.fieldLabel')}</label>
                             <input
                               type="text"
                               value={field.key}
@@ -759,7 +759,7 @@ export function CommentatorInfoModal({
                                 const nextKey = e.target.value;
                                 applyCustomFieldsUpdate(prev => prev.map(entry => entry.id === field.id ? { ...entry, key: nextKey } : entry));
                               }}
-                              className={`mt-1 w-full rounded-md border px-3 py-2 text-sm text-gray-900 ${keyMissing || duplicated ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                              className={`mt-1 w-full rounded-md border px-3 py-2 text-sm text-gray-900 ${keyMissing || duplicated ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-blue-200 focus:border-blue-500 focus:ring-blue-500'}`}
                             />
                             {(keyMissing || duplicated) && (
                               <p className="mt-1 text-xs text-red-600">
@@ -770,7 +770,7 @@ export function CommentatorInfoModal({
                             )}
                           </div>
                           <div className="flex-1">
-                            <label className="text-xs font-medium text-gray-900">{t('commentatorInfo.customFields.valueLabel')}</label>
+                            <label className="text-xs font-medium text-blue-900">{t('commentatorInfo.customFields.valueLabel')}</label>
                             <input
                               type="text"
                               value={field.value}
@@ -778,7 +778,7 @@ export function CommentatorInfoModal({
                                 const nextValue = e.target.value;
                                 applyCustomFieldsUpdate(prev => prev.map(entry => entry.id === field.id ? { ...entry, value: nextValue } : entry));
                               }}
-                              className={`mt-1 w-full rounded-md border px-3 py-2 text-sm text-gray-900 ${valueMissing ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                              className={`mt-1 w-full rounded-md border px-3 py-2 text-sm text-gray-900 ${valueMissing ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-blue-200 focus:border-blue-500 focus:ring-blue-500'}`}
                             />
                             {valueMissing && (
                               <p className="mt-1 text-xs text-red-600">{t('commentatorInfo.customFields.validation.missingValue')}</p>
@@ -810,7 +810,7 @@ export function CommentatorInfoModal({
                         }]
                       ));
                     }}
-                    className="flex items-center space-x-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100"
+                    className="flex items-center space-x-2 rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-900 transition-colors hover:bg-blue-100"
                   >
                     <Plus className="h-4 w-4" />
                     <span>{t('commentatorInfo.customFields.addField')}</span>
