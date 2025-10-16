@@ -8,7 +8,8 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(npm audit:*)",
-      "Bash(python -m pip list:*)"
+      "Bash(python -m pip list:*)",
+      "Bash(npm run lint)"
     ],
     "deny": []
   }

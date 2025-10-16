@@ -73,31 +73,31 @@ export default function ManualPage() {
   const getItemIcon = (sectionId: string, itemIndex: number) => {
     const iconMap: { [key: string]: React.ReactNode[] } = {
       basics: [
-        <Languages className="h-4 w-4 text-blue-600" />,
-        <CreditCard className="h-4 w-4 text-blue-600" />,
-        <User className="h-4 w-4 text-blue-600" />,
-        <Users className="h-4 w-4 text-blue-600" />,
-        <CreditCard className="h-4 w-4 text-blue-600" />
+        <Languages key="lang" className="h-4 w-4 text-blue-600" />,
+        <CreditCard key="credit" className="h-4 w-4 text-blue-600" />,
+        <User key="user" className="h-4 w-4 text-blue-600" />,
+        <Users key="users" className="h-4 w-4 text-blue-600" />,
+        <CreditCard key="manage" className="h-4 w-4 text-blue-600" />
       ],
       events: [
-        <RotateCw className="h-4 w-4 text-green-600" />,
-        <Eye className="h-4 w-4 text-green-600" />,
-        <Calendar className="h-4 w-4 text-green-600" />,
-        <List className="h-4 w-4 text-green-600" />,
-        <MessageSquare className="h-4 w-4 text-green-600" />
+        <RotateCw key="refresh" className="h-4 w-4 text-green-600" />,
+        <Eye key="eye" className="h-4 w-4 text-green-600" />,
+        <Calendar key="calendar" className="h-4 w-4 text-green-600" />,
+        <List key="list" className="h-4 w-4 text-green-600" />,
+        <MessageSquare key="message" className="h-4 w-4 text-green-600" />
       ],
       dashboard: [
-        <List className="h-4 w-4 text-purple-600" />,
-        <RotateCw className="h-4 w-4 text-purple-600" />,
-        <User className="h-4 w-4 text-purple-600" />,
-        <MessageSquare className="h-4 w-4 text-purple-600" />,
-        <History className="h-4 w-4 text-purple-600" />,
-        <TrendingUp className="h-4 w-4 text-purple-600" />,
-        <Trophy className="h-4 w-4 text-purple-600" />,
-        <BarChart className="h-4 w-4 text-purple-600" />
+        <List key="startlist" className="h-4 w-4 text-purple-600" />,
+        <RotateCw key="refresh-offline" className="h-4 w-4 text-purple-600" />,
+        <User key="rider" className="h-4 w-4 text-purple-600" />,
+        <MessageSquare key="commentator" className="h-4 w-4 text-purple-600" />,
+        <History key="history" className="h-4 w-4 text-purple-600" />,
+        <TrendingUp key="trending" className="h-4 w-4 text-purple-600" />,
+        <Trophy key="trophy" className="h-4 w-4 text-purple-600" />,
+        <BarChart key="barchart" className="h-4 w-4 text-purple-600" />
       ]
     };
-    return iconMap[sectionId]?.[itemIndex] || <BookOpen className="h-4 w-4 text-gray-600" />;
+    return iconMap[sectionId]?.[itemIndex] || <BookOpen key="default" className="h-4 w-4 text-gray-600" />;
   };
 
   return (
