@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { BookOpen, ChevronDown, ChevronUp, Languages, CreditCard, User, Users, Calendar, RotateCw, Eye, List, MessageSquare, History, TrendingUp, Trophy, BarChart } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AppHeader } from '@/components/AppHeader';
+import Image from 'next/image';
 
 interface ManualSection {
   id: string;
   titleKey: string;
   descriptionKey: string;
   icon: React.ReactNode;
+  imagePath: string;
   items: { titleKey: string; descriptionKey: string }[];
 }
 
@@ -31,6 +33,7 @@ export default function ManualPage() {
       titleKey: 'manual.sections.basics.title',
       descriptionKey: 'manual.sections.basics.description',
       icon: <User className="h-5 w-5" />,
+      imagePath: '/manual/basics.png',
       items: [
         { titleKey: 'manual.sections.basics.items.languages.title', descriptionKey: 'manual.sections.basics.items.languages.description' },
         { titleKey: 'manual.sections.basics.items.credits.title', descriptionKey: 'manual.sections.basics.items.credits.description' },
@@ -44,6 +47,7 @@ export default function ManualPage() {
       titleKey: 'manual.sections.events.title',
       descriptionKey: 'manual.sections.events.description',
       icon: <Calendar className="h-5 w-5" />,
+      imagePath: '/manual/events.png',
       items: [
         { titleKey: 'manual.sections.events.items.refresh.title', descriptionKey: 'manual.sections.events.items.refresh.description' },
         { titleKey: 'manual.sections.events.items.showAll.title', descriptionKey: 'manual.sections.events.items.showAll.description' },
@@ -57,6 +61,7 @@ export default function ManualPage() {
       titleKey: 'manual.sections.dashboard.title',
       descriptionKey: 'manual.sections.dashboard.description',
       icon: <BarChart className="h-5 w-5" />,
+      imagePath: '/manual/dashboard.png',
       items: [
         { titleKey: 'manual.sections.dashboard.items.startList.title', descriptionKey: 'manual.sections.dashboard.items.startList.description' },
         { titleKey: 'manual.sections.dashboard.items.refreshOffline.title', descriptionKey: 'manual.sections.dashboard.items.refreshOffline.description' },
@@ -181,6 +186,21 @@ export default function ManualPage() {
 
                   {isExpanded && (
                     <div className="p-6">
+                      {/* Screenshot with annotations */}
+                      <div className="mb-6 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="relative w-full">
+                          <Image
+                            src={section.imagePath}
+                            alt={t(section.titleKey)}
+                            width={1600}
+                            height={900}
+                            className="w-full h-auto"
+                            priority={section.id === 'basics'}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Item descriptions */}
                       <div className="space-y-4">
                         {section.items.map((item, index) => (
                           <div key={index} className="flex gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
