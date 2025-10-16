@@ -333,6 +333,20 @@
     "toClose": "to close",
     "save": "Save",
     "cancel": "Cancel",
+    "customFields": {
+      "sectionTitle": "Additional Fields",
+      "emptyState": "No additional fields yet.",
+      "fieldLabel": "Field name",
+      "valueLabel": "Content",
+      "addField": "Add field",
+      "deleteAriaLabel": "Delete additional field",
+      "validation": {
+        "missingKey": "Field name can’t be empty.",
+        "duplicateKey": "Field name must be unique.",
+        "missingValue": "Content can’t be empty.",
+        "summary": "Please review the additional fields: each field needs a name and content, and every name must be unique."
+      }
+    },
     "tabs": {
       "mine": "My Notes",
       "all": "All Info",

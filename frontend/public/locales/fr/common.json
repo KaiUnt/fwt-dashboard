@@ -333,6 +333,20 @@
     "toClose": "pour fermer",
     "save": "Enregistrer",
     "cancel": "Annuler",
+    "customFields": {
+      "sectionTitle": "Champs supplémentaires",
+      "emptyState": "Aucun champ supplémentaire pour le moment.",
+      "fieldLabel": "Nom du champ",
+      "valueLabel": "Contenu",
+      "addField": "Ajouter un champ",
+      "deleteAriaLabel": "Supprimer le champ supplémentaire",
+      "validation": {
+        "missingKey": "Le nom du champ ne peut pas être vide.",
+        "duplicateKey": "Le nom du champ doit être unique.",
+        "missingValue": "Le contenu ne peut pas être vide.",
+        "summary": "Merci de vérifier les champs supplémentaires : chaque champ doit avoir un nom et un contenu, et chaque nom doit être unique."
+      }
+    },
     "tabs": {
       "mine": "Mes Notes",
       "all": "Toutes les Infos",

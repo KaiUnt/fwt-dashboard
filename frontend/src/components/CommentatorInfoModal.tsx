@@ -210,7 +210,7 @@ export function CommentatorInfoModal({
     const hasDuplicateKeys = new Set(normalizedKeys).size !== normalizedKeys.length;
 
     if (hasEmptyKey || hasEmptyValue || hasDuplicateKeys) {
-      setError('Bitte prüfe die Custom Fields: Key und Value müssen gefüllt sein und jeder Key darf nur einmal vorkommen.');
+      setError(t('commentatorInfo.customFields.validation.summary'));
       return;
     }
 
@@ -725,96 +725,99 @@ export function CommentatorInfoModal({
                   />
                 </div>
 
-                {/* Custom Fields */}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomFieldsOpen(prev => !prev)}
-                    className="flex w-full items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-left text-sm font-medium text-blue-800 transition-colors hover:bg-blue-100"
-                  >
-                    <span>Custom Fields</span>
-                    {isCustomFieldsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  </button>
-                  {isCustomFieldsOpen && (
-                    <div className="mt-3 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
-                      {customFields.length === 0 && (
-                        <p className="text-sm text-blue-700">Noch keine Custom Fields vorhanden.</p>
-                      )}
-                      {customFields.map((field) => {
-                        const normalizedKey = field.key.trim().toLowerCase();
-                        const duplicated = normalizedKey.length > 0 && customFields.filter(entry => entry.id !== field.id && entry.key.trim().toLowerCase() === normalizedKey).length > 0;
-                        const keyMissing = field.key.trim().length === 0;
-                        const valueMissing = field.value.trim().length === 0;
-                        return (
-                          <div key={field.id} className="rounded-lg bg-white p-3 shadow-sm">
-                            <div className="flex items-center space-x-3">
-                              <div className="flex-1">
-                                <label className="text-xs font-medium text-blue-800">Key</label>
-                                <input
-                                  type="text"
-                                  value={field.key}
-                                  onChange={(e) => {
-                                    const nextKey = e.target.value;
-                                    applyCustomFieldsUpdate(prev => prev.map(entry => entry.id === field.id ? { ...entry, key: nextKey } : entry));
-                                  }}
-                                  className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${keyMissing || duplicated ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-blue-200 focus:border-blue-400 focus:ring-blue-400'}`}
-                                />
-                                {(keyMissing || duplicated) && (
-                                  <p className="mt-1 text-xs text-red-600">
-                                    {keyMissing ? 'Key darf nicht leer sein.' : 'Key muss eindeutig sein.'}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex-1">
-                                <label className="text-xs font-medium text-blue-800">Value</label>
-                                <input
-                                  type="text"
-                                  value={field.value}
-                                  onChange={(e) => {
-                                    const nextValue = e.target.value;
-                                    applyCustomFieldsUpdate(prev => prev.map(entry => entry.id === field.id ? { ...entry, value: nextValue } : entry));
-                                  }}
-                                  className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${valueMissing ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-blue-200 focus:border-blue-400 focus:ring-blue-400'}`}
-                                />
-                                {valueMissing && (
-                                  <p className="mt-1 text-xs text-red-600">Value darf nicht leer sein.</p>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => applyCustomFieldsUpdate(prev => prev.filter(entry => entry.id !== field.id))}
-                                className="self-end rounded-md border border-red-200 bg-white px-2 py-2 text-red-600 transition-colors hover:bg-red-50"
-                                aria-label="Custom Field löschen"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCustomFieldsOpen(true);
-                          applyCustomFieldsUpdate(prev => (
-                            [...prev, {
-                              id: generateFieldId(),
-                              key: '',
-                              value: '',
-                            }]
-                          ));
-                        }}
-                        className="flex items-center space-x-2 rounded-lg border border-blue-300 px-3 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span>Feld hinzufügen</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
             )}
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => setIsCustomFieldsOpen(prev => !prev)}
+                className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100"
+              >
+                <span>{t('commentatorInfo.customFields.sectionTitle')}</span>
+                {isCustomFieldsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </button>
+              {isCustomFieldsOpen && (
+                <div className="mt-3 space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                  {customFields.length === 0 && (
+                    <p className="text-sm text-gray-600">{t('commentatorInfo.customFields.emptyState')}</p>
+                  )}
+                  {customFields.map((field) => {
+                    const normalizedKey = field.key.trim().toLowerCase();
+                    const duplicated = normalizedKey.length > 0 && customFields.filter(entry => entry.id !== field.id && entry.key.trim().toLowerCase() === normalizedKey).length > 0;
+                    const keyMissing = field.key.trim().length === 0;
+                    const valueMissing = field.value.trim().length === 0;
+                    return (
+                      <div key={field.id} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <div className="flex flex-col gap-4 md:flex-row">
+                          <div className="flex-1">
+                            <label className="text-xs font-medium text-gray-900">{t('commentatorInfo.customFields.fieldLabel')}</label>
+                            <input
+                              type="text"
+                              value={field.key}
+                              onChange={(e) => {
+                                const nextKey = e.target.value;
+                                applyCustomFieldsUpdate(prev => prev.map(entry => entry.id === field.id ? { ...entry, key: nextKey } : entry));
+                              }}
+                              className={`mt-1 w-full rounded-md border px-3 py-2 text-sm text-gray-900 ${keyMissing || duplicated ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                            />
+                            {(keyMissing || duplicated) && (
+                              <p className="mt-1 text-xs text-red-600">
+                                {keyMissing
+                                  ? t('commentatorInfo.customFields.validation.missingKey')
+                                  : t('commentatorInfo.customFields.validation.duplicateKey')}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-xs font-medium text-gray-900">{t('commentatorInfo.customFields.valueLabel')}</label>
+                            <input
+                              type="text"
+                              value={field.value}
+                              onChange={(e) => {
+                                const nextValue = e.target.value;
+                                applyCustomFieldsUpdate(prev => prev.map(entry => entry.id === field.id ? { ...entry, value: nextValue } : entry));
+                              }}
+                              className={`mt-1 w-full rounded-md border px-3 py-2 text-sm text-gray-900 ${valueMissing ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                            />
+                            {valueMissing && (
+                              <p className="mt-1 text-xs text-red-600">{t('commentatorInfo.customFields.validation.missingValue')}</p>
+                            )}
+                          </div>
+                          <div className="flex items-start justify-end">
+                            <button
+                              type="button"
+                              onClick={() => applyCustomFieldsUpdate(prev => prev.filter(entry => entry.id !== field.id))}
+                              className="rounded-md border border-red-200 bg-white p-2 text-red-600 transition-colors hover:bg-red-50"
+                              aria-label={t('commentatorInfo.customFields.deleteAriaLabel')}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomFieldsOpen(true);
+                      applyCustomFieldsUpdate(prev => (
+                        [...prev, {
+                          id: generateFieldId(),
+                          key: '',
+                          value: '',
+                        }]
+                      ));
+                    }}
+                    className="flex items-center space-x-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>{t('commentatorInfo.customFields.addField')}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Footer */}

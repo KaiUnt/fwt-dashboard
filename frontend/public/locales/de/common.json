@@ -334,6 +334,20 @@
     "toClose": "zum Schließen",
     "save": "Speichern",
     "cancel": "Abbrechen",
+    "customFields": {
+      "sectionTitle": "Zusätzliche Felder",
+      "emptyState": "Noch keine zusätzlichen Felder vorhanden.",
+      "fieldLabel": "Feldname",
+      "valueLabel": "Inhalt",
+      "addField": "Feld hinzufügen",
+      "deleteAriaLabel": "Zusätzliches Feld löschen",
+      "validation": {
+        "missingKey": "Feldname darf nicht leer sein.",
+        "duplicateKey": "Feldname muss eindeutig sein.",
+        "missingValue": "Inhalt darf nicht leer sein.",
+        "summary": "Bitte prüfe die zusätzlichen Felder: Feldname und Inhalt müssen ausgefüllt sein und jeder Feldname darf nur einmal vorkommen."
+      }
+    },
     "tabs": {
       "mine": "Meine Notizen",
       "all": "Alle Infos",
