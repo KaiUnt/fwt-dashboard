@@ -16,5 +16,9 @@ jobs:
           host: report.kais.world
           username: kai
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: SUDO_PASSWORD
           script: |
+            export SUDO_PASSWORD="${SUDO_PASSWORD}"
             /opt/fwt-dashboard-dev/deploy.sh
+        env:
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
