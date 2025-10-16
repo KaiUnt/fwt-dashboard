@@ -411,6 +411,7 @@
       "unnamedUser": "Utilisateur sans nom",
       "profileSettings": "Paramètres du profil",
       "friends": "Amis",
+      "manual": "Manuel d'utilisation",
       "adminDashboard": "Tableau de bord admin",
       "signOut": "Se déconnecter",
       "manageCredits": "Gérer les Crédits"
@@ -586,6 +587,112 @@
       "adminSelectUser": "Télécharger pour un autre utilisateur",
       "uploadForCurrentUser": "Télécharger pour moi-même (utilisateur actuel)",
       "adminSelectUserHelp": "En tant qu'administrateur, vous pouvez télécharger des données pour d'autres utilisateurs"
+    }
+  },
+  "manual": {
+    "title": "Manuel d'utilisation",
+    "subtitle": "Tout ce que vous devez savoir sur le FWT Dashboard",
+    "welcome": {
+      "title": "Manuel du Dashboard",
+      "subtitle": "Votre Guide",
+      "sections": "{count} Sections",
+      "description": "Vous trouverez ici toutes les informations sur les fonctionnalités du FWT Dashboard."
+    },
+    "intro": {
+      "title": "Bienvenue sur le FWT Dashboard",
+      "content": "Bonjour et bienvenue sur le FWT Dashboard – l'outil ultime pour les commentateurs ! Vous trouverez ici tout ce dont vous avez besoin pour fournir des commentaires professionnels et captivants pour les événements FWT. Le dashboard fournit toutes les informations sur les athlètes participant à chaque événement, soigneusement triées par liste de départ. Vous pouvez explorer tous les résultats, consulter l'historique des performances des riders au fil des années et accéder à l'historique des événements pour voir comment les athlètes ont performé sur le même site dans le passé. Vous obtenez également un aperçu des classements de la série FWT – le tout en un seul endroit. De plus, vous pouvez stocker des notes et des informations individuelles sur les riders, et même les partager avec vos collègues via le système d'Amis. Chaque nouvel utilisateur commence avec 5 crédits. Si vous en avez besoin de plus, contactez simplement kai@open-faces.com."
+    },
+    "sections": {
+      "basics": {
+        "title": "Les Bases",
+        "description": "Premiers pas et paramètres de base",
+        "items": {
+          "languages": {
+            "title": "Langues",
+            "description": "Sur la page de démarrage, vous pouvez ajuster la langue de l'interface selon vos besoins. Les langues prises en charge sont l'allemand, l'anglais et le français."
+          },
+          "credits": {
+            "title": "Crédits",
+            "description": "Chaque nouvel utilisateur reçoit automatiquement 5 crédits pour commencer. Vous avez besoin de ces crédits pour déverrouiller les événements. Si vous avez besoin de plus de crédits, contactez simplement kai@open-faces.com."
+          },
+          "profile": {
+            "title": "Paramètres du profil",
+            "description": "Dans vos paramètres utilisateur, vous pouvez modifier vos informations personnelles telles que le mot de passe, le nom d'utilisateur et l'organisation."
+          },
+          "friends": {
+            "title": "Amis",
+            "description": "La fonctionnalité Amis vous permet de vous connecter avec des collègues et de partager des informations de commentateur. Pour ajouter un collègue, vous avez besoin de son nom d'utilisateur exact. Entrez-le et envoyez une demande — une fois acceptée, vous pouvez échanger des informations."
+          },
+          "managing": {
+            "title": "Gestion des crédits",
+            "description": "La gestion des crédits sert de protection pour éviter les téléchargements illimités d'événements. Si vous avez besoin de crédits supplémentaires pour votre travail, veuillez contacter kai@open-faces.com."
+          }
+        }
+      },
+      "events": {
+        "title": "La Section Événements",
+        "description": "Trouver, sélectionner et gérer les événements",
+        "items": {
+          "refresh": {
+            "title": "Actualiser",
+            "description": "Le bouton Actualiser vous permet de recharger les données d'événement si nécessaire. En pratique, cette fonctionnalité est rarement nécessaire, car les mises à jour se produisent généralement automatiquement."
+          },
+          "showAll": {
+            "title": "Afficher tous les événements",
+            "description": "Cette option affiche les événements passés que vous pouvez consulter gratuitement. Ceci est particulièrement utile lorsqu'il n'y a pas d'événements en direct actifs, vous permettant d'explorer toutes les fonctionnalités et de vous familiariser avec le système."
+          },
+          "multiEvent": {
+            "title": "Mode Multi-Événements",
+            "description": "Le mode Multi-Événements est conçu pour les cas où deux événements ont lieu simultanément sur le même site — par exemple, lorsque les courses Junior et Qualifier se déroulent en parallèle avec des numéros de dossard alternés. Les deux événements sont affichés côte à côte et triés par numéro de dossard. Assurez-vous que les numéros de dossard sont correctement configurés dans Liveheats."
+          },
+          "select": {
+            "title": "Sélectionner un événement",
+            "description": "Pour accéder à un événement, cliquez simplement sur sa carte d'événement. Cela consomme un crédit, mais une fois déverrouillé, l'événement reste définitivement accessible pour vous. Vous pouvez le revisiter à tout moment sans utiliser plus de crédits."
+          },
+          "search": {
+            "title": "Champ de recherche",
+            "description": "La barre de recherche vous permet de trouver rapidement des événements par nom ou par lieu."
+          }
+        }
+      },
+      "dashboard": {
+        "title": "Le Dashboard Événement",
+        "description": "Infos athlètes, statistiques et outils commentateur",
+        "items": {
+          "startList": {
+            "title": "Liste de départ",
+            "description": "La liste de départ affiche tous les athlètes dans leur ordre de passage. Vous pouvez immédiatement voir qui passe ensuite et vous préparer pour le commentaire. L'ordre ne fonctionne que s'il est défini dans Liveheats. Vous pouvez rechercher par nom ou par nation, et un résumé est affiché en bas."
+          },
+          "refreshOffline": {
+            "title": "Actualiser et sauvegarder hors ligne",
+            "description": "Le bouton 'Actualiser et sauvegarder hors ligne' vous permet de mettre à jour l'événement et de le stocker simultanément pour une utilisation hors ligne — idéal pour les emplacements avec une mauvaise connectivité Internet."
+          },
+          "riderInfo": {
+            "title": "Info Rider",
+            "description": "Dans la section Info Rider, vous trouverez des informations détaillées sur chaque athlète — y compris les données personnelles, la nationalité et les classements actuels — vous aidant à fournir un commentaire professionnel."
+          },
+          "commentatorInfo": {
+            "title": "Info Commentateur",
+            "description": "Ici, vous pouvez enregistrer des notes personnelles et des informations sur chaque rider qui sont importantes pour votre commentaire. Utilisez le bouton Modifier pour ouvrir une fenêtre modale où vous pouvez écrire et enregistrer vos notes. Ces notes sont privées mais peuvent être partagées avec vos amis (autres commentateurs). Vous pouvez également importer des informations via CSV — assurez-vous que les prénoms et noms de famille sont dans les colonnes 1 et 2."
+          },
+          "eventHistory": {
+            "title": "Historique de l'événement",
+            "description": "L'historique de l'événement montre toutes les compétitions passées sur ce site ou dans cette série. Cela vous permet de vérifier rapidement comment les athlètes ont performé précédemment et de faire des comparaisons historiques."
+          },
+          "performanceHistory": {
+            "title": "Historique des performances",
+            "description": "La courbe de performance visualise l'évolution des performances d'un athlète au fil du temps — vous permettant de voir d'un coup d'œil si un rider s'améliore ou régresse."
+          },
+          "allResults": {
+            "title": "Tous les résultats",
+            "description": "La section Tous les résultats fournit un aperçu de tous les résultats de l'événement. En cliquant sur Classements de série, vous pouvez afficher le classement complet de tous les événements — parfait pour placer les résultats actuels dans le contexte global."
+          },
+          "seriesRanking": {
+            "title": "Classement de la série FWT",
+            "description": "Le bouton Classements de la série FWT vous amène à une nouvelle page où vous pouvez consulter tous les classements de la saison."
+          }
+        }
+      }
     }
   }
 }

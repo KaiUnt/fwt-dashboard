@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/providers/AuthProvider'
-import { User, LogOut, Settings, Shield, ChevronDown, Users, Coins } from 'lucide-react'
+import { User, LogOut, Settings, Shield, ChevronDown, Users, Coins, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslation } from '@/hooks/useTranslation'
 import CreditsBalance from './CreditsBalance'
@@ -207,6 +207,15 @@ export function UserNav() {
               >
                 <Users className="h-4 w-4" />
                 {t('profile.userNav.friends')}
+              </Link>
+
+              <Link
+                href="/manual"
+                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setIsOpen(false)}
+              >
+                <BookOpen className="h-4 w-4" />
+                {t('profile.userNav.manual')}
               </Link>
 
               {isSupabaseConfigured() && (

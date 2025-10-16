@@ -412,6 +412,7 @@
       "unnamedUser": "Unbenannter Benutzer",
       "profileSettings": "Profil-Einstellungen",
       "friends": "Freunde",
+      "manual": "Benutzerhandbuch",
       "adminDashboard": "Admin Dashboard",
       "signOut": "Abmelden",
       "manageCredits": "Credits verwalten"
@@ -589,6 +590,112 @@
       "adminSelectUser": "Für anderen Benutzer hochladen",
       "uploadForCurrentUser": "Für mich selbst (aktueller Benutzer)",
       "adminSelectUserHelp": "Als Admin können Sie Daten für andere Benutzer hochladen"
+    }
+  },
+  "manual": {
+    "title": "Benutzerhandbuch",
+    "subtitle": "Alles was du über das FWT Dashboard wissen musst",
+    "welcome": {
+      "title": "Dashboard Manual",
+      "subtitle": "Dein Guide",
+      "sections": "{count} Bereiche",
+      "description": "Hier findest du alle Informationen zu den Funktionen des FWT Dashboards."
+    },
+    "intro": {
+      "title": "Willkommen beim FWT Dashboard",
+      "content": "Hallo und herzlich willkommen beim FWT Dashboard – dem ultimativen Tool für Kommentatoren! Hier findest du alles, was du brauchst, um professionelle und spannende Kommentare für FWT-Events zu liefern. Das Dashboard bietet alle Informationen über die Athleten, die an jedem Event teilnehmen, sortiert nach Startliste. Du kannst alle Ergebnisse erkunden, die Performance-Historie von Fahrern über die Jahre ansehen und auf die Event-Historie zugreifen, um zu sehen, wie Athleten bei derselben Location in der Vergangenheit abgeschnitten haben. Zusätzlich kannst du individuelle Notizen und Informationen über Rider speichern und sie sogar mit deinen Kollegen über das Friends-System teilen. Jeder neue Nutzer startet mit 5 Credits. Wenn du mehr benötigst, wende dich einfach an kai@open-faces.com."
+    },
+    "sections": {
+      "basics": {
+        "title": "Die Grundlagen",
+        "description": "Erste Schritte und grundlegende Einstellungen",
+        "items": {
+          "languages": {
+            "title": "Sprachen",
+            "description": "Auf der Startseite kannst du die Sprache der Benutzeroberfläche an deine Bedürfnisse anpassen. Unterstützte Sprachen sind Deutsch, Englisch und Französisch."
+          },
+          "credits": {
+            "title": "Credits",
+            "description": "Jeder neue Nutzer erhält automatisch 5 Credits zum Start. Du benötigst diese Credits, um Events freizuschalten. Wenn du mehr Credits benötigst, kontaktiere einfach kai@open-faces.com."
+          },
+          "profile": {
+            "title": "Profil-Einstellungen",
+            "description": "In deinen Benutzereinstellungen kannst du deine persönlichen Informationen wie Passwort, Benutzername und Organisation bearbeiten."
+          },
+          "friends": {
+            "title": "Freunde",
+            "description": "Die Freunde-Funktion erlaubt es dir, dich mit Kollegen zu verbinden und Kommentatoren-Informationen zu teilen. Um einen Kollegen hinzuzufügen, benötigst du dessen genauen Benutzernamen. Gib ihn ein und sende eine Anfrage – sobald diese akzeptiert wurde, könnt ihr Informationen austauschen."
+          },
+          "managing": {
+            "title": "Credits verwalten",
+            "description": "Die Credit-Verwaltung dient als Sicherheitsmechanismus, um unbegrenzte Event-Downloads zu verhindern. Wenn du zusätzliche Credits für deine Arbeit benötigst, kontaktiere bitte kai@open-faces.com."
+          }
+        }
+      },
+      "events": {
+        "title": "Die Event-Sektion",
+        "description": "Events suchen, auswählen und verwalten",
+        "items": {
+          "refresh": {
+            "title": "Refresh",
+            "description": "Der Refresh-Button ermöglicht es dir, Event-Daten bei Bedarf neu zu laden. In der Praxis ist diese Funktion selten notwendig, da Updates normalerweise automatisch erfolgen."
+          },
+          "showAll": {
+            "title": "Alle Events anzeigen",
+            "description": "Diese Option zeigt vergangene Events an, die du kostenlos ansehen kannst. Dies ist besonders nützlich, wenn es keine aktiven Live-Events gibt, sodass du alle Funktionen erkunden und dich mit dem System vertraut machen kannst."
+          },
+          "multiEvent": {
+            "title": "Multi-Event Modus",
+            "description": "Der Multi-Event-Modus ist für Fälle gedacht, in denen zwei Events gleichzeitig an derselben Location stattfinden – zum Beispiel, wenn Junior- und Qualifier-Runs parallel mit abwechselnden BIB-Nummern durchgeführt werden. Beide Events werden nebeneinander angezeigt und nach BIB-Nummer sortiert. Stelle sicher, dass die BIB-Nummern in Liveheats korrekt konfiguriert sind."
+          },
+          "select": {
+            "title": "Event auswählen",
+            "description": "Um auf ein Event zuzugreifen, klicke einfach auf die Event-Karte. Dies verbraucht ein Credit, aber sobald es freigeschaltet ist, bleibt das Event dauerhaft für dich verfügbar. Du kannst es jederzeit erneut besuchen, ohne weitere Credits zu verbrauchen."
+          },
+          "search": {
+            "title": "Suchfeld",
+            "description": "Die Suchleiste ermöglicht es dir, Events schnell nach Name oder Location zu finden."
+          }
+        }
+      },
+      "dashboard": {
+        "title": "Das Event Dashboard",
+        "description": "Athleten-Infos, Statistiken und Kommentatoren-Tools",
+        "items": {
+          "startList": {
+            "title": "Startliste",
+            "description": "Die Startliste zeigt alle Athleten in ihrer Startreihenfolge. Du kannst sofort sehen, wer als nächstes dran ist und dich auf den Kommentar vorbereiten. Die Reihenfolge funktioniert nur, wenn sie in Liveheats definiert ist. Du kannst nach Name oder Nation suchen, und eine Zusammenfassung wird unten angezeigt."
+          },
+          "refreshOffline": {
+            "title": "Refresh und Offline speichern",
+            "description": "Der 'Refresh and Save Offline'-Button ermöglicht es dir, das Event zu aktualisieren und gleichzeitig für die Offline-Nutzung zu speichern – ideal für Orte mit schlechter Internetverbindung."
+          },
+          "riderInfo": {
+            "title": "Rider-Info",
+            "description": "In der Rider-Info-Sektion findest du detaillierte Informationen zu jedem Athleten – einschließlich persönlicher Daten, Nationalität und aktueller Rankings – die dir helfen, professionelle Kommentare zu liefern."
+          },
+          "commentatorInfo": {
+            "title": "Kommentatoren-Info",
+            "description": "Hier kannst du persönliche Notizen und Informationen über jeden Rider speichern, die für deinen Kommentar wichtig sind. Verwende den Edit-Button, um ein Modal-Fenster zu öffnen, in dem du deine Notizen schreiben und speichern kannst. Diese Notizen sind privat, können aber mit deinen Freunden (anderen Kommentatoren) geteilt werden. Du kannst auch Informationen per CSV importieren – stelle sicher, dass Vor- und Nachname in den Spalten 1 und 2 stehen."
+          },
+          "eventHistory": {
+            "title": "Event-Historie",
+            "description": "Die Event-Historie zeigt alle vergangenen Wettkämpfe an diesem Veranstaltungsort oder innerhalb dieser Serie. So kannst du schnell überprüfen, wie Athleten zuvor abgeschnitten haben, und historische Vergleiche anstellen."
+          },
+          "performanceHistory": {
+            "title": "Performance-Historie",
+            "description": "Die Performance-Kurve visualisiert die Performance-Entwicklung eines Athleten über die Zeit – so siehst du auf einen Blick, ob ein Rider sich verbessert oder nachlässt."
+          },
+          "allResults": {
+            "title": "Alle Ergebnisse",
+            "description": "Die Sektion 'Alle Ergebnisse' bietet eine Übersicht aller Ergebnisse für das Event. Durch Klicken auf 'Series Rankings' kannst du das vollständige Ranking über alle Events hinweg ansehen – perfekt, um aktuelle Ergebnisse in den Gesamtkontext zu setzen."
+          },
+          "seriesRanking": {
+            "title": "FWT Series Ranking",
+            "description": "Der 'FWT Series Rankings'-Button führt dich zu einer neuen Seite, auf der du alle Saison-Rankings ansehen kannst."
+          }
+        }
+      }
     }
   }
 }
