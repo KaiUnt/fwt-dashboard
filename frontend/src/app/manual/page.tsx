@@ -75,34 +75,19 @@ export default function ManualPage() {
     }
   ];
 
-  const getItemIcon = (sectionId: string, itemIndex: number) => {
-    const iconMap: { [key: string]: React.ReactNode[] } = {
-      basics: [
-        <Languages key="lang" className="h-4 w-4 text-blue-600" />,
-        <CreditCard key="credit" className="h-4 w-4 text-blue-600" />,
-        <User key="user" className="h-4 w-4 text-blue-600" />,
-        <Users key="users" className="h-4 w-4 text-blue-600" />,
-        <CreditCard key="manage" className="h-4 w-4 text-blue-600" />
-      ],
-      events: [
-        <RotateCw key="refresh" className="h-4 w-4 text-green-600" />,
-        <Eye key="eye" className="h-4 w-4 text-green-600" />,
-        <Calendar key="calendar" className="h-4 w-4 text-green-600" />,
-        <List key="list" className="h-4 w-4 text-green-600" />,
-        <MessageSquare key="message" className="h-4 w-4 text-green-600" />
-      ],
-      dashboard: [
-        <List key="startlist" className="h-4 w-4 text-purple-600" />,
-        <RotateCw key="refresh-offline" className="h-4 w-4 text-purple-600" />,
-        <User key="rider" className="h-4 w-4 text-purple-600" />,
-        <MessageSquare key="commentator" className="h-4 w-4 text-purple-600" />,
-        <History key="history" className="h-4 w-4 text-purple-600" />,
-        <TrendingUp key="trending" className="h-4 w-4 text-purple-600" />,
-        <Trophy key="trophy" className="h-4 w-4 text-purple-600" />,
-        <BarChart key="barchart" className="h-4 w-4 text-purple-600" />
-      ]
+  const getItemNumber = (sectionId: string, itemIndex: number) => {
+    const colorMap: { [key: string]: string } = {
+      basics: 'bg-blue-600',
+      events: 'bg-green-600',
+      dashboard: 'bg-purple-600'
     };
-    return iconMap[sectionId]?.[itemIndex] || <BookOpen key="default" className="h-4 w-4 text-gray-600" />;
+    const bgColor = colorMap[sectionId] || 'bg-gray-600';
+
+    return (
+      <div className={`flex-shrink-0 w-6 h-6 ${bgColor} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
+        {itemIndex + 1}
+      </div>
+    );
   };
 
   return (
@@ -205,7 +190,7 @@ export default function ManualPage() {
                         {section.items.map((item, index) => (
                           <div key={index} className="flex gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                             <div className="flex-shrink-0 mt-0.5">
-                              {getItemIcon(section.id, index)}
+                              {getItemNumber(section.id, index)}
                             </div>
                             <div>
                               <h4 className="font-medium text-gray-900 mb-1">
