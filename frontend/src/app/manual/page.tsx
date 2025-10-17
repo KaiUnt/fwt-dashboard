@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, Languages, CreditCard, User, Users, Calendar, RotateCw, Eye, List, MessageSquare, History, TrendingUp, Trophy, BarChart } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, User, Calendar, BarChart } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { AppHeader } from '@/components/AppHeader';
 import Image from 'next/image';
