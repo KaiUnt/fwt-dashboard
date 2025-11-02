@@ -31,6 +31,7 @@ export function EventsPage() {
   const [isMultiEventMode, setIsMultiEventMode] = useState(false);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [navigatingOfflineId, setNavigatingOfflineId] = useState<string | null>(null);
   
   // Purchase Modal State
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -497,15 +498,24 @@ export function EventsPage() {
                         </div>
                         <button
                           onClick={() => {
+                            setNavigatingOfflineId(offlineEvent.id);
                             if (eventIds.length === 1) {
                               router.push(`/dashboard/${eventIds[0]}`);
-                            } else {
+                            } else if (eventIds.length >= 2) {
                               router.push(`/dashboard/multi/${eventIds[0]}/${eventIds[1]}`);
                             }
                           }}
-                          className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                          className="flex items-center justify-center space-x-2 px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
+                          disabled={navigatingOfflineId === offlineEvent.id}
                         >
-                          {t('buttons.openDashboard')}
+                          {navigatingOfflineId === offlineEvent.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>{t('buttons.openDashboard')}</span>
+                            </>
+                          ) : (
+                            t('buttons.openDashboard')
+                          )}
                         </button>
                       </div>
                     </div>

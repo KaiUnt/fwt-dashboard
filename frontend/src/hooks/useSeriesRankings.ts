@@ -1,7 +1,9 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from './useOfflineStorage';
+import { createEventId } from '@/utils/offlineStorage';
+import type { OfflineEventData } from '@/utils/offlineStorage';
 import { apiFetch } from '@/utils/api';
 import { useAccessToken } from '@/providers/AuthProvider';
 
@@ -79,6 +81,7 @@ export function useOfflineSeriesRankings(eventId: string) {
   const isOffline = useIsOffline();
   const { getOfflineEvent } = useOfflineStorage();
   const { getAccessToken } = useAccessToken();
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ['seriesRankings', eventId],
@@ -93,7 +96,11 @@ export function useOfflineSeriesRankings(eventId: string) {
       }
       
       // Try offline fallback
-      const offlineData = await getOfflineEvent(eventId);
+      const offlineEventId = createEventId([eventId]);
+      const offlineData = await queryClient.ensureQueryData<OfflineEventData | null>({
+        queryKey: ['offline-event-data', offlineEventId],
+        queryFn: async () => await getOfflineEvent(offlineEventId),
+      });
       if (offlineData?.seriesRankings) {
         // Transform offline data to match expected format
         return {
@@ -123,6 +130,7 @@ export function useOfflineMultiEventSeriesRankings(eventId1: string, eventId2: s
   const isOffline = useIsOffline();
   const { getOfflineEvent } = useOfflineStorage();
   const { getAccessToken } = useAccessToken();
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ['multi-event-series-rankings', eventId1, eventId2],
@@ -150,8 +158,11 @@ export function useOfflineMultiEventSeriesRankings(eventId1: string, eventId2: s
       }
       
       // Try offline fallback
-      const multiEventId = `multi_${eventId1}_${eventId2}`;
-      const offlineData = await getOfflineEvent(multiEventId);
+      const multiEventId = createEventId([eventId1, eventId2]);
+      const offlineData = await queryClient.ensureQueryData<OfflineEventData | null>({
+        queryKey: ['offline-event-data', multiEventId],
+        queryFn: async () => await getOfflineEvent(multiEventId),
+      });
       
       if (offlineData?.seriesRankings) {
         const event1 = offlineData.eventData.events.find(e => e.id === eventId1);

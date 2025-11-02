@@ -1,9 +1,10 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOfflineStorage, useIsOffline } from './useOfflineStorage';
 import { EventAthletesResponse } from '@/types/athletes';
 import { createEventId } from '@/utils/offlineStorage';
+import type { OfflineEventData } from '@/utils/offlineStorage';
 import { apiFetch } from '@/utils/api';
 import { useAccessToken } from '@/providers/AuthProvider';
 
@@ -82,6 +83,7 @@ export function useOfflineEventAthletes(eventId: string) {
   const isOffline = useIsOffline();
   const { getOfflineEvent } = useOfflineStorage();
   const { getAccessToken } = useAccessToken();
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ['event-athletes', eventId],
@@ -96,7 +98,11 @@ export function useOfflineEventAthletes(eventId: string) {
       }
       
       // Try offline fallback
-      const offlineData = await getOfflineEvent(eventId);
+      const offlineEventId = createEventId([eventId]);
+      const offlineData = await queryClient.ensureQueryData<OfflineEventData | null>({
+        queryKey: ['offline-event-data', offlineEventId],
+        queryFn: async () => await getOfflineEvent(offlineEventId),
+      });
       if (offlineData) {
         return {
           event: {
@@ -124,6 +130,7 @@ export function useOfflineMultiEventAthletes(eventId1: string, eventId2: string)
   const isOffline = useIsOffline();
   const { getOfflineEvent } = useOfflineStorage();
   const { getAccessToken } = useAccessToken();
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ['multi-event-athletes', eventId1, eventId2],
@@ -171,7 +178,10 @@ export function useOfflineMultiEventAthletes(eventId1: string, eventId2: string)
       
       // Try offline fallback
       const multiEventId = createEventId([eventId1, eventId2]);
-      const offlineData = await getOfflineEvent(multiEventId);
+      const offlineData = await queryClient.ensureQueryData<OfflineEventData | null>({
+        queryKey: ['offline-event-data', multiEventId],
+        queryFn: async () => await getOfflineEvent(multiEventId),
+      });
       
       if (offlineData) {
         // Find the events in offline data

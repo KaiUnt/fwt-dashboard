@@ -39,6 +39,32 @@ export interface SaveOfflineOptions {
   includeSeriesRankings?: boolean;
 }
 
+let sharedInitializationPromise: Promise<void> | null = null;
+let sharedInitialized = false;
+
+async function ensureOfflineStorageInitialized() {
+  if (sharedInitialized) {
+    return;
+  }
+
+  if (!sharedInitializationPromise) {
+    sharedInitializationPromise = (async () => {
+      await offlineStorage.init();
+      await offlineStorage.cleanupExpiredEvents();
+      sharedInitialized = true;
+    })()
+      .catch(error => {
+        sharedInitialized = false;
+        throw error;
+      })
+      .finally(() => {
+        sharedInitializationPromise = null;
+      });
+  }
+
+  return sharedInitializationPromise;
+}
+
 export function useOfflineStorage() {
   const [isInitialized, setIsInitialized] = useState(false);
   // Defer IndexedDB heavy reads until after initial paint/idle to avoid blocking initial UI
@@ -49,15 +75,18 @@ export function useOfflineStorage() {
 
   // Initialize storage on mount
   useEffect(() => {
+    let cancelled = false;
     const initStorage = async () => {
       try {
-        await offlineStorage.init();
-        // Cleanup expired events
-        await offlineStorage.cleanupExpiredEvents();
-        setIsInitialized(true);
+        await ensureOfflineStorageInitialized();
+        if (!cancelled) {
+          setIsInitialized(true);
+        }
       } catch (error) {
         console.error('Failed to initialize offline storage:', error);
-        setIsInitialized(false);
+        if (!cancelled) {
+          setIsInitialized(false);
+        }
       }
     };
 
@@ -77,6 +106,9 @@ export function useOfflineStorage() {
     } else {
       setDeferLoad(true);
     }
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Query for offline events
@@ -169,6 +201,7 @@ export function useOfflineStorage() {
 
       // Invalidate storage stats
       queryClient.invalidateQueries({ queryKey: ['offline-storage-stats'] });
+      queryClient.setQueryData(['offline-event-data', offlineEventId], offlineData);
 
     } catch (error) {
       console.error('Failed to save event for offline use:', error);
@@ -206,7 +239,8 @@ export function useOfflineStorage() {
       
       // Invalidate storage stats
       queryClient.invalidateQueries({ queryKey: ['offline-storage-stats'] });
-      
+      queryClient.removeQueries({ queryKey: ['offline-event-data', eventId] });
+
     } catch (error) {
       console.error('Failed to delete offline event:', error);
       throw error;
@@ -231,7 +265,8 @@ export function useOfflineStorage() {
       
       // Invalidate storage stats
       queryClient.invalidateQueries({ queryKey: ['offline-storage-stats'] });
-      
+      queryClient.removeQueries({ queryKey: ['offline-event-data'] });
+
     } catch (error) {
       console.error('Failed to clear offline data:', error);
       throw error;

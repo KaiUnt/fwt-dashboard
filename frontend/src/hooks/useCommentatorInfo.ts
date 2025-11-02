@@ -5,7 +5,8 @@ import { CommentatorInfo, CommentatorInfoResponse, CommentatorInfoWithAuthor } f
 import React from 'react'; // Added for React.useMemo
 import { useAccessToken } from '@/providers/AuthProvider';
 import { apiFetch, ApiError } from '@/utils/api';
-import { useIsOffline } from '@/hooks/useOfflineStorage';
+import { useIsOffline, useOfflineStorage } from '@/hooks/useOfflineStorage';
+import type { OfflineEventData } from '@/utils/offlineStorage';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -489,6 +490,8 @@ export function useMergedCommentatorInfo(athleteId: string) {
 export function useBatchCommentatorInfo(eventId: string, athletes?: Array<{ id: string }>) {
   const isOffline = useIsOffline();
   const { getAccessToken } = useAccessToken();
+  const { getOfflineEvent } = useOfflineStorage();
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ['batch-commentator-info', eventId],
@@ -512,8 +515,10 @@ export function useBatchCommentatorInfo(eventId: string, athletes?: Array<{ id: 
 
       // Try offline fallback - read from IndexedDB
       try {
-        const { offlineStorage } = await import('@/utils/offlineStorage');
-        const offlineEvent = await offlineStorage.getEvent(eventId);
+        const offlineEvent = await queryClient.ensureQueryData<OfflineEventData | null>({
+          queryKey: ['offline-event-data', eventId],
+          queryFn: async () => await getOfflineEvent(eventId),
+        });
 
         if (offlineEvent?.commentatorInfo) {
           return offlineEvent.commentatorInfo;
