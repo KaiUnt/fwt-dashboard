@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Download, Check, AlertCircle, Loader2, Trash2, RefreshCw } from 'lucide-react';
 import { useOfflineStorage } from '@/hooks/useOfflineStorage';
-import { Athlete, EventInfo } from '@/types/athletes';
+import { Athlete, EventInfo, CommentatorInfoWithAuthor } from '@/types/athletes';
 import { SeriesData } from '@/hooks/useSeriesRankings';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -12,6 +12,7 @@ interface OfflineSaveButtonProps {
   athletes: Athlete[];
   eventInfo: EventInfo | EventInfo[];
   seriesRankings?: SeriesData[];
+  commentatorInfo?: Record<string, CommentatorInfoWithAuthor[]>;
   className?: string;
   variant?: 'primary' | 'secondary';
   showDetails?: boolean;
@@ -23,6 +24,7 @@ export function OfflineSaveButton({
   athletes,
   eventInfo,
   seriesRankings,
+  commentatorInfo,
   className = '',
   variant = 'primary',
   showDetails: _showDetails = true,
@@ -47,7 +49,7 @@ export function OfflineSaveButton({
 
   const handleSave = async () => {
     try {
-      await saveEventForOffline(eventIds, athletes, eventInfo, seriesRankings);
+      await saveEventForOffline(eventIds, athletes, eventInfo, seriesRankings, commentatorInfo);
       setShowModal(false);
     } catch (error) {
       console.error('Failed to save offline:', error);
@@ -71,7 +73,7 @@ export function OfflineSaveButton({
       // Delete existing and save new
       const offlineEventId = eventIds.length === 1 ? eventIds[0] : `multi_${eventIds.join('_')}`;
       await deleteOfflineEvent(offlineEventId);
-      await saveEventForOffline(eventIds, athletes, eventInfo, seriesRankings);
+      await saveEventForOffline(eventIds, athletes, eventInfo, seriesRankings, commentatorInfo);
     } catch (error) {
       console.error('Failed to update offline data:', error);
       // TODO: Show error toast

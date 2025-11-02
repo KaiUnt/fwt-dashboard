@@ -478,6 +478,52 @@ export function useMergedCommentatorInfo(athleteId: string) {
   };
 }
 
+// Hook for batch loading commentator info for all athletes in an event
+export function useBatchCommentatorInfo(eventId: string, athletes?: Array<{ id: string }>) {
+  const isOffline = useIsOffline();
+  const { getAccessToken } = useAccessToken();
+
+  return useQuery({
+    queryKey: ['batch-commentator-info', eventId],
+    queryFn: async (): Promise<Record<string, CommentatorInfoWithAuthor[]>> => {
+      // Try online first if we have internet
+      if (!isOffline && athletes && athletes.length > 0) {
+        try {
+          const athleteIds = athletes.map(a => a.id).join(',');
+          const data = await apiFetch<{ success: boolean; data: Record<string, CommentatorInfoWithAuthor[]>; total: number }>(
+            `${API_BASE_URL}/api/commentator-info/batch?athlete_ids=${athleteIds}&source=all`,
+            { getAccessToken }
+          );
+          return data.data || {};
+        } catch (error) {
+          console.error('Failed to fetch batch commentator info:', error);
+          // Fall through to offline fallback
+        }
+      }
+
+      // Try offline fallback - read from IndexedDB
+      try {
+        const { offlineStorage } = await import('@/utils/offlineStorage');
+        const offlineEvent = await offlineStorage.getEvent(eventId);
+
+        if (offlineEvent?.commentatorInfo) {
+          return offlineEvent.commentatorInfo;
+        }
+      } catch (error) {
+        console.error('Failed to load offline commentator info:', error);
+      }
+
+      // Return empty object if no data available
+      return {};
+    },
+    enabled: !!eventId && !!athletes && athletes.length > 0,
+    retry: isOffline ? 0 : 2,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
 // Hook for bulk import from CSV
 export function useBulkImportCommentatorInfo() {
   const queryClient = useQueryClient();

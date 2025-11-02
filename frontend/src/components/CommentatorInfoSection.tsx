@@ -1,21 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Edit, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe } from 'lucide-react';
 import { CommentatorInfo, CommentatorInfoWithAuthor, TabData } from '@/types/athletes';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useCommentatorInfoWithFriends } from '@/hooks/useCommentatorInfo';
 import { useFriends } from '@/hooks/useFriends';
 
 interface CommentatorInfoSectionProps {
   athleteId: string;
   athleteName: string;
+  commentatorInfo: CommentatorInfoWithAuthor[]; // All commentator info passed as prop
   onEdit: () => void;
 }
 
 export function CommentatorInfoSection({
   athleteId,
   athleteName: _athleteName,
+  commentatorInfo,
   onEdit,
 }: CommentatorInfoSectionProps) {
   const { t } = useTranslation();
@@ -24,9 +25,10 @@ export function CommentatorInfoSection({
 
   // Friends System Data
   const { data: friends } = useFriends();
-  const { data: myData } = useCommentatorInfoWithFriends(athleteId, 'mine');
-  const { data: friendsData } = useCommentatorInfoWithFriends(athleteId, 'friends');
-  // Merged view wird on-the-fly aus myData + friendsData erzeugt
+
+  // Split commentatorInfo into mine and friends data
+  const myData = useMemo(() => commentatorInfo.filter(info => info.is_own_data), [commentatorInfo]);
+  const friendsData = useMemo(() => commentatorInfo.filter(info => !info.is_own_data), [commentatorInfo]);
 
   const countFields = (info: CommentatorInfo | null): number => {
     if (!info) return 0;

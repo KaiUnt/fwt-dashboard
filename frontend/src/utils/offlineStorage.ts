@@ -26,7 +26,9 @@ export interface OfflineEventData {
   }>;
   seriesRankings?: unknown[];
   commentatorInfo?: {
-    [athleteId: string]: {
+    [athleteId: string]: Array<{
+      id?: string;
+      athlete_id: string;
       homebase?: string;
       team?: string;
       sponsors?: string;
@@ -41,8 +43,12 @@ export interface OfflineEventData {
         website?: string;
       };
       custom_fields?: Record<string, string>;
+      created_at?: string;
       updated_at?: string;
-    };
+      created_by?: string;
+      author_name?: string;
+      is_own_data: boolean;
+    }>;
   };
   totalAthletes: number;
   estimatedSize: number; // in MB

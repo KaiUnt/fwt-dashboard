@@ -16,6 +16,7 @@ import { AppHeader } from './AppHeader';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAccessToken } from '@/providers/AuthProvider';
 import { apiFetch } from '@/utils/api';
+import { useBatchCommentatorInfo } from '@/hooks/useCommentatorInfo';
 
 
 interface DashboardPageProps {
@@ -28,6 +29,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   const { getAccessToken } = useAccessToken();
   const { data: athletesData, isLoading, error, refetch: refetchAthletes } = useOfflineEventAthletes(eventId);
   const { data: seriesData, isLoading: seriesLoading, refetch: refetchSeries } = useOfflineSeriesRankings(eventId);
+  const { data: commentatorData, isLoading: commentatorLoading, refetch: refetchCommentatorInfo } = useBatchCommentatorInfo(eventId, athletesData?.athletes);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentAthleteIndex, setCurrentAthleteIndex] = useState(0);
   const [showBibJump, setShowBibJump] = useState(false);
@@ -114,12 +116,15 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   };
 
 
-  if (isLoading) {
+  if (isLoading || commentatorLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">{t('dashboard.loadingAthletes')}</p>
+          <p className="text-gray-600 text-lg">
+            {isLoading && t('dashboard.loadingAthletes')}
+            {!isLoading && commentatorLoading && 'Loading commentator info...'}
+          </p>
         </div>
       </div>
     );
@@ -189,7 +194,8 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
               athletes={athletes}
               eventInfo={athletesData.event}
               seriesRankings={seriesData?.series_rankings}
-              isDataLoading={isLoading || seriesLoading}
+              commentatorInfo={commentatorData}
+              isDataLoading={isLoading || seriesLoading || commentatorLoading}
               variant="secondary"
               showDetails={false}
             />
@@ -205,10 +211,11 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
               />
               
               {/* 2. Athlete Info (Name, Birth, Commentator Field) */}
-              <AthleteCard 
+              <AthleteCard
                 athlete={currentAthlete}
                 eventInfo={athletesData.event}
                 athletes={athletes}
+                commentatorInfo={commentatorData?.[currentAthlete.id] || []}
               />
               
               {/* 3. Event History */}
@@ -242,10 +249,11 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
           <div className="flex-1">
             {currentAthlete && (
               <>
-                <AthleteCard 
+                <AthleteCard
                   athlete={currentAthlete}
                   eventInfo={athletesData.event}
                   athletes={athletes}
+                  commentatorInfo={commentatorData?.[currentAthlete.id] || []}
                 />
                 
                 {/* Event History Section */}
@@ -298,7 +306,8 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 athletes={athletes}
                 eventInfo={athletesData.event}
                 seriesRankings={seriesData?.series_rankings}
-                isDataLoading={isLoading || seriesLoading}
+                commentatorInfo={commentatorData}
+                isDataLoading={isLoading || seriesLoading || commentatorLoading}
                 variant="secondary"
                 showDetails={false}
               />

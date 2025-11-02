@@ -13,26 +13,8 @@ import {
   isDataStale,
   formatTimestamp
 } from '@/utils/offlineStorage';
-import { Athlete, EventInfo } from '@/types/athletes';
+import { Athlete, EventInfo, CommentatorInfoWithAuthor } from '@/types/athletes';
 import { SeriesData } from './useSeriesRankings';
-
-interface CommentatorInfo {
-  homebase?: string;
-  team?: string;
-  sponsors?: string;
-  favorite_trick?: string;
-  achievements?: string;
-  injuries?: string;
-  fun_facts?: string;
-  notes?: string;
-  social_media?: {
-    instagram?: string;
-    youtube?: string;
-    website?: string;
-  };
-  custom_fields?: Record<string, string>;
-  updated_at?: string;
-}
 
 export interface OfflineEventStatus {
   id: string;
@@ -130,6 +112,7 @@ export function useOfflineStorage() {
     athletes: Athlete[],
     eventInfo: EventInfo | EventInfo[],
     seriesRankings?: SeriesData[],
+    commentatorInfo?: Record<string, CommentatorInfoWithAuthor[]>,
     options: SaveOfflineOptions = {}
   ): Promise<void> => {
     if (!isInitialized) {
@@ -137,9 +120,9 @@ export function useOfflineStorage() {
     }
 
     setIsSaving(true);
-    
+
     try {
-      const { 
+      const {
         hoursUntilExpiration = 48,
         includeSeriesRankings = true
       } = options;
@@ -147,7 +130,7 @@ export function useOfflineStorage() {
       const offlineEventId = createEventId(eventIds);
       const now = new Date().toISOString();
       const expiresAt = getExpirationDate(hoursUntilExpiration);
-      
+
       // Prepare event data
       const events = Array.isArray(eventInfo) ? eventInfo : [eventInfo];
       const eventData = {
@@ -159,40 +142,11 @@ export function useOfflineStorage() {
         }))
       };
 
-      // Collect commentator info from localStorage cache
-      const commentatorInfoCache: Record<string, CommentatorInfo> = {};
-      try {
-        const cachedCommentatorInfo = localStorage.getItem('commentator-info-cache');
-        if (cachedCommentatorInfo) {
-          const parsedCache = JSON.parse(cachedCommentatorInfo);
-          
-          // Only include commentator info for athletes in this event
-          athletes.forEach(athlete => {
-            if (parsedCache[athlete.id]) {
-              commentatorInfoCache[athlete.id] = {
-                homebase: parsedCache[athlete.id].homebase,
-                team: parsedCache[athlete.id].team,
-                sponsors: parsedCache[athlete.id].sponsors,
-                favorite_trick: parsedCache[athlete.id].favorite_trick,
-                achievements: parsedCache[athlete.id].achievements,
-                injuries: parsedCache[athlete.id].injuries,
-                fun_facts: parsedCache[athlete.id].fun_facts,
-                notes: parsedCache[athlete.id].notes,
-                social_media: parsedCache[athlete.id].social_media,
-                custom_fields: parsedCache[athlete.id].custom_fields,
-                updated_at: parsedCache[athlete.id].updated_at
-              };
-            }
-          });
-        }
-      } catch {
-      }
-
       // Calculate estimated size including commentator info
       const estimatedSize = calculateEstimatedSize(
-        athletes, 
+        athletes,
         includeSeriesRankings ? seriesRankings : [],
-        commentatorInfoCache
+        commentatorInfo || {}
       );
 
       const offlineData: OfflineEventData = {
@@ -203,19 +157,19 @@ export function useOfflineStorage() {
         eventData,
         athletes,
         seriesRankings: includeSeriesRankings ? seriesRankings : undefined,
-        commentatorInfo: Object.keys(commentatorInfoCache).length > 0 ? commentatorInfoCache : undefined,
+        commentatorInfo: commentatorInfo,
         totalAthletes: athletes.length,
         estimatedSize
       };
 
       await offlineStorage.saveEvent(offlineData);
-      
+
       // Refresh offline events query
       await refetchOfflineEvents();
-      
+
       // Invalidate storage stats
       queryClient.invalidateQueries({ queryKey: ['offline-storage-stats'] });
-      
+
     } catch (error) {
       console.error('Failed to save event for offline use:', error);
       throw error;

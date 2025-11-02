@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { Calendar } from 'lucide-react';
 import Image from 'next/image';
-import { Athlete, EventInfo } from '@/types/athletes';
-import { useCommentatorInfoWithFriends } from '@/hooks/useCommentatorInfo';
+import { Athlete, EventInfo, CommentatorInfoWithAuthor } from '@/types/athletes';
 import { CommentatorInfoSection } from './CommentatorInfoSection';
 import { CommentatorInfoModal } from './CommentatorInfoModal';
 import { getCountryFlag, getNationalityDisplay } from '@/utils/nationality';
@@ -14,14 +13,15 @@ interface AthleteCardProps {
   athlete: Athlete;
   eventInfo: EventInfo;
   athletes?: Athlete[]; // For CSV upload in commentator modal
+  commentatorInfo: CommentatorInfoWithAuthor[]; // All commentator info (mine + friends)
 }
 
-export function AthleteCard({ athlete, eventInfo, athletes = [] }: AthleteCardProps) {
+export function AthleteCard({ athlete, eventInfo, athletes = [], commentatorInfo }: AthleteCardProps) {
   const { t } = useTranslation();
   const [showCommentatorModal, setShowCommentatorModal] = useState(false);
-  
-  // Fetch only own commentator info for editing
-  const { data: myCommentatorInfo } = useCommentatorInfoWithFriends(athlete.id, 'mine');
+
+  // Filter out own data for editing modal
+  const myCommentatorInfo = commentatorInfo.filter(info => info.is_own_data);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -210,6 +210,7 @@ export function AthleteCard({ athlete, eventInfo, athletes = [] }: AthleteCardPr
         <CommentatorInfoSection
           athleteId={athlete.id}
           athleteName={athlete.name}
+          commentatorInfo={commentatorInfo}
           onEdit={() => setShowCommentatorModal(true)}
         />
       </div>
