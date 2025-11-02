@@ -1401,6 +1401,94 @@ async def get_multi_event_athletes(
 
 # Commentator Info API Endpoints
 
+@app.get("/api/commentator-info/batch")
+async def get_batch_commentator_info(
+    athlete_ids: str,  # Comma-separated IDs: "id1,id2,id3"
+    source: str = "all",
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Get commentator info for multiple athletes in one request"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Parse athlete IDs
+        athlete_id_list = [id.strip() for id in athlete_ids.split(",") if id.strip()]
+        logger.info(f"[Batch Commentator Info] Requested athlete IDs: {athlete_id_list}")
+        logger.info(f"[Batch Commentator Info] Source filter: {source}")
+        logger.info(f"[Batch Commentator Info] Current user ID: {current_user_id}")
+
+        if not athlete_id_list:
+            logger.info("[Batch Commentator Info] No athlete IDs provided, returning empty")
+            return {
+                "success": True,
+                "data": {},
+                "total": 0
+            }
+
+        # Get all commentator info for these athletes in one query.
+        # Use our authenticated Supabase client so RLS applies correctly for the current user.
+        logger.info(f"[Batch Commentator Info] Querying Supabase for {len(athlete_id_list)} athletes")
+        result = await supabase_client.select(
+            "commentator_info",
+            "*",
+            {"athlete_id": athlete_id_list},
+            user_token=user_token
+        )
+        logger.info(f"[Batch Commentator Info] Supabase returned {len(result) if isinstance(result, list) else 0} records")
+
+        if not result:
+            # Still ensure we return empty arrays for each requested athlete
+            logger.info("[Batch Commentator Info] No commentator info returned from Supabase")
+            return {
+                "success": True,
+                "data": {athlete_id: [] for athlete_id in athlete_id_list},
+                "total": 0
+            }
+
+        # Group by athlete_id and add authorship info
+        grouped = {}
+        for item in result:
+            athlete_id = item.get("athlete_id")
+            if not athlete_id:
+                continue
+
+            if athlete_id not in grouped:
+                grouped[athlete_id] = []
+
+            # Filter by source if needed
+            is_own = item.get("created_by") == current_user_id
+
+            if source == "mine" and not is_own:
+                continue
+            elif source == "friends" and is_own:
+                continue
+
+            # Add enhanced data with authorship flag
+            grouped[athlete_id].append({
+                **item,
+                "is_own_data": is_own
+            })
+
+        # Ensure all requested athletes are in the result (even with empty arrays)
+        for athlete_id in athlete_id_list:
+            if athlete_id not in grouped:
+                grouped[athlete_id] = []
+
+        logger.info(f"[Batch Commentator Info] Grouped data for {len(grouped)} athletes")
+        logger.info(f"[Batch Commentator Info] Athletes with data: {[aid for aid, data in grouped.items() if len(data) > 0]}")
+
+        return {
+            "success": True,
+            "data": grouped,
+            "total": len(result)
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching batch commentator info: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch batch commentator info: {str(e)}")
+
 @app.get("/api/commentator-info/{athlete_id}")
 async def get_commentator_info(
     athlete_id: str,
@@ -3368,94 +3456,6 @@ async def get_commentator_info_with_friends(
     except Exception as e:
         logger.error(f"Error fetching commentator info with friends: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch commentator info: {str(e)}")
-
-@app.get("/api/commentator-info/batch")
-async def get_batch_commentator_info(
-    athlete_ids: str,  # Comma-separated IDs: "id1,id2,id3"
-    source: str = "all",
-    current_user_id: str = Depends(extract_user_id_from_token),
-    user_token: str = Depends(get_user_token)
-):
-    """Get commentator info for multiple athletes in one request"""
-    if not supabase_client:
-        raise HTTPException(status_code=503, detail="Supabase not configured")
-
-    try:
-        # Parse athlete IDs
-        athlete_id_list = [id.strip() for id in athlete_ids.split(",") if id.strip()]
-        logger.info(f"[Batch Commentator Info] Requested athlete IDs: {athlete_id_list}")
-        logger.info(f"[Batch Commentator Info] Source filter: {source}")
-        logger.info(f"[Batch Commentator Info] Current user ID: {current_user_id}")
-
-        if not athlete_id_list:
-            logger.info("[Batch Commentator Info] No athlete IDs provided, returning empty")
-            return {
-                "success": True,
-                "data": {},
-                "total": 0
-            }
-
-        # Get all commentator info for these athletes in one query.
-        # Use our authenticated Supabase client so RLS applies correctly for the current user.
-        logger.info(f"[Batch Commentator Info] Querying Supabase for {len(athlete_id_list)} athletes")
-        result = await supabase_client.select(
-            "commentator_info",
-            "*",
-            {"athlete_id": athlete_id_list},
-            user_token=user_token
-        )
-        logger.info(f"[Batch Commentator Info] Supabase returned {len(result) if isinstance(result, list) else 0} records")
-
-        if not result:
-            # Still ensure we return empty arrays for each requested athlete
-            logger.info("[Batch Commentator Info] No commentator info returned from Supabase")
-            return {
-                "success": True,
-                "data": {athlete_id: [] for athlete_id in athlete_id_list},
-                "total": 0
-            }
-
-        # Group by athlete_id and add authorship info
-        grouped = {}
-        for item in result:
-            athlete_id = item.get("athlete_id")
-            if not athlete_id:
-                continue
-
-            if athlete_id not in grouped:
-                grouped[athlete_id] = []
-
-            # Filter by source if needed
-            is_own = item.get("created_by") == current_user_id
-
-            if source == "mine" and not is_own:
-                continue
-            elif source == "friends" and is_own:
-                continue
-
-            # Add enhanced data with authorship flag
-            grouped[athlete_id].append({
-                **item,
-                "is_own_data": is_own
-            })
-
-        # Ensure all requested athletes are in the result (even with empty arrays)
-        for athlete_id in athlete_id_list:
-            if athlete_id not in grouped:
-                grouped[athlete_id] = []
-
-        logger.info(f"[Batch Commentator Info] Grouped data for {len(grouped)} athletes")
-        logger.info(f"[Batch Commentator Info] Athletes with data: {[aid for aid, data in grouped.items() if len(data) > 0]}")
-
-        return {
-            "success": True,
-            "data": grouped,
-            "total": len(result)
-        }
-
-    except Exception as e:
-        logger.error(f"Error fetching batch commentator info: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch batch commentator info: {str(e)}")
 
 @app.get("/api/fullresults")
 async def get_all_series(
