@@ -29,7 +29,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   const { getAccessToken } = useAccessToken();
   const { data: athletesData, isLoading, error, refetch: refetchAthletes } = useOfflineEventAthletes(eventId);
   const { data: seriesData, isLoading: seriesLoading, refetch: refetchSeries } = useOfflineSeriesRankings(eventId);
-  const { data: commentatorData, isLoading: commentatorLoading, refetch: refetchCommentatorInfo } = useBatchCommentatorInfo(eventId, athletesData?.athletes);
+  const { data: commentatorData, isLoading: commentatorLoading, refetch: _refetchCommentatorInfo } = useBatchCommentatorInfo(eventId, athletesData?.athletes);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentAthleteIndex, setCurrentAthleteIndex] = useState(0);
   const [showBibJump, setShowBibJump] = useState(false);

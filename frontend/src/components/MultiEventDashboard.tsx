@@ -17,6 +17,7 @@ import { OfflineSaveButton } from './OfflineSaveButton';
 import { AppHeader } from './AppHeader';
 import { useAccessToken } from '@/providers/AuthProvider';
 import { apiFetch } from '@/utils/api';
+import { useBatchCommentatorInfo } from '@/hooks/useCommentatorInfo';
 
 
 interface MultiEventDashboardProps {
@@ -33,10 +34,10 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
   const router = useRouter();
   const { getAccessToken } = useAccessToken();
   const { data: multiEventData, isLoading, error } = useOfflineMultiEventAthletes(eventId1, eventId2);
-  
+
   // Fetch series rankings for both events using offline-first approach
   const { data: multiEventRankings, isLoading: seriesLoading } = useOfflineMultiEventSeriesRankings(eventId1, eventId2);
-  
+
   const [currentAthleteIndex, setCurrentAthleteIndex] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
   const [showBibJump, setShowBibJump] = useState(false);
@@ -50,6 +51,9 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
     // The combined athletes are already sorted by BIB in the hook and have eventSource/eventName
     return multiEventData.combined.athletes as CombinedAthlete[];
   }, [multiEventData]);
+
+  // Fetch commentator info for all athletes
+  const { data: commentatorData, isLoading: commentatorLoading } = useBatchCommentatorInfo(`multi_${eventId1}_${eventId2}`, combinedAthletes);
 
   const currentAthlete = combinedAthletes[currentAthleteIndex];
   const hasError = !!error;
@@ -158,12 +162,15 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
     }
   };
 
-  if (isLoading) {
+  if (isLoading || commentatorLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Lade Multi-Event Daten...</p>
+          <p className="text-gray-600 text-lg">
+            {isLoading && 'Lade Multi-Event Daten...'}
+            {!isLoading && commentatorLoading && 'Loading commentator info...'}
+          </p>
         </div>
       </div>
     );
@@ -254,8 +261,8 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                     {currentAthlete.eventName}
                   </span>
                 </div>
-                <AthleteCard 
-                  athlete={currentAthlete} 
+                <AthleteCard
+                  athlete={currentAthlete}
                   eventInfo={{
                     name: currentAthlete.eventName,
                     date: currentAthlete.eventSource === eventId1 ? event1Data.event.date : event2Data.event.date,
@@ -263,6 +270,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                     status: 'active'
                   }}
                   athletes={combinedAthletes}
+                  commentatorInfo={commentatorData?.[currentAthlete.id] || []}
                 />
                 
                 {/* Event History */}
@@ -307,8 +315,8 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                      {currentAthlete.eventName}
                    </span>
                  </div>
-                 <AthleteCard 
-                   athlete={currentAthlete} 
+                 <AthleteCard
+                   athlete={currentAthlete}
                    eventInfo={{
                      name: currentAthlete.eventName,
                      date: currentAthlete.eventSource === eventId1 ? event1Data.event.date : event2Data.event.date,
@@ -316,6 +324,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                      status: 'active'
                    }}
                    athletes={combinedAthletes}
+                   commentatorInfo={commentatorData?.[currentAthlete.id] || []}
                  />
                  
                  {/* Event History */}

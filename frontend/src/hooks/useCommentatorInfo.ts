@@ -165,20 +165,25 @@ export function useCommentatorInfo(athleteId: string) {
         // Look through all offline events for this athlete's commentator info
         for (const event of offlineEvents) {
           if (event.commentatorInfo && event.commentatorInfo[athleteId]) {
-            const commentatorData = event.commentatorInfo[athleteId];
-            
-            // Add to localStorage cache for faster access next time
-            const cache = getCommentatorInfoCache();
-            cache[athleteId] = {
-              ...commentatorData,
-              athlete_id: athleteId,
-              id: `offline-${athleteId}`,
-              created_at: commentatorData.updated_at || new Date().toISOString(),
-              updated_at: commentatorData.updated_at || new Date().toISOString()
-            };
-            setCommentatorInfoCache(cache);
-            
-            return cache[athleteId];
+            const commentatorDataArray = event.commentatorInfo[athleteId];
+
+            // Return the first item (own data) if available
+            if (commentatorDataArray && commentatorDataArray.length > 0) {
+              const commentatorData = commentatorDataArray.find(item => item.is_own_data) || commentatorDataArray[0];
+
+              // Add to localStorage cache for faster access next time
+              const cache = getCommentatorInfoCache();
+              cache[athleteId] = {
+                ...commentatorData,
+                athlete_id: athleteId,
+                id: commentatorData.id || `offline-${athleteId}`,
+                created_at: commentatorData.created_at || new Date().toISOString(),
+                updated_at: commentatorData.updated_at || new Date().toISOString()
+              };
+              setCommentatorInfoCache(cache);
+
+              return cache[athleteId];
+            }
           }
         }
       } catch {
