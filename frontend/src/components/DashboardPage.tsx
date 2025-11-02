@@ -37,6 +37,14 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   const athletes = athletesData?.athletes || [];
   const currentAthlete = athletes[currentAthleteIndex];
 
+  // Debug logging
+  console.log('[DashboardPage] commentatorData:', commentatorData);
+  console.log('[DashboardPage] commentatorLoading:', commentatorLoading);
+  console.log('[DashboardPage] currentAthlete:', currentAthlete);
+  if (currentAthlete) {
+    console.log('[DashboardPage] commentatorInfo for current athlete:', commentatorData?.[currentAthlete.id]);
+  }
+
   // Navigation callbacks defined before useEffect
   const navigateToNext = useCallback(() => {
     setCurrentAthleteIndex(prev => 

@@ -491,34 +491,47 @@ export function useBatchCommentatorInfo(eventId: string, athletes?: Array<{ id: 
   return useQuery({
     queryKey: ['batch-commentator-info', eventId],
     queryFn: async (): Promise<Record<string, CommentatorInfoWithAuthor[]>> => {
+      console.log('[useBatchCommentatorInfo] Starting fetch for eventId:', eventId);
+      console.log('[useBatchCommentatorInfo] Athletes count:', athletes?.length);
+      console.log('[useBatchCommentatorInfo] isOffline:', isOffline);
+
       // Try online first if we have internet
       if (!isOffline && athletes && athletes.length > 0) {
         try {
           const athleteIds = athletes.map(a => a.id).join(',');
+          console.log('[useBatchCommentatorInfo] Fetching from API with athlete IDs:', athleteIds);
+
           const data = await apiFetch<{ success: boolean; data: Record<string, CommentatorInfoWithAuthor[]>; total: number }>(
             `${API_BASE_URL}/api/commentator-info/batch?athlete_ids=${athleteIds}&source=all`,
             { getAccessToken }
           );
+
+          console.log('[useBatchCommentatorInfo] API Response:', data);
+          console.log('[useBatchCommentatorInfo] Returning data:', data.data);
           return data.data || {};
         } catch (error) {
-          console.error('Failed to fetch batch commentator info:', error);
+          console.error('[useBatchCommentatorInfo] Failed to fetch batch commentator info:', error);
           // Fall through to offline fallback
         }
       }
 
       // Try offline fallback - read from IndexedDB
       try {
+        console.log('[useBatchCommentatorInfo] Trying offline fallback');
         const { offlineStorage } = await import('@/utils/offlineStorage');
         const offlineEvent = await offlineStorage.getEvent(eventId);
 
         if (offlineEvent?.commentatorInfo) {
+          console.log('[useBatchCommentatorInfo] Found offline data:', offlineEvent.commentatorInfo);
           return offlineEvent.commentatorInfo;
         }
+        console.log('[useBatchCommentatorInfo] No offline data found');
       } catch (error) {
-        console.error('Failed to load offline commentator info:', error);
+        console.error('[useBatchCommentatorInfo] Failed to load offline commentator info:', error);
       }
 
       // Return empty object if no data available
+      console.log('[useBatchCommentatorInfo] Returning empty object');
       return {};
     },
     enabled: !!eventId && !!athletes && athletes.length > 0,

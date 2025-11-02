@@ -3383,8 +3383,12 @@ async def get_batch_commentator_info(
     try:
         # Parse athlete IDs
         athlete_id_list = [id.strip() for id in athlete_ids.split(",") if id.strip()]
+        logger.info(f"[Batch Commentator Info] Requested athlete IDs: {athlete_id_list}")
+        logger.info(f"[Batch Commentator Info] Source filter: {source}")
+        logger.info(f"[Batch Commentator Info] Current user ID: {current_user_id}")
 
         if not athlete_id_list:
+            logger.info("[Batch Commentator Info] No athlete IDs provided, returning empty")
             return {
                 "success": True,
                 "data": {},
@@ -3393,7 +3397,9 @@ async def get_batch_commentator_info(
 
         # Get all commentator info for these athletes in one query
         # Supabase RLS policies will automatically filter based on user permissions
+        logger.info(f"[Batch Commentator Info] Querying Supabase for {len(athlete_id_list)} athletes")
         result = await supabase_client.table("commentator_info").select("*").in_("athlete_id", athlete_id_list).execute()
+        logger.info(f"[Batch Commentator Info] Supabase returned {len(result.data) if result and hasattr(result, 'data') else 0} records")
 
         if not result or not hasattr(result, 'data'):
             return {
@@ -3430,6 +3436,9 @@ async def get_batch_commentator_info(
         for athlete_id in athlete_id_list:
             if athlete_id not in grouped:
                 grouped[athlete_id] = []
+
+        logger.info(f"[Batch Commentator Info] Grouped data for {len(grouped)} athletes")
+        logger.info(f"[Batch Commentator Info] Athletes with data: {[aid for aid, data in grouped.items() if len(data) > 0]}")
 
         return {
             "success": True,
