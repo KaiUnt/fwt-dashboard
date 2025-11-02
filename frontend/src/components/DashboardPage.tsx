@@ -37,14 +37,6 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   const athletes = athletesData?.athletes || [];
   const currentAthlete = athletes[currentAthleteIndex];
 
-  // Debug logging
-  console.log('[DashboardPage] commentatorData:', commentatorData);
-  console.log('[DashboardPage] commentatorLoading:', commentatorLoading);
-  console.log('[DashboardPage] currentAthlete:', currentAthlete);
-  if (currentAthlete) {
-    console.log('[DashboardPage] commentatorInfo for current athlete:', commentatorData?.[currentAthlete.id]);
-  }
-
   // Navigation callbacks defined before useEffect
   const navigateToNext = useCallback(() => {
     setCurrentAthleteIndex(prev => 
@@ -224,6 +216,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 eventInfo={athletesData.event}
                 athletes={athletes}
                 commentatorInfo={commentatorData?.[currentAthlete.id] || []}
+                commentatorBatchKey={eventId}
               />
               
               {/* 3. Event History */}
@@ -262,6 +255,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                   eventInfo={athletesData.event}
                   athletes={athletes}
                   commentatorInfo={commentatorData?.[currentAthlete.id] || []}
+                  commentatorBatchKey={eventId}
                 />
                 
                 {/* Event History Section */}
@@ -383,4 +377,4 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
       )}
     </div>
   );
-} 
+}

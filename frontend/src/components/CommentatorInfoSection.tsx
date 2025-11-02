@@ -26,20 +26,14 @@ export function CommentatorInfoSection({
   // Friends System Data
   const { data: friends } = useFriends();
 
-  // Debug logging
-  console.log('[CommentatorInfoSection] Received commentatorInfo:', commentatorInfo);
-  console.log('[CommentatorInfoSection] commentatorInfo length:', commentatorInfo?.length);
-
   // Split commentatorInfo into mine and friends data
   const myData = useMemo(() => {
     const mine = commentatorInfo.filter(info => info.is_own_data);
-    console.log('[CommentatorInfoSection] myData:', mine);
     return mine;
   }, [commentatorInfo]);
 
   const friendsData = useMemo(() => {
     const friends = commentatorInfo.filter(info => !info.is_own_data);
-    console.log('[CommentatorInfoSection] friendsData:', friends);
     return friends;
   }, [commentatorInfo]);
 
@@ -423,4 +417,4 @@ export function CommentatorInfoSection({
       )}
     </div>
   );
-} 
+}

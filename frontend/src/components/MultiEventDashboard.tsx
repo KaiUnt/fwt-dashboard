@@ -271,6 +271,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                   }}
                   athletes={combinedAthletes}
                   commentatorInfo={commentatorData?.[currentAthlete.id] || []}
+                  commentatorBatchKey={`multi_${eventId1}_${eventId2}`}
                 />
                 
                 {/* Event History */}
@@ -315,17 +316,18 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                      {currentAthlete.eventName}
                    </span>
                  </div>
-                 <AthleteCard
-                   athlete={currentAthlete}
-                   eventInfo={{
-                     name: currentAthlete.eventName,
-                     date: currentAthlete.eventSource === eventId1 ? event1Data.event.date : event2Data.event.date,
-                     id: currentAthlete.eventSource,
-                     status: 'active'
-                   }}
-                   athletes={combinedAthletes}
-                   commentatorInfo={commentatorData?.[currentAthlete.id] || []}
-                 />
+                <AthleteCard
+                  athlete={currentAthlete}
+                  eventInfo={{
+                    name: currentAthlete.eventName,
+                    date: currentAthlete.eventSource === eventId1 ? event1Data.event.date : event2Data.event.date,
+                    id: currentAthlete.eventSource,
+                    status: 'active'
+                  }}
+                  athletes={combinedAthletes}
+                  commentatorInfo={commentatorData?.[currentAthlete.id] || []}
+                  commentatorBatchKey={`multi_${eventId1}_${eventId2}`}
+                />
                  
                  {/* Event History */}
                  <div className="mt-4">

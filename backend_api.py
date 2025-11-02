@@ -1415,12 +1415,7 @@ async def get_batch_commentator_info(
     try:
         # Parse athlete IDs
         athlete_id_list = [id.strip() for id in athlete_ids.split(",") if id.strip()]
-        logger.info(f"[Batch Commentator Info] Requested athlete IDs: {athlete_id_list}")
-        logger.info(f"[Batch Commentator Info] Source filter: {source}")
-        logger.info(f"[Batch Commentator Info] Current user ID: {current_user_id}")
-
         if not athlete_id_list:
-            logger.info("[Batch Commentator Info] No athlete IDs provided, returning empty")
             return {
                 "success": True,
                 "data": {},
@@ -1429,18 +1424,14 @@ async def get_batch_commentator_info(
 
         # Get all commentator info for these athletes in one query.
         # Use our authenticated Supabase client so RLS applies correctly for the current user.
-        logger.info(f"[Batch Commentator Info] Querying Supabase for {len(athlete_id_list)} athletes")
         result = await supabase_client.select(
             "commentator_info",
             "*",
             {"athlete_id": athlete_id_list},
             user_token=user_token
         )
-        logger.info(f"[Batch Commentator Info] Supabase returned {len(result) if isinstance(result, list) else 0} records")
 
         if not result:
-            # Still ensure we return empty arrays for each requested athlete
-            logger.info("[Batch Commentator Info] No commentator info returned from Supabase")
             return {
                 "success": True,
                 "data": {athlete_id: [] for athlete_id in athlete_id_list},
@@ -1475,9 +1466,6 @@ async def get_batch_commentator_info(
         for athlete_id in athlete_id_list:
             if athlete_id not in grouped:
                 grouped[athlete_id] = []
-
-        logger.info(f"[Batch Commentator Info] Grouped data for {len(grouped)} athletes")
-        logger.info(f"[Batch Commentator Info] Athletes with data: {[aid for aid, data in grouped.items() if len(data) > 0]}")
 
         return {
             "success": True,

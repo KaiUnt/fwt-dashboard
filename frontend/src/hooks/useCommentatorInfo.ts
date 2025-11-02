@@ -205,8 +205,8 @@ export function useUpdateCommentatorInfo() {
   const isOffline = useIsOffline();
   const { getAccessToken } = useAccessToken();
 
-  return useMutation({
-    mutationFn: async ({ athleteId, info }: { athleteId: string; info: Partial<CommentatorInfo> }) => {
+  return useMutation<{ updatedInfo: CommentatorInfo; batchKey?: string }, unknown, { athleteId: string; info: Partial<CommentatorInfo>; batchKey?: string }>({
+    mutationFn: async ({ athleteId, info, batchKey }: { athleteId: string; info: Partial<CommentatorInfo>; batchKey?: string }) => {
       // Validate input
       if (!athleteId || !info) {
         throw new Error('Invalid input: athleteId and info are required');
@@ -222,7 +222,7 @@ export function useUpdateCommentatorInfo() {
           cache[athleteId] = updatedInfo;
           setCommentatorInfoCache(cache);
           
-          return updatedInfo;
+          return { updatedInfo, batchKey };
         } catch (err) {
           // Re-throw authentication and permission errors immediately
           if (err instanceof Error && (err.message?.includes('Authentication') || err.message?.includes('permission'))) {
@@ -230,7 +230,6 @@ export function useUpdateCommentatorInfo() {
           }
           // For other errors, fall through to offline handling
         }
-      } else {
       }
       
       // Offline handling
@@ -274,11 +273,11 @@ export function useUpdateCommentatorInfo() {
       queue.push(queueItem);
       setSyncQueue(queue);
       
-      return updatedInfo;
+      return { updatedInfo, batchKey };
     },
     onSuccess: (data, variables) => {
       // Update React Query cache - this is what the AthleteCard uses
-      queryClient.setQueryData(['commentator-info', variables.athleteId], data);
+      queryClient.setQueryData(['commentator-info', variables.athleteId], data.updatedInfo);
       
       // Force refetch of the main query that AthleteCard uses
       queryClient.invalidateQueries({ queryKey: ['commentator-info', variables.athleteId] });
@@ -288,6 +287,9 @@ export function useUpdateCommentatorInfo() {
       queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId, 'mine'] });
       queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId, 'friends'] });
       queryClient.invalidateQueries({ queryKey: ['commentator-info-with-friends', variables.athleteId, 'all'] });
+      if (data.batchKey) {
+        queryClient.invalidateQueries({ queryKey: ['batch-commentator-info', data.batchKey] });
+      }
     },
     onError: (error: unknown, variables) => {
       console.error('Failed to update commentator info for athlete:', variables.athleteId, error);
@@ -338,7 +340,7 @@ export function useCommentatorInfoSyncStatus() {
     hasPendingSync: queue.length > 0,
     pendingCount: queue.length,
   };
-} 
+}
 
 // Enhanced hook for Friends System
 export function useCommentatorInfoWithFriends(athleteId: string, source: 'mine' | 'friends' | 'all' = 'mine') {
@@ -491,23 +493,16 @@ export function useBatchCommentatorInfo(eventId: string, athletes?: Array<{ id: 
   return useQuery({
     queryKey: ['batch-commentator-info', eventId],
     queryFn: async (): Promise<Record<string, CommentatorInfoWithAuthor[]>> => {
-      console.log('[useBatchCommentatorInfo] Starting fetch for eventId:', eventId);
-      console.log('[useBatchCommentatorInfo] Athletes count:', athletes?.length);
-      console.log('[useBatchCommentatorInfo] isOffline:', isOffline);
-
       // Try online first if we have internet
       if (!isOffline && athletes && athletes.length > 0) {
         try {
           const athleteIds = athletes.map(a => a.id).join(',');
-          console.log('[useBatchCommentatorInfo] Fetching from API with athlete IDs:', athleteIds);
 
           const data = await apiFetch<{ success: boolean; data: Record<string, CommentatorInfoWithAuthor[]>; total: number }>(
             `${API_BASE_URL}/api/commentator-info/batch?athlete_ids=${athleteIds}&source=all`,
             { getAccessToken }
           );
 
-          console.log('[useBatchCommentatorInfo] API Response:', data);
-          console.log('[useBatchCommentatorInfo] Returning data:', data.data);
           return data.data || {};
         } catch (error) {
           console.error('[useBatchCommentatorInfo] Failed to fetch batch commentator info:', error);
@@ -517,21 +512,17 @@ export function useBatchCommentatorInfo(eventId: string, athletes?: Array<{ id: 
 
       // Try offline fallback - read from IndexedDB
       try {
-        console.log('[useBatchCommentatorInfo] Trying offline fallback');
         const { offlineStorage } = await import('@/utils/offlineStorage');
         const offlineEvent = await offlineStorage.getEvent(eventId);
 
         if (offlineEvent?.commentatorInfo) {
-          console.log('[useBatchCommentatorInfo] Found offline data:', offlineEvent.commentatorInfo);
           return offlineEvent.commentatorInfo;
         }
-        console.log('[useBatchCommentatorInfo] No offline data found');
       } catch (error) {
         console.error('[useBatchCommentatorInfo] Failed to load offline commentator info:', error);
       }
 
       // Return empty object if no data available
-      console.log('[useBatchCommentatorInfo] Returning empty object');
       return {};
     },
     enabled: !!eventId && !!athletes && athletes.length > 0,
@@ -592,4 +583,4 @@ export function useBulkImportCommentatorInfo() {
       console.error('Failed to bulk import commentator info:', error);
     },
   });
-} 
+}

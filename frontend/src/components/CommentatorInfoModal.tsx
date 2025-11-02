@@ -44,6 +44,7 @@ interface CommentatorInfoModalProps {
   isOpen: boolean;
   onClose: () => void;
   athletes?: Athlete[]; // For CSV upload matching
+  commentatorBatchKey: string;
 }
 
 export function CommentatorInfoModal({
@@ -53,6 +54,7 @@ export function CommentatorInfoModal({
   isOpen,
   onClose,
   athletes = [],
+  commentatorBatchKey,
 }: CommentatorInfoModalProps) {
   const { t } = useTranslation();
   const { isAdmin } = useAuth();
@@ -228,6 +230,7 @@ export function CommentatorInfoModal({
       await updateMutation.mutateAsync({
         athleteId,
         info: payload,
+        batchKey: commentatorBatchKey,
       });
       
       // Show success message briefly before closing

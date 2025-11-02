@@ -14,9 +14,10 @@ interface AthleteCardProps {
   eventInfo: EventInfo;
   athletes?: Athlete[]; // For CSV upload in commentator modal
   commentatorInfo: CommentatorInfoWithAuthor[]; // All commentator info (mine + friends)
+  commentatorBatchKey: string;
 }
 
-export function AthleteCard({ athlete, eventInfo, athletes = [], commentatorInfo }: AthleteCardProps) {
+export function AthleteCard({ athlete, eventInfo, athletes = [], commentatorInfo, commentatorBatchKey }: AthleteCardProps) {
   const { t } = useTranslation();
   const [showCommentatorModal, setShowCommentatorModal] = useState(false);
 
@@ -223,6 +224,7 @@ export function AthleteCard({ athlete, eventInfo, athletes = [], commentatorInfo
         isOpen={showCommentatorModal}
         onClose={() => setShowCommentatorModal(false)}
         athletes={athletes}
+        commentatorBatchKey={commentatorBatchKey}
       />
     </div>
   );
