@@ -3395,22 +3395,29 @@ async def get_batch_commentator_info(
                 "total": 0
             }
 
-        # Get all commentator info for these athletes in one query
-        # Supabase RLS policies will automatically filter based on user permissions
+        # Get all commentator info for these athletes in one query.
+        # Use our authenticated Supabase client so RLS applies correctly for the current user.
         logger.info(f"[Batch Commentator Info] Querying Supabase for {len(athlete_id_list)} athletes")
-        result = await supabase_client.table("commentator_info").select("*").in_("athlete_id", athlete_id_list).execute()
-        logger.info(f"[Batch Commentator Info] Supabase returned {len(result.data) if result and hasattr(result, 'data') else 0} records")
+        result = await supabase_client.select(
+            "commentator_info",
+            "*",
+            {"athlete_id": athlete_id_list},
+            user_token=user_token
+        )
+        logger.info(f"[Batch Commentator Info] Supabase returned {len(result) if isinstance(result, list) else 0} records")
 
-        if not result or not hasattr(result, 'data'):
+        if not result:
+            # Still ensure we return empty arrays for each requested athlete
+            logger.info("[Batch Commentator Info] No commentator info returned from Supabase")
             return {
                 "success": True,
-                "data": {},
+                "data": {athlete_id: [] for athlete_id in athlete_id_list},
                 "total": 0
             }
 
         # Group by athlete_id and add authorship info
         grouped = {}
-        for item in result.data:
+        for item in result:
             athlete_id = item.get("athlete_id")
             if not athlete_id:
                 continue
@@ -3443,7 +3450,7 @@ async def get_batch_commentator_info(
         return {
             "success": True,
             "data": grouped,
-            "total": len(result.data)
+            "total": len(result)
         }
 
     except Exception as e:
