@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useIsOffline } from '@/hooks/useOfflineStorage';
+import type { TranslationValue, Translations } from '@/types/i18n';
+import { getBuiltInTranslations } from '@/translations/builtIn';
 
 type TranslationKey = string;
 type TranslationParams = Record<string, string | number>;
@@ -13,12 +15,6 @@ const pluralRules = {
   en: (count: number) => count === 1 ? 'Singular' : 'Plural',
   fr: (count: number) => count === 1 ? 'Singular' : 'Plural',
 } as const;
-
-type TranslationValue = string | { [key: string]: TranslationValue };
-
-interface Translations {
-  [key: string]: TranslationValue;
-}
 
 interface TranslationContextType {
   t: (key: TranslationKey, params?: TranslationParams) => string;
@@ -115,13 +111,13 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   const { data: translations = {}, isLoading } = useQuery({
     queryKey: ['translations', locale],
     queryFn: async (): Promise<Translations> => {
-      // Try offline fallback first to avoid unnecessary network requests
+      // Try offline cache first
       const offlineData = getOfflineTranslations(locale);
-      if (offlineData && isOffline) {
+      if (offlineData) {
         return offlineData;
       }
-      
-      // Try online if we have internet and no cached data, or if online and data is stale
+
+      // Try online if we have internet and no cached data
       if (!isOffline) {
         try {
           return await fetchTranslations(locale);
@@ -130,9 +126,13 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
         }
       }
       
-      // Final fallback to cached data
-      if (offlineData) {
-        return offlineData;
+      // Fallback to built-in translations bundled with the app
+      const builtIn = getBuiltInTranslations(locale);
+      if (builtIn) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`translations-${TRANSLATION_VERSION}-${locale}`, JSON.stringify(builtIn));
+        }
+        return builtIn;
       }
       
       // No offline data available
@@ -144,6 +144,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     refetchOnReconnect: false, // Don't refetch immediately on reconnect
     staleTime: 30 * 60 * 1000, // 30 minutes - longer stale time to reduce requests
     gcTime: 60 * 60 * 1000, // 1 hour garbage collection
+    initialData: () => getBuiltInTranslations(locale),
   });
 
   const setLocale = (newLocale: string) => {
