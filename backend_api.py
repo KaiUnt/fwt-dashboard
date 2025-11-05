@@ -3934,19 +3934,23 @@ async def seed_athletes_database(
         from api.client import LiveheatsClient
         client = LiveheatsClient()
 
-        # Get all series from 2023, 2024, 2025
-        series_data = await client.get_series_by_years("fwtglobal", range(2023, 2026))
+        # Get all series from current year and 2 years back
+        current_year = datetime.now(timezone.utc).year
+        start_year = current_year - 2
+        end_year = current_year + 1  # range() is exclusive, so +1 to include current year
+
+        logger.info(f"Seeding athletes from years {start_year} to {current_year}")
+
+        series_data = await client.get_series_by_years("fwtglobal", range(start_year, end_year))
         if not series_data:
             return {"success": False, "message": "No series found"}
 
         logger.info(f"Found {len(series_data)} series for seeding")
 
-        # Collect all unique athletes - use one GraphQL client context
+        # Collect all unique athletes - use same pattern as /api/fullresults
         athletes_dict = {}
 
         async with client.client as gql_client:
-            # Process all series sequentially (GraphQL client limitation)
-            # but divisions within each series in parallel
             for series in series_data:
                 series_id = series["id"]
                 series_name = series["name"]
@@ -3962,10 +3966,9 @@ async def seed_athletes_database(
 
                 divisions = divisions_data["series"].get("rankingsDivisions", [])
 
-                # Process divisions in parallel within this series
-                async def process_division(division):
+                # Process divisions sequentially (same as /api/fullresults)
+                for division in divisions:
                     division_id = division["id"]
-                    division_athletes = {}
 
                     rankings_data = await gql_client.execute(
                         client.queries.GET_SERIES_RANKINGS,
@@ -3979,17 +3982,7 @@ async def seed_athletes_database(
                             if athlete and athlete.get("id"):
                                 athlete_id = athlete["id"]
                                 athlete_name = athlete.get("name")
-                                division_athletes[athlete_id] = athlete_name
-
-                    return division_athletes
-
-                # Parallel division processing
-                division_tasks = [process_division(div) for div in divisions]
-                division_results = await asyncio.gather(*division_tasks)
-
-                # Merge all division results
-                for div_athletes in division_results:
-                    athletes_dict.update(div_athletes)
+                                athletes_dict[athlete_id] = athlete_name
 
         logger.info(f"Collected {len(athletes_dict)} unique athletes")
 
