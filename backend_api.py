@@ -3941,29 +3941,28 @@ async def seed_athletes_database(
 
         logger.info(f"Found {len(series_data)} series for seeding")
 
-        # Collect all unique athletes
+        # Collect all unique athletes - use one GraphQL client context
         athletes_dict = {}
 
-        # Process all series in parallel
-        async def process_series(series):
-            series_id = series["id"]
-            series_name = series["name"]
-            logger.info(f"Processing series: {series_name}")
+        async with client.client as gql_client:
+            # Process all series sequentially (GraphQL client limitation)
+            # but divisions within each series in parallel
+            for series in series_data:
+                series_id = series["id"]
+                series_name = series["name"]
+                logger.info(f"Processing series: {series_name}")
 
-            local_athletes = {}
-
-            async with client.client as gql_client:
                 divisions_data = await gql_client.execute(
                     client.queries.GET_DIVISIONS,
                     {"id": series_id}
                 )
 
                 if not divisions_data or "series" not in divisions_data:
-                    return local_athletes
+                    continue
 
                 divisions = divisions_data["series"].get("rankingsDivisions", [])
 
-                # Process divisions in parallel
+                # Process divisions in parallel within this series
                 async def process_division(division):
                     division_id = division["id"]
                     division_athletes = {}
@@ -3990,17 +3989,7 @@ async def seed_athletes_database(
 
                 # Merge all division results
                 for div_athletes in division_results:
-                    local_athletes.update(div_athletes)
-
-            return local_athletes
-
-        # Parallel series processing
-        series_tasks = [process_series(series) for series in series_data]
-        series_results = await asyncio.gather(*series_tasks)
-
-        # Merge all series results
-        for series_athletes in series_results:
-            athletes_dict.update(series_athletes)
+                    athletes_dict.update(div_athletes)
 
         logger.info(f"Collected {len(athletes_dict)} unique athletes")
 
