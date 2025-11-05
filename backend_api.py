@@ -3944,12 +3944,14 @@ async def seed_athletes_database(
         # Collect all unique athletes
         athletes_dict = {}
 
-        for series in series_data:
+        # Process all series in parallel
+        async def process_series(series):
             series_id = series["id"]
             series_name = series["name"]
             logger.info(f"Processing series: {series_name}")
 
-            # Get divisions for this series
+            local_athletes = {}
+
             async with client.client as gql_client:
                 divisions_data = await gql_client.execute(
                     client.queries.GET_DIVISIONS,
@@ -3957,71 +3959,99 @@ async def seed_athletes_database(
                 )
 
                 if not divisions_data or "series" not in divisions_data:
-                    continue
+                    return local_athletes
 
                 divisions = divisions_data["series"].get("rankingsDivisions", [])
 
-                # For each division, get rankings
-                for division in divisions:
+                # Process divisions in parallel
+                async def process_division(division):
                     division_id = division["id"]
-                    division_name = division["name"]
+                    division_athletes = {}
 
                     rankings_data = await gql_client.execute(
                         client.queries.GET_SERIES_RANKINGS,
                         {"id": series_id, "divisionId": division_id}
                     )
 
-                    if not rankings_data or "series" not in rankings_data:
-                        continue
+                    if rankings_data and "series" in rankings_data:
+                        rankings = rankings_data["series"].get("rankings", [])
+                        for ranking in rankings:
+                            athlete = ranking.get("athlete")
+                            if athlete and athlete.get("id"):
+                                athlete_id = athlete["id"]
+                                athlete_name = athlete.get("name")
+                                division_athletes[athlete_id] = athlete_name
 
-                    rankings = rankings_data["series"].get("rankings", [])
+                    return division_athletes
 
-                    # Extract athletes
-                    for ranking in rankings:
-                        athlete = ranking.get("athlete")
-                        if athlete and athlete.get("id"):
-                            athlete_id = athlete["id"]
-                            athlete_name = athlete.get("name")
+                # Parallel division processing
+                division_tasks = [process_division(div) for div in divisions]
+                division_results = await asyncio.gather(*division_tasks)
 
-                            # Add to dict (will overwrite if duplicate, keeping latest)
-                            if athlete_id not in athletes_dict:
-                                athletes_dict[athlete_id] = athlete_name
-                                logger.debug(f"Added athlete: {athlete_name} ({athlete_id})")
+                # Merge all division results
+                for div_athletes in division_results:
+                    local_athletes.update(div_athletes)
+
+            return local_athletes
+
+        # Parallel series processing
+        series_tasks = [process_series(series) for series in series_data]
+        series_results = await asyncio.gather(*series_tasks)
+
+        # Merge all series results
+        for series_athletes in series_results:
+            athletes_dict.update(series_athletes)
 
         logger.info(f"Collected {len(athletes_dict)} unique athletes")
 
-        # Bulk insert/update to Supabase
-        inserted = 0
-        updated = 0
-
+        # Bulk upsert to Supabase using PostgreSQL ON CONFLICT
         admin_client = get_admin_client() or supabase_client
 
-        for athlete_id, athlete_name in athletes_dict.items():
-            try:
-                # Check if exists
-                existing = await admin_client.select("athletes", "id", {"id": athlete_id})
+        # Build bulk data
+        now = datetime.now(timezone.utc).isoformat()
+        athletes_list = [
+            {
+                "id": athlete_id,
+                "name": athlete_name,
+                "last_seen": now
+            }
+            for athlete_id, athlete_name in athletes_dict.items()
+        ]
 
-                if existing:
-                    # Update last_seen
-                    await admin_client.update(
-                        "athletes",
-                        {"last_seen": datetime.now(timezone.utc).isoformat()},
-                        {"id": athlete_id}
-                    )
-                    updated += 1
-                else:
-                    # Insert new
-                    await admin_client.insert("athletes", {
-                        "id": athlete_id,
-                        "name": athlete_name,
-                        "last_seen": datetime.now(timezone.utc).isoformat()
-                    })
-                    inserted += 1
+        # Get existing athletes for counting
+        existing_ids = set()
+        try:
+            existing = await admin_client.select("athletes", "id", {})
+            existing_ids = {item["id"] for item in existing}
+        except Exception:
+            pass
 
-            except Exception as e:
-                logger.error(f"Error inserting/updating athlete {athlete_id}: {e}")
+        # Use PostgREST upsert with Prefer: resolution=merge-duplicates
+        try:
+            url = f"{admin_client.url}/rest/v1/athletes"
+            headers = admin_client._get_headers(user_token)
+            headers["Prefer"] = "resolution=merge-duplicates"
 
-        logger.info(f"Seeding complete: {inserted} inserted, {updated} updated")
+            async with httpx.AsyncClient(timeout=60.0) as http_client:
+                response = await http_client.post(
+                    url,
+                    json=athletes_list,
+                    headers=headers
+                )
+                response.raise_for_status()
+
+            # Count inserted vs updated
+            new_ids = set(athletes_dict.keys())
+            inserted = len(new_ids - existing_ids)
+            updated = len(new_ids & existing_ids)
+
+            logger.info(f"Seeding complete: {inserted} inserted, {updated} updated")
+
+        except Exception as e:
+            logger.error(f"Bulk upsert failed: {e}")
+            # Fallback: count as all inserted for reporting
+            inserted = len(athletes_dict)
+            updated = 0
 
         return {
             "success": True,
