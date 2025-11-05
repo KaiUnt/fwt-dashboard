@@ -882,11 +882,50 @@ async def get_event_athletes(
 
         # Use the existing method that already does what we need
         result = await client.get_event_athletes(event_id)
-        
+
         if not result:
             raise HTTPException(status_code=404, detail="Event not found")
-        
+
         logger.info(f"Found event {result.get('event', {}).get('name')} with athletes")
+
+        # Sync athletes to database (background task, don't block response)
+        if supabase_client:
+            try:
+                admin_client = get_admin_client() or supabase_client
+                athletes_in_event = []
+
+                for division in result.get('event', {}).get('eventDivisions', []):
+                    for entry in division.get('entries', []):
+                        athlete = entry.get('athlete')
+                        if athlete and athlete.get('id') and athlete.get('name'):
+                            athletes_in_event.append({
+                                "id": athlete["id"],
+                                "name": athlete["name"]
+                            })
+
+                # Quick sync (fire and forget)
+                for athlete in athletes_in_event:
+                    try:
+                        existing = await admin_client.select("athletes", "id", {"id": athlete["id"]})
+                        if existing:
+                            await admin_client.update(
+                                "athletes",
+                                {"last_seen": datetime.now(timezone.utc).isoformat()},
+                                {"id": athlete["id"]}
+                            )
+                        else:
+                            await admin_client.insert("athletes", {
+                                "id": athlete["id"],
+                                "name": athlete["name"],
+                                "last_seen": datetime.now(timezone.utc).isoformat()
+                            })
+                    except Exception as sync_error:
+                        logger.debug(f"Athlete sync skipped for {athlete['id']}: {sync_error}")
+
+                logger.debug(f"Synced {len(athletes_in_event)} athletes from event {event_id}")
+            except Exception as e:
+                logger.debug(f"Athlete auto-sync failed (non-critical): {e}")
+
         # Write to cache
         if redis_client:
             try:
@@ -3871,6 +3910,363 @@ def extract_location_from_name(event_name: str) -> str:
         return parts[0].strip()
     
     return "TBD"
+
+# ============================================
+# Admin Athlete Dashboard Endpoints
+# ============================================
+
+@app.post("/api/admin/athletes/seed")
+async def seed_athletes_database(
+    request: Request,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Seed athletes database with data from 2025, 2024, 2023 FWT series (Admin only)"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Admin check
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        from api.client import LiveheatsClient
+        client = LiveheatsClient()
+
+        # Get all series from 2023, 2024, 2025
+        series_data = await client.get_series_by_years("fwtglobal", range(2023, 2026))
+        if not series_data:
+            return {"success": False, "message": "No series found"}
+
+        logger.info(f"Found {len(series_data)} series for seeding")
+
+        # Collect all unique athletes
+        athletes_dict = {}
+
+        for series in series_data:
+            series_id = series["id"]
+            series_name = series["name"]
+            logger.info(f"Processing series: {series_name}")
+
+            # Get divisions for this series
+            async with client.client as gql_client:
+                divisions_data = await gql_client.execute(
+                    client.queries.GET_DIVISIONS,
+                    {"id": series_id}
+                )
+
+                if not divisions_data or "series" not in divisions_data:
+                    continue
+
+                divisions = divisions_data["series"].get("rankingsDivisions", [])
+
+                # For each division, get rankings
+                for division in divisions:
+                    division_id = division["id"]
+                    division_name = division["name"]
+
+                    rankings_data = await gql_client.execute(
+                        client.queries.GET_SERIES_RANKINGS,
+                        {"id": series_id, "divisionId": division_id}
+                    )
+
+                    if not rankings_data or "series" not in rankings_data:
+                        continue
+
+                    rankings = rankings_data["series"].get("rankings", [])
+
+                    # Extract athletes
+                    for ranking in rankings:
+                        athlete = ranking.get("athlete")
+                        if athlete and athlete.get("id"):
+                            athlete_id = athlete["id"]
+                            athlete_name = athlete.get("name")
+
+                            # Add to dict (will overwrite if duplicate, keeping latest)
+                            if athlete_id not in athletes_dict:
+                                athletes_dict[athlete_id] = athlete_name
+                                logger.debug(f"Added athlete: {athlete_name} ({athlete_id})")
+
+        logger.info(f"Collected {len(athletes_dict)} unique athletes")
+
+        # Bulk insert/update to Supabase
+        inserted = 0
+        updated = 0
+
+        admin_client = get_admin_client() or supabase_client
+
+        for athlete_id, athlete_name in athletes_dict.items():
+            try:
+                # Check if exists
+                existing = await admin_client.select("athletes", "id", {"id": athlete_id})
+
+                if existing:
+                    # Update last_seen
+                    await admin_client.update(
+                        "athletes",
+                        {"last_seen": datetime.now(timezone.utc).isoformat()},
+                        {"id": athlete_id}
+                    )
+                    updated += 1
+                else:
+                    # Insert new
+                    await admin_client.insert("athletes", {
+                        "id": athlete_id,
+                        "name": athlete_name,
+                        "last_seen": datetime.now(timezone.utc).isoformat()
+                    })
+                    inserted += 1
+
+            except Exception as e:
+                logger.error(f"Error inserting/updating athlete {athlete_id}: {e}")
+
+        logger.info(f"Seeding complete: {inserted} inserted, {updated} updated")
+
+        return {
+            "success": True,
+            "total_athletes": len(athletes_dict),
+            "inserted": inserted,
+            "updated": updated,
+            "series_processed": len(series_data)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error seeding athletes database: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to seed athletes: {str(e)}")
+
+
+@app.get("/api/admin/athletes/search")
+async def search_athletes(
+    q: str,
+    limit: int = 10,
+    request: Request = None,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Search athletes by name with fuzzy matching (Admin only)"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Admin check
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        if not q or len(q.strip()) < 2:
+            return {"success": True, "athletes": []}
+
+        # Sanitize search query - escape special characters for ILIKE pattern
+        search_query = q.strip().replace("%", "\\%").replace("_", "\\_")
+
+        admin_client = get_admin_client() or supabase_client
+
+        # Use PostgREST ILIKE filter via direct HTTP call
+        # Custom SupabaseClient doesn't support ilike, so we build the request manually
+        try:
+            url = f"{admin_client.url}/rest/v1/athletes"
+
+            # Build search pattern with wildcards
+            search_pattern = f"*{search_query}*"
+
+            # PostgREST params with ilike filter
+            params = {
+                "select": "id,name,last_seen",
+                "name": f"ilike.{search_pattern}",
+                "order": "last_seen.desc",
+                "limit": str(limit)
+            }
+
+            headers = admin_client._get_headers(user_token)
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, headers=headers, params=params)
+                response.raise_for_status()
+                results = response.json()
+
+        except Exception as e:
+            logger.error(f"Athlete search error: {e}")
+            results = []
+
+        return {
+            "success": True,
+            "athletes": results or []
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error searching athletes: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search athletes: {str(e)}")
+
+
+@app.post("/api/admin/athletes/sync")
+async def sync_athletes_from_event(
+    event_id: str,
+    request: Request,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token)
+):
+    """Sync athletes from a specific event to the database (Admin only)"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Admin check
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        from api.client import LiveheatsClient
+        client = LiveheatsClient()
+
+        # Get event athletes
+        event_data = await client.get_event_athletes(event_id)
+        if not event_data or "event" not in event_data:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        # Extract athletes
+        athletes_to_sync = []
+        for division in event_data.get("event", {}).get("eventDivisions", []):
+            for entry in division.get("entries", []):
+                athlete = entry.get("athlete")
+                if athlete and athlete.get("id") and athlete.get("name"):
+                    athletes_to_sync.append({
+                        "id": athlete["id"],
+                        "name": athlete["name"]
+                    })
+
+        if not athletes_to_sync:
+            return {"success": True, "inserted": 0, "updated": 0, "message": "No athletes found in event"}
+
+        admin_client = get_admin_client() or supabase_client
+
+        inserted = 0
+        updated = 0
+
+        for athlete in athletes_to_sync:
+            try:
+                # Check if exists
+                existing = await admin_client.select("athletes", "id", {"id": athlete["id"]})
+
+                if existing:
+                    # Update last_seen
+                    await admin_client.update(
+                        "athletes",
+                        {"last_seen": datetime.now(timezone.utc).isoformat()},
+                        {"id": athlete["id"]}
+                    )
+                    updated += 1
+                else:
+                    # Insert new
+                    await admin_client.insert("athletes", {
+                        "id": athlete["id"],
+                        "name": athlete["name"],
+                        "last_seen": datetime.now(timezone.utc).isoformat()
+                    })
+                    inserted += 1
+
+            except Exception as e:
+                logger.error(f"Error syncing athlete {athlete['id']}: {e}")
+
+        logger.info(f"Synced {len(athletes_to_sync)} athletes from event {event_id}: {inserted} new, {updated} updated")
+
+        return {
+            "success": True,
+            "total_athletes": len(athletes_to_sync),
+            "inserted": inserted,
+            "updated": updated
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error syncing athletes from event: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync athletes: {str(e)}")
+
+
+@app.get("/api/admin/athlete/{athlete_id}/series-rankings")
+async def get_admin_athlete_series_rankings(
+    athlete_id: str,
+    request: Request,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    user_token: str = Depends(get_user_token),
+    force_refresh: bool = False
+):
+    """Get all FWT series rankings for a single athlete (Admin only)"""
+    if not supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase not configured")
+
+    try:
+        # Admin check
+        user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        if not user_profile or user_profile[0].get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        from api.client import LiveheatsClient
+        client = LiveheatsClient()
+
+        # Redis cache
+        ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
+        cache_key = f"adminAthleteSeriesRankings:{athlete_id}"
+        redis_client = await get_redis_client(request)
+
+        if redis_client and not force_refresh:
+            try:
+                cached_json = await redis_client.get(cache_key)
+                if cached_json:
+                    payload = json.loads(cached_json)
+                    ttl_remaining = await redis_client.ttl(cache_key)
+                    if payload is not None and ttl_remaining and ttl_remaining > 0:
+                        response = JSONResponse(content=payload)
+                        response.headers["Cache-Control"] = f"public, max-age={int(ttl_remaining)}"
+                        return response
+            except Exception as e:
+                logger.warning(f"Redis read failed for {cache_key}: {e}")
+
+        # Get all FWT series (2008-2031)
+        series_data = await client.get_series_by_years("fwtglobal", range(2008, 2031))
+        if not series_data:
+            return {
+                "athlete_id": athlete_id,
+                "series_rankings": [],
+                "message": "No FWT series found"
+            }
+
+        series_ids = [s["id"] for s in series_data]
+
+        # Fetch rankings for this single athlete
+        rankings = await client.fetch_multiple_series(series_ids, [athlete_id])
+
+        response_data = {
+            "athlete_id": athlete_id,
+            "series_rankings": rankings,
+            "series_count": len(rankings),
+            "message": f"Found rankings across {len(rankings)} series"
+        }
+
+        logger.info(f"Admin athlete series rankings for {athlete_id}: {len(rankings)} series")
+
+        # Cache response
+        if redis_client:
+            try:
+                await redis_client.setex(cache_key, ttl_seconds, json.dumps(response_data))
+            except Exception as e:
+                logger.warning(f"Redis write failed for {cache_key}: {e}")
+
+        json_response = JSONResponse(content=response_data)
+        json_response.headers["Cache-Control"] = f"public, max-age={ttl_seconds}"
+        return json_response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching admin athlete series rankings for {athlete_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch athlete series rankings: {str(e)}")
+
 
 if __name__ == "__main__":
     import os
