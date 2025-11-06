@@ -3992,6 +3992,15 @@ async def seed_athletes_database(
 
         logger.info(f"Collected {len(athletes_dict)} unique athletes")
 
+        # Save to file as backup before attempting Supabase insert
+        backup_file = "seed_athletes_backup.json"
+        try:
+            with open(backup_file, 'w') as f:
+                json.dump(athletes_dict, f, indent=2)
+            logger.info(f"✅ Saved {len(athletes_dict)} athletes to {backup_file}")
+        except Exception as e:
+            logger.warning(f"Failed to save backup file: {e}")
+
         # Bulk upsert to Supabase using PostgreSQL ON CONFLICT
         admin_client = get_admin_client() or supabase_client
 
@@ -4017,8 +4026,11 @@ async def seed_athletes_database(
         # Use PostgREST upsert with Prefer: resolution=merge-duplicates
         try:
             url = f"{admin_client.url}/rest/v1/athletes"
-            headers = admin_client._get_headers(user_token)
+            # Use admin service key (None = uses service role key, bypasses RLS)
+            headers = admin_client._get_headers(None)
             headers["Prefer"] = "resolution=merge-duplicates"
+
+            logger.info(f"Attempting bulk upsert of {len(athletes_list)} athletes")
 
             async with httpx.AsyncClient(timeout=60.0) as http_client:
                 response = await http_client.post(
@@ -4027,6 +4039,8 @@ async def seed_athletes_database(
                     headers=headers
                 )
                 response.raise_for_status()
+
+            logger.info("Bulk upsert successful")
 
             # Count inserted vs updated
             new_ids = set(athletes_dict.keys())
