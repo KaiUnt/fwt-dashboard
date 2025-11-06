@@ -20,8 +20,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import List, Dict, Any, Optional
 import asyncio
 from api.client import LiveheatsClient
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import uvicorn
 import logging
 import time as _time
@@ -3921,15 +3920,22 @@ async def seed_athletes_database(
     current_user_id: str = Depends(extract_user_id_from_token),
     user_token: str = Depends(get_user_token)
 ):
-    """Seed athletes database with data from 2025, 2024, 2023 FWT series (Admin only)"""
+    """Seed athletes database with data from last 3 years FWT series (Admin only)"""
     if not supabase_client:
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
     try:
+        logger.info(f"=== SEED START: User {current_user_id} ===")
+
         # Admin check
         user_profile = await supabase_client.select("user_profiles", "role", {"id": current_user_id}, user_token)
+        logger.info(f"User profile retrieved: {user_profile}")
+
         if not user_profile or user_profile[0].get("role") != "admin":
+            logger.warning(f"Access denied: user {current_user_id} is not admin")
             raise HTTPException(status_code=403, detail="Admin privileges required")
+
+        logger.info("Admin check passed")
 
         from api.client import LiveheatsClient
         client = LiveheatsClient()
@@ -4046,7 +4052,11 @@ async def seed_athletes_database(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error seeding athletes database: {e}")
+        logger.error(f"=== SEED ERROR ===")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        import traceback
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to seed athletes: {str(e)}")
 
 
