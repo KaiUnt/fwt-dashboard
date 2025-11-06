@@ -4100,6 +4100,18 @@ async def search_athletes(
 
         admin_client = get_admin_client() or supabase_client
 
+        # Debug: Check total count in table
+        try:
+            count_url = f"{admin_client.url}/rest/v1/athletes"
+            count_headers = admin_client._get_headers(None)  # Use Service Role Key
+            count_headers["Prefer"] = "count=exact"
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                count_response = await client.get(count_url, headers=count_headers, params={"select": "id", "limit": "0"})
+                total_count = count_response.headers.get("Content-Range", "").split("/")[-1]
+                logger.info(f"Total athletes in table: {total_count}")
+        except Exception as e:
+            logger.error(f"Error counting athletes: {e}")
+
         # Use PostgREST ILIKE filter via direct HTTP call
         # Custom SupabaseClient doesn't support ilike, so we build the request manually
         try:
@@ -4116,7 +4128,8 @@ async def search_athletes(
                 "limit": str(limit)
             }
 
-            headers = admin_client._get_headers(user_token)
+            # Use Service Role Key (None) to bypass RLS, just like in seed
+            headers = admin_client._get_headers(None)
 
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(url, headers=headers, params=params)
