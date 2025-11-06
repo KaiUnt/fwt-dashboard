@@ -4123,6 +4123,11 @@ async def search_athletes(
                 response.raise_for_status()
                 results = response.json()
 
+                # Debug logging
+                logger.info(f"Search query '{q}' returned {len(results)} results")
+                if results:
+                    logger.info(f"First result: {results[0]}")
+
         except Exception as e:
             logger.error(f"Athlete search error: {e}")
             results = []
