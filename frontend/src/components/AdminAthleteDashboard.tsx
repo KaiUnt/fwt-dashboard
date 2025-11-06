@@ -5,7 +5,6 @@ import { AthleteSearchBar } from './AthleteSearchBar';
 import { AthleteCard } from './AthleteCard';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { PerformanceCurve } from './PerformanceCurve';
-import { AthleteEventHistory } from './AthleteEventHistory';
 import { useAdminAthleteSeriesRankings } from '@/hooks/useAdminAthleteSeriesRankings';
 import { useAthleteResults } from '@/hooks/useAthleteResults';
 import { useBatchCommentatorInfo } from '@/hooks/useCommentatorInfo';
@@ -159,12 +158,6 @@ export function AdminAthleteDashboard() {
                     commentatorBatchKey={`admin_${selectedAthleteId}`}
                   />
                 )}
-
-                {/* Event History */}
-                <AthleteEventHistory
-                  athleteId={selectedAthleteId}
-                  eventId=""
-                />
 
                 {/* Series Rankings & Performance */}
                 {seriesRankings && seriesRankings.length > 0 && (

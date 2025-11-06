@@ -32,12 +32,6 @@ export function useAdminAthleteSearch(query: string, enabled: boolean = true) {
         { getAccessToken }
       );
 
-      console.log('[useAdminAthleteSearch] Query:', query, 'Response:', data);
-      console.log('[useAdminAthleteSearch] Athletes count:', data.athletes?.length || 0);
-      if (data.athletes && data.athletes.length > 0) {
-        console.log('[useAdminAthleteSearch] First athlete:', data.athletes[0]);
-      }
-
       return data.athletes || [];
     },
     enabled: enabled && query.length >= 2,
