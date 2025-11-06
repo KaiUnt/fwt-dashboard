@@ -4105,8 +4105,8 @@ async def search_athletes(
         try:
             url = f"{admin_client.url}/rest/v1/athletes"
 
-            # Build search pattern with wildcards
-            search_pattern = f"*{search_query}*"
+            # Build search pattern with PostgreSQL wildcards (% not *)
+            search_pattern = f"%{search_query}%"
 
             # PostgREST params with ilike filter
             params = {
