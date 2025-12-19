@@ -10,6 +10,7 @@ import { useAthleteResults } from '@/hooks/useAthleteResults';
 import { useBatchCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { useAdminSeedAthletes } from '@/hooks/useAdminSeedAthletes';
 import { Loader2, Database, CheckCircle, XCircle } from 'lucide-react';
+import { AppHeader } from './AppHeader';
 
 export function AdminAthleteDashboard() {
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
@@ -46,13 +47,15 @@ export function AdminAthleteDashboard() {
   const isLoading = seriesLoading || resultsLoading || commentatorLoading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Athlete Dashboard</h1>
-          <p className="text-gray-600">Search and view detailed athlete information</p>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader
+        title="Admin Athlete Dashboard"
+        subtitle="Search and view detailed athlete information"
+        showBackButton={true}
+        backUrl="/admin"
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Seed Database Section */}
         <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -63,7 +66,7 @@ export function AdminAthleteDashboard() {
                 Database Management
               </h2>
               <p className="text-sm text-gray-600 mb-4">
-                Initialize or update the athlete database with data from 2023, 2024, and 2025 FWT series.
+                Initialize or update the athlete database with data from the last 3 years of FWT series.
               </p>
 
               {seedMutation.isSuccess && (
