@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
+  // Fix multiple lockfiles warning
+  outputFileTracingRoot: require('path').join(__dirname, '..'),
   // Security: Never ignore ESLint/TypeScript errors in production
   eslint: {
     ignoreDuringBuilds: false,
