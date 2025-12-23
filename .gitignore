@@ -212,3 +212,7 @@ ssh
 UserManual.docx
 test_rankings_output.json
 test_series_rankings.py
+
+.claude
+claude/
+settings.local.json 
