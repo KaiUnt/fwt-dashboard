@@ -4,12 +4,15 @@
       "Bash(mkdir:*)",
       "Bash(npm run build:*)",
       "Bash(npm run dev:*)",
-      "Bash(rm:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(npm audit:*)",
       "Bash(python -m pip list:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(ping:*)",
+      "Bash(ssh:*)",
+      "Bash(curl:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

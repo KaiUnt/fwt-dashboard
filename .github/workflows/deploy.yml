@@ -16,9 +16,5 @@ jobs:
           host: report.kais.world
           username: kai
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          # Pass SUDO_PASSWORD from step env into remote session and use it for sudo -S
-          envs: SUDO_PASSWORD
           script: |
-            echo "$SUDO_PASSWORD" | sudo -S /opt/fwt-dashboard/deploy.sh
-        env:
-          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+            /opt/fwt-dashboard/deploy.sh
