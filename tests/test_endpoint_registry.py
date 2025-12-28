@@ -132,14 +132,24 @@ def get_registered_endpoints():
     # Also scan router files for @router.get("/path"), etc.
     if ROUTERS_PATH.exists():
         router_pattern = r'@router\.(get|post|put|delete|patch)\s*\(\s*["\']([^"\']+)["\']'
+        prefix_pattern = r'APIRouter\s*\([^)]*prefix\s*=\s*["\']([^"\']+)["\']'
+
         for router_file in ROUTERS_PATH.glob("*.py"):
             if router_file.name.startswith("_"):
                 continue
             router_content = router_file.read_text(encoding="utf-8")
+
+            # Extract prefix if defined
+            prefix = ""
+            prefix_match = re.search(prefix_pattern, router_content)
+            if prefix_match:
+                prefix = prefix_match.group(1)
+
             for match in re.finditer(router_pattern, router_content, re.IGNORECASE):
                 method = match.group(1).upper()
                 path = match.group(2)
-                endpoints.add((method, path))
+                full_path = prefix + path if not path.startswith(prefix) else path
+                endpoints.add((method, full_path))
 
     return endpoints
 

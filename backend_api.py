@@ -40,6 +40,7 @@ from backend.utils import (
     is_main_series,
 )
 from backend.routers import core as core_router
+from backend.routers import credits as credits_router
 from backend.models import (
     EventIdSchema,
     AthleteIdSchema,
@@ -393,6 +394,7 @@ app.state.supabase_client = supabase_client
 
 # Include routers
 app.include_router(core_router.router)
+app.include_router(credits_router.router)
 
 @app.get("/api/events")
 @limiter.limit("30/minute")
@@ -1552,95 +1554,7 @@ async def get_friends(
         logger.error(f"Error fetching friends: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch friends: {str(e)}")
 
-# Credits System Models - imported from backend.models
-
-# Credits System API Endpoints
-
-@app.get("/api/credits/balance", response_model=CreditsBalanceResponse)
-async def get_user_credits(
-    current_user_id: str = Depends(extract_user_id_from_token),
-    user_token: str = Depends(get_user_token)
-):
-    """Get current user's credits balance"""
-    if not supabase_client:
-        raise HTTPException(status_code=503, detail="Supabase not configured")
-    
-    try:
-        # Direct table read with initialization for new users
-        result = await supabase_client.select(
-            "user_credits",
-            "credits",
-            {"user_id": current_user_id},
-            user_token=user_token
-        )
-
-        credits_value = 0
-        if not result or len(result) == 0:
-            # Initialize with 5 credits for new users
-            from datetime import datetime
-            try:
-                await supabase_client.insert(
-                    "user_credits",
-                    [{
-                        "user_id": current_user_id,
-                        "credits": 5,
-                        "created_at": datetime.now().isoformat(),
-                        "updated_at": datetime.now().isoformat()
-                    }],
-                    user_token=user_token
-                )
-                credits_value = 5
-            except Exception:
-                # If insert fails (race/exists), try re-read
-                reread = await supabase_client.select(
-                    "user_credits",
-                    "credits",
-                    {"user_id": current_user_id},
-                    user_token=user_token
-                )
-                credits_value = (reread[0].get("credits", 0) if reread else 0)
-        else:
-            credits_value = result[0].get("credits", 0)
-
-        return CreditsBalanceResponse(
-            success=True,
-            credits=credits_value,
-            message="Credits balance retrieved successfully"
-        )
-        
-    except Exception as e:
-        logger.error(f"Error getting user credits: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get credits balance: {str(e)}")
-
-@app.get("/api/credits/transactions")
-async def get_user_credit_transactions(
-    current_user_id: str = Depends(extract_user_id_from_token),
-    user_token: str = Depends(get_user_token)
-):
-    """Get user's credit transaction history"""
-    if not supabase_client:
-        raise HTTPException(status_code=503, detail="Supabase not configured")
-    
-    try:
-        result = await supabase_client.select(
-            "credit_transactions", 
-            "*", 
-            {"user_id": current_user_id},
-            user_token=user_token
-        )
-        
-        # Sort by created_at descending
-        transactions = sorted(result, key=lambda x: x.get("created_at", ""), reverse=True)
-        
-        return {
-            "success": True,
-            "data": transactions,
-            "total": len(transactions)
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting credit transactions: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get transactions: {str(e)}")
+# Credits endpoints moved to backend/routers/credits.py
 
 @app.get("/api/events/{event_id}/access", response_model=EventAccessResponse)
 async def check_event_access(
@@ -2016,19 +1930,7 @@ async def purchase_multiple_events(
         logger.error(f"Error in multi-event purchase: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to purchase events: {str(e)}")
 
-@app.get("/api/credits/packages")
-async def get_credit_packages_disabled():
-    """Credit packages are deprecated and disabled"""
-    from fastapi import Response
-    return Response(
-        content=json.dumps({
-            "success": False,
-            "packages": [],
-            "message": "Credit packages are disabled"
-        }),
-        status_code=410,
-        media_type="application/json"
-    )
+# /api/credits/packages moved to backend/routers/credits.py
 
 @app.get("/api/user/events")
 async def get_user_accessible_events(
