@@ -17,8 +17,9 @@ import os
 import re
 from pathlib import Path
 
-# Path to backend_api.py
+# Path to backend_api.py and routers
 BACKEND_API_PATH = Path(__file__).parent.parent / "backend_api.py"
+ROUTERS_PATH = Path(__file__).parent.parent / "backend" / "routers"
 
 # ============================================
 # ENDPOINT REGISTRY SNAPSHOT
@@ -111,22 +112,34 @@ EXPECTED_ENDPOINTS = {
 
 
 def get_registered_endpoints():
-    """Extract all registered endpoints from backend_api.py using regex parsing."""
+    """Extract all registered endpoints from backend_api.py and routers using regex parsing."""
     endpoints = set()
 
-    # Read the source file
+    # Read the main source file
     if not BACKEND_API_PATH.exists():
         raise FileNotFoundError(f"Backend API not found: {BACKEND_API_PATH}")
 
     content = BACKEND_API_PATH.read_text(encoding="utf-8")
 
     # Regex pattern to match @app.get("/path"), @app.post("/path"), etc.
-    pattern = r'@app\.(get|post|put|delete|patch)\s*\(\s*["\']([^"\']+)["\']'
+    app_pattern = r'@app\.(get|post|put|delete|patch)\s*\(\s*["\']([^"\']+)["\']'
 
-    for match in re.finditer(pattern, content, re.IGNORECASE):
+    for match in re.finditer(app_pattern, content, re.IGNORECASE):
         method = match.group(1).upper()
         path = match.group(2)
         endpoints.add((method, path))
+
+    # Also scan router files for @router.get("/path"), etc.
+    if ROUTERS_PATH.exists():
+        router_pattern = r'@router\.(get|post|put|delete|patch)\s*\(\s*["\']([^"\']+)["\']'
+        for router_file in ROUTERS_PATH.glob("*.py"):
+            if router_file.name.startswith("_"):
+                continue
+            router_content = router_file.read_text(encoding="utf-8")
+            for match in re.finditer(router_pattern, router_content, re.IGNORECASE):
+                method = match.group(1).upper()
+                path = match.group(2)
+                endpoints.add((method, path))
 
     return endpoints
 

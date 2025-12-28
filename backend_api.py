@@ -39,6 +39,7 @@ from backend.utils import (
     events_match_historically,
     is_main_series,
 )
+from backend.routers import core as core_router
 from backend.models import (
     EventIdSchema,
     AthleteIdSchema,
@@ -387,21 +388,11 @@ async def security_middleware(request: Request, call_next):
     
     return response
 
-@app.get("/")
-@limiter.limit("10/minute")
-async def root(request: Request):
-    return {"message": "FWT Events API is running", "version": "1.0.0", "status": "healthy"}
+# Store supabase_client in app state for routers to access
+app.state.supabase_client = supabase_client
 
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for monitoring"""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "version": "1.0.0",
-        "supabase_available": supabase_client is not None
-    }
+# Include routers
+app.include_router(core_router.router)
 
 @app.get("/api/events")
 @limiter.limit("30/minute")
