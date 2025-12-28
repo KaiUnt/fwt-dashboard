@@ -12,7 +12,9 @@
       "Bash(ping:*)",
       "Bash(ssh:*)",
       "Bash(curl:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)"
     ],
     "deny": []
   }
