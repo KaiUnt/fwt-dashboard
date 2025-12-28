@@ -11,7 +11,8 @@
       "Bash(npm run lint)",
       "Bash(ping:*)",
       "Bash(ssh:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
