@@ -14,7 +14,8 @@
       "Bash(curl:*)",
       "Bash(cat:*)",
       "Bash(python:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

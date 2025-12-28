@@ -42,6 +42,7 @@ from backend.utils import (
 from backend.routers import core as core_router
 from backend.routers import credits as credits_router
 from backend.routers import profile as profile_router
+from backend.routers import activity as activity_router
 from backend.models import (
     EventIdSchema,
     AthleteIdSchema,
@@ -397,6 +398,10 @@ app.state.supabase_client = supabase_client
 app.include_router(core_router.router)
 app.include_router(credits_router.router)
 app.include_router(profile_router.router)
+app.include_router(activity_router.router)
+
+# Store service client for activity router
+app.state.service_supabase_client = service_supabase_client
 
 @app.get("/api/events")
 @limiter.limit("30/minute")
@@ -2414,34 +2419,7 @@ async def admin_adjust_credits(
         logger.error(f"Error adjusting credits for {target_user_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to adjust credits: {str(e)}")
 
-# Login activity logging
-
-@app.post("/api/activity/log-login")
-async def log_login_activity(
-    payload: LogLoginRequest,
-    current_user_id: str = Depends(extract_user_id_from_token),
-    user_token: str = Depends(get_user_token)
-):
-    client = get_admin_client() or supabase_client
-    if not client:
-        raise HTTPException(status_code=503, detail="Supabase not configured")
-    try:
-        from datetime import datetime
-        data = [{
-            "user_id": current_user_id,
-            "login_timestamp": datetime.utcnow().isoformat(),
-            "ip_address": payload.ip,
-            "user_agent": payload.user_agent,
-            "login_method": (payload.login_method or "email"),
-        }]
-        token_for_request = None if client is service_supabase_client else user_token
-        await client.insert("user_login_activity", data, user_token=token_for_request)
-        return {"success": True}
-    except Exception as e:
-        logger.error(f"Error logging login activity: {e}")
-        # Do not fail hard for logging
-        raise HTTPException(status_code=500, detail="Failed to log login activity")
-
+# Activity endpoints moved to backend/routers/activity.py
 
 @app.get("/api/admin/credits/purchases")
 async def admin_list_paid_purchases(
@@ -2523,59 +2501,6 @@ async def admin_list_paid_purchases(
     except Exception as e:
         logger.error(f"Error listing purchases: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list purchases: {str(e)}")
-
-# Activity overview endpoint for a user
-@app.get("/api/activity/overview")
-async def get_activity_overview(
-    filter: str = "all",
-    current_user_id: str = Depends(extract_user_id_from_token),
-    user_token: str = Depends(get_user_token)
-):
-    if not supabase_client:
-        raise HTTPException(status_code=503, detail="Supabase not configured")
-
-    try:
-        # Time range
-        now = datetime.utcnow()
-        today = datetime(now.year, now.month, now.day)
-        week_ago = now - timedelta(days=7)
-        since = None
-        if filter == "today":
-            since = today.isoformat()
-        elif filter == "week":
-            since = week_ago.isoformat()
-
-        # User actions
-        actions = await supabase_client.select("user_actions", "*", {"user_id": current_user_id}, user_token)
-        if since:
-            actions = [a for a in (actions or []) if a.get("timestamp", "") >= since]
-        actions_sorted = sorted(actions or [], key=lambda a: a.get("timestamp", ""), reverse=True)[:50]
-
-        # Login activity
-        logins = await supabase_client.select("user_login_activity", "*", {"user_id": current_user_id}, user_token)
-        logins_sorted = sorted(logins or [], key=lambda a: a.get("login_timestamp", ""), reverse=True)[:20]
-
-        # Stats
-        total_actions = len(actions_sorted)
-        today_actions = len([a for a in (actions or []) if a.get("timestamp", "").startswith(today.strftime("%Y-%m-%d"))])
-        last_login = logins_sorted[0].get("login_timestamp") if logins_sorted else None
-
-        return {
-            "success": True,
-            "data": {
-                "actions": actions_sorted,
-                "login_activity": logins_sorted,
-                "stats": {
-                    "totalActions": total_actions,
-                    "todayActions": today_actions,
-                    "totalSessions": len(logins_sorted),
-                    "lastLogin": last_login,
-                }
-            }
-        }
-    except Exception as e:
-        logger.error(f"Error building activity overview: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get activity overview: {str(e)}")
 
 # Profile endpoints moved to backend/routers/profile.py
 
