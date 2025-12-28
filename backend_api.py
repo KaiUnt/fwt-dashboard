@@ -30,6 +30,15 @@ from pydantic import BaseModel, Field, validator
 
 # Import from backend modules
 from backend.db import SupabaseClient
+from backend.utils import (
+    extract_location_from_name,
+    extract_event_location,
+    extract_year_from_name,
+    normalize_event_for_matching,
+    calculate_event_core_similarity,
+    events_match_historically,
+    is_main_series,
+)
 from backend.models import (
     EventIdSchema,
     AthleteIdSchema,
@@ -795,234 +804,12 @@ async def get_athlete_results(
         json_response = JSONResponse(content=response)
         json_response.headers["Cache-Control"] = f"public, max-age={ttl_seconds}"
         return json_response
-        
+
     except Exception as e:
         logger.error(f"Error fetching results for athlete {athlete_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch athlete results: {str(e)}")
 
-
-def extract_event_location(event_name: str) -> str:
-    """
-    Extract location from event name with improved pattern matching
-    Handles various FWT event naming conventions
-    """
-    import re
-    
-    # Known location mappings for better accuracy
-    location_mappings = {
-        "chamonix": "Chamonix",
-        "verbier": "Verbier", 
-        "fieberbrunn": "Fieberbrunn",
-        "kicking horse": "Kicking Horse",
-        "revelstoke": "Revelstoke",
-        "xtreme": "Verbier",  # Special case: Xtreme = Verbier
-        "ordino": "Ordino",
-        "baqueira": "Baqueira",
-        "obertauern": "Obertauern",
-        "la clusaz": "La Clusaz",
-        "andorra": "Ordino"
-    }
-    
-    # Normalize event name
-    normalized = event_name.strip()
-    normalized = re.sub(r'^(FWT\s*-?\s*)', '', normalized, flags=re.IGNORECASE)
-    normalized = re.sub(r'^(IFSA\s*-?\s*)', '', normalized, flags=re.IGNORECASE)
-    normalized = re.sub(r'\s+', ' ', normalized).strip()
-    
-    # Check for non-location events (championships, rankings, etc.)
-    non_location_patterns = [
-        r"freeride'?her",
-        r"world championship",
-        r"qualifying list",
-        r"national rankings",
-        r"challenger by \w+",
-        r"region \d+ [a-z-]+"
-    ]
-    
-    name_lower = normalized.lower()
-    for pattern in non_location_patterns:
-        if re.search(pattern, name_lower):
-            return "Generic"  # No specific location
-    
-    # Try exact location matching first
-    for location_key, location_name in location_mappings.items():
-        if location_key in name_lower:
-            return location_name
-    
-    # Pattern-based extraction for various naming formats
-    location_patterns = [
-        # Pattern 1: Year followed by location (e.g., "2025 Obertauern Challenger")
-        r'^\d{4}\s+([A-Za-z][A-Za-z\s]+?)(?:\s+(?:Challenger|Qualifier|Open|Freeride|by))',
-        
-        # Pattern 2: Location followed by year (e.g., "Chamonix 2025") 
-        r'^([A-Za-z][A-Za-z\s]+?)\s+\d{4}',
-        
-        # Pattern 3: FWT style (e.g., "FWT - Chamonix 2025")
-        r'^([A-Za-z][A-Za-z\s]+?)\s+\d{4}',
-        
-        # Pattern 4: Location with context words
-        r'(?:Freeride\s+Week\s+(?:at\s+)?)?([A-Za-z][A-Za-z\s]+?)(?:\s+(?:Challenger|Qualifier|by|Freeride))',
-        
-        # Pattern 5: Simple location at start
-        r'^([A-Za-z][A-Za-z\s]{2,}?)(?:\s+(?:Open|Faces|Week))'
-    ]
-    
-    for pattern in location_patterns:
-        match = re.search(pattern, normalized, re.IGNORECASE)
-        if match:
-            location = match.group(1).strip()
-            
-            # Filter out common non-location words
-            excluded_words = ['open', 'freeride', 'week', 'by', 'faces', 'the', 'and', 'of', 'in']
-            if location.lower() not in excluded_words and len(location) > 2:
-                # Clean up the location
-                location = re.sub(r'\s+', ' ', location).strip()
-                return location
-    
-    # Fallback: try to find any reasonable location-like word
-    words = normalized.split()
-    for word in words:
-        if (len(word) > 3 and 
-            word.isalpha() and 
-            word.lower() not in ['open', 'freeride', 'week', 'faces', 'challenger', 'qualifier'] and
-            not re.match(r'^\d+\*?$', word)):  # Not a number or star rating
-            return word
-    
-    return "Unknown"
-
-def normalize_event_for_matching(event_name: str) -> str:
-    """
-    Normalize event name for historical matching
-    Removes: years, sponsors, organizations but keeps: location, event type, star rating
-    """
-    import re
-    
-    normalized = event_name.strip()
-    
-    # Remove year (2024, 2025, etc.)
-    normalized = re.sub(r'\b20\d{2}\b', '', normalized)
-    
-    # Remove organization prefixes
-    normalized = re.sub(r'^(FWT\s*-?\s*|IFSA\s*-?\s*)', '', normalized, flags=re.IGNORECASE)
-    
-    # Remove sponsor parts - more flexible patterns
-    # Pattern 1: "by [Sponsor Name]" before event type
-    normalized = re.sub(r'\s+by\s+[A-Za-z][A-Za-z\s&]+?(?=\s+(?:Qualifier|Challenger|Open|Championship|$))', '', normalized, flags=re.IGNORECASE)
-    
-    # Pattern 2: Sponsor at the beginning (e.g., "Dynastar Verbier Qualifier")
-    # But be careful not to remove location names
-    words = normalized.split()
-    if len(words) > 2:
-        # If first word looks like a brand and second word looks like location, remove first
-        first_word = words[0].lower()
-        known_sponsors = ['dynastar', 'salomon', 'atomic', 'rossignol', 'volkl', 'k2', 'peak', 'performance', 'orage', 'north', 'face']
-        if any(sponsor in first_word for sponsor in known_sponsors):
-            normalized = ' '.join(words[1:])
-    
-    # Clean up extra whitespace and normalize
-    normalized = re.sub(r'\s+', ' ', normalized).strip()
-    
-    # Convert to lowercase for comparison
-    return normalized.lower()
-
-def calculate_event_core_similarity(event1_norm: str, event2_norm: str) -> float:
-    """
-    Calculate similarity between normalized event names
-    Focus on core components: location, event type, star rating
-    """
-    import re
-    
-    # Extract key components
-    def extract_core_components(name):
-        components = {
-            'words': set(word for word in name.split() if len(word) > 2),
-            'star_rating': re.findall(r'\d+\*', name),
-            'event_type': [],
-            'has_qualifier': 'qualifier' in name,
-            'has_challenger': 'challenger' in name,
-            'has_open': 'open' in name,
-            'has_faces': 'faces' in name,
-            'has_week': 'week' in name,
-            'has_freeride': 'freeride' in name
-        }
-        
-        # Extract event type keywords
-        event_keywords = ['qualifier', 'challenger', 'open', 'faces', 'week', 'championship', 'freeride']
-        for keyword in event_keywords:
-            if keyword in name:
-                components['event_type'].append(keyword)
-        
-        return components
-    
-    comp1 = extract_core_components(event1_norm)
-    comp2 = extract_core_components(event2_norm)
-    
-    # Calculate similarity score
-    total_score = 0
-    max_score = 0
-    
-    # Word overlap (most important)
-    if comp1['words'] and comp2['words']:
-        word_overlap = len(comp1['words'].intersection(comp2['words'])) / len(comp1['words'].union(comp2['words']))
-        total_score += word_overlap * 4  # Weight: 4
-        max_score += 4
-    
-    # Star rating must match exactly (very important)
-    if comp1['star_rating'] == comp2['star_rating']:
-        total_score += 2
-    max_score += 2
-    
-    # Event type similarity
-    event_type_overlap = len(set(comp1['event_type']).intersection(set(comp2['event_type']))) / max(len(set(comp1['event_type']).union(set(comp2['event_type']))), 1)
-    total_score += event_type_overlap * 2  # Weight: 2
-    max_score += 2
-    
-    # Boolean features
-    boolean_features = ['has_qualifier', 'has_challenger', 'has_open', 'has_faces', 'has_week', 'has_freeride']
-    matching_booleans = sum(1 for feature in boolean_features if comp1[feature] == comp2[feature])
-    total_score += (matching_booleans / len(boolean_features)) * 1  # Weight: 1
-    max_score += 1
-    
-    return total_score / max_score if max_score > 0 else 0
-
-def events_match_historically(current_event: str, historical_event: str) -> bool:
-    """
-    Check if events are the same across years with sponsor flexibility
-    Returns True if they represent the same event in different years
-    """
-    # Quick check: if events are identical, they're definitely not historical matches
-    if current_event == historical_event:
-        return False
-    
-    # Normalize both event names
-    current_norm = normalize_event_for_matching(current_event)
-    historical_norm = normalize_event_for_matching(historical_event)
-    
-    # Exact match after normalization (most common case)
-    if current_norm == historical_norm:
-        return True
-    
-    # Flexible matching for slight variations
-    similarity = calculate_event_core_similarity(current_norm, historical_norm)
-    
-    # High threshold to ensure we only match very similar events
-    return similarity > 0.85
-
-
-def extract_year_from_name(event_name: str) -> int:
-    """Extract year from event name"""
-    import re
-    match = re.search(r'\b(20\d{2})\b', event_name)
-    return int(match.group(1)) if match else 0
-
-def is_main_series(series_name: str) -> bool:
-    """Check if series is a main series (Pro Tour, World Tour) to avoid duplicates"""
-    name_lower = series_name.lower()
-    return any(keyword in name_lower for keyword in [
-        "pro tour", "world tour", "freeride world tour"
-    ]) and not any(keyword in name_lower for keyword in [
-        "qualifier", "challenger", "junior"
-    ])
+# Formatter functions imported from backend.utils
 
 @app.get("/api/events/multi/{event_id1}/{event_id2}/athletes")
 async def get_multi_event_athletes(
@@ -3465,30 +3252,7 @@ async def bulk_import_commentator_info(
         raise HTTPException(status_code=500, detail=f"Failed to bulk import: {str(e)}")
 
 
-def extract_location_from_name(event_name: str) -> str:
-    """Extract location from event name."""
-    # Common FWT location patterns
-    locations = {
-        "Chamonix": "Chamonix, France",
-        "Verbier": "Verbier, Switzerland", 
-        "Fieberbrunn": "Fieberbrunn, Austria",
-        "Kicking Horse": "Kicking Horse, Canada",
-        "Revelstoke": "Revelstoke, Canada",
-        "Xtreme": "Verbier, Switzerland",
-        "Ordino": "Ordino Arcalís, Andorra",
-        "Baqueira": "Baqueira Beret, Spain"
-    }
-    
-    for location_key, full_location in locations.items():
-        if location_key.lower() in event_name.lower():
-            return full_location
-    
-    # Fallback: try to extract location from event name patterns
-    parts = event_name.split(" - ")
-    if len(parts) > 1:
-        return parts[0].strip()
-    
-    return "TBD"
+# extract_location_from_name imported from backend.utils
 
 # ============================================
 # Admin Athlete Dashboard Endpoints
