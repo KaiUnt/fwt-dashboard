@@ -167,7 +167,8 @@ export function CommentatorInfoModal({
           });
           if (response.ok) {
             const data = await response.json();
-            setAvailableUsers(data.users || []);
+            const users = Array.isArray(data.users) ? data.users : Array.isArray(data.data) ? data.data : [];
+            setAvailableUsers(users);
           } else {
             console.error('Failed to load users:', response.status);
             // Keep availableUsers empty on API failure - this will hide the user selection
