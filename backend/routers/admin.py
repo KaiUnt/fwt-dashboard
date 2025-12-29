@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from backend.models import GrantCreditsRequest
+from backend.models import GrantCreditsRequest, AdminCreditsAdjustRequest
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
@@ -331,7 +331,7 @@ async def get_admin_overview(
 @router.post("/credits/adjust/{target_user_id}")
 async def adjust_user_credits(
     target_user_id: str,
-    adjustment: dict,
+    adjustment: AdminCreditsAdjustRequest,
     request: Request,
     user_token: str = Depends(get_user_token)
 ):
@@ -340,10 +340,10 @@ async def adjust_user_credits(
     current_user_id = await require_admin(request, user_token)
 
     try:
-        amount = adjustment.get("amount", 0)
-        reason = adjustment.get("reason", "Admin adjustment")
+        delta = adjustment.delta
+        reason = adjustment.note or "Admin adjustment"
 
-        if amount == 0:
+        if delta == 0:
             raise HTTPException(status_code=400, detail="Amount cannot be zero")
 
         # Get current credits
@@ -355,7 +355,7 @@ async def adjust_user_credits(
         )
 
         current_credits = credits_row[0].get("credits", 0) if credits_row else 0
-        new_credits = max(0, current_credits + amount)
+        new_credits = max(0, current_credits + delta)
 
         # Update credits
         if credits_row:
@@ -377,13 +377,15 @@ async def adjust_user_credits(
                 user_token,
             )
 
+        transaction_type = "grant" if delta > 0 else "spend"
+
         # Log transaction
         await supabase_client.insert(
             "credit_transactions",
             [{
                 "user_id": target_user_id,
-                "amount": amount,
-                "transaction_type": "admin_adjustment",
+                "amount": delta,
+                "transaction_type": transaction_type,
                 "credits_before": current_credits,
                 "credits_after": new_credits,
                 "description": f"Admin adjustment by {current_user_id}: {reason}",
@@ -394,7 +396,7 @@ async def adjust_user_credits(
 
         return {
             "success": True,
-            "message": f"Credits adjusted by {amount}",
+            "message": f"Credits adjusted by {delta}",
             "credits_before": current_credits,
             "credits_after": new_credits
         }
