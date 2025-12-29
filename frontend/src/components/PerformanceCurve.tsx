@@ -118,11 +118,6 @@ export function PerformanceCurve({
     }
   };
 
-  // Clean event name (remove location prefix)
-  const getCleanEventName = (eventName: string): string => {
-    return eventName.replace(/^.*?\s*-\s*/, '').trim();
-  };
-
   // Custom tooltip for better UX
   interface TooltipPayload {
     value: number;
@@ -388,8 +383,8 @@ export function PerformanceCurve({
                        </span>
                      </div>
                      <div className="flex-1 min-w-0">
-                       <div className="text-sm font-medium leading-tight">
-                         {getCleanEventName(event.eventName)}
+                        <div className="text-sm font-medium leading-tight">
+                         {event.eventName}
                        </div>
                        <div className="text-xs opacity-75 capitalize">
                          {seriesCategory}{event.points && ` • ${t('performance.pointsCount', { points: event.points })}`}
@@ -420,7 +415,7 @@ export function PerformanceCurve({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium leading-tight">
-                          {getCleanEventName(event.eventName)}
+                          {event.eventName}
                         </div>
                         <div className="text-xs opacity-75 capitalize">
                           {seriesCategory} • #{event.place}
