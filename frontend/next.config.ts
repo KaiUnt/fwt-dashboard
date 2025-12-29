@@ -98,6 +98,22 @@ export default withPWA({
     navigateFallbackDenylist: [/.*/],
     runtimeCaching: [
       {
+        // Prefer fresh series rankings; allow long network time for heavy queries.
+        urlPattern: /\/api\/series\/rankings\//,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "series-rankings",
+          networkTimeoutSeconds: 70,
+          expiration: {
+            maxEntries: 50,
+            maxAgeSeconds: 60 * 60, // 1 hour
+          },
+          cacheableResponse: {
+            statuses: [0, 200],
+          },
+        },
+      },
+      {
         urlPattern: /^https?.*/, // Cache all external requests
         handler: "NetworkFirst",
         options: {
@@ -121,20 +137,6 @@ export default withPWA({
           expiration: {
             maxEntries: 50,
             maxAgeSeconds: 1 * 60 * 60, // 1 hour only
-          },
-          cacheableResponse: {
-            statuses: [0, 200],
-          },
-        },
-      },
-      {
-        urlPattern: /\/api\/series-rankings/,
-        handler: "StaleWhileRevalidate",
-        options: {
-          cacheName: "series-rankings-current",
-          expiration: {
-            maxEntries: 50,
-            maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
           },
           cacheableResponse: {
             statuses: [0, 200],
