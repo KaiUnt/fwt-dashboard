@@ -428,7 +428,7 @@
     "sendRequestSubtitle": "Connectez-vous avec d'autres commentateurs par nom d'utilisateur",
     "usernamePlaceholder": "Entrez le nom d'utilisateur de l'ami",
     "usernameRequired": "Le nom d'utilisateur est requis",
-    "invalidUsername": "Le nom d'utilisateur doit faire 2-30 caractères, lettres, chiffres, _ et - uniquement",
+    "invalidUsername": "Le nom d'utilisateur doit faire 2-30 caracteres, lettres, chiffres, espaces, . , _ et - uniquement",
     "sendRequest": "Envoyer la demande",
     "sending": "Envoi...",
     "requestSentSuccess": "Demande d'ami envoyée avec succès !",

@@ -68,8 +68,8 @@ class FriendRequestCreate(BaseModel):
     @validator('username')
     def validate_username(cls, v):
         # Username validation rules
-        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
-            raise ValueError('Username can only contain letters, numbers, underscores, and hyphens')
+        if not re.match(r'^[\w .-]+$', v, flags=re.UNICODE):
+            raise ValueError('Username can only contain letters, numbers, spaces, dots, underscores, and hyphens')
         if re.match(r'^[0-9]+$', v):
             raise ValueError('Username cannot be only numbers')
         if re.match(r'^[_-]', v) or re.match(r'[_-]$', v):
