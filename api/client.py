@@ -350,7 +350,7 @@ class LiveheatsClient:
                 if rankings and "series" in rankings and "rankings" in rankings["series"]:
                     filtered_rankings = [
                         r for r in rankings["series"]["rankings"]
-                        if r["athlete"]["id"] in athlete_ids
+                        if not athlete_ids or r["athlete"]["id"] in athlete_ids
                     ]
                     if filtered_rankings:
                         results[division_obj["name"]] = filtered_rankings
