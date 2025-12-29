@@ -17,4 +17,8 @@ jobs:
           username: kai
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            /opt/fwt-dashboard-dev/deploy.sh
+            cd /opt/fwt-dashboard-dev
+            git fetch origin
+            git reset --hard origin/develop
+            chmod +x scripts/deploy-dev.sh
+            ./scripts/deploy-dev.sh

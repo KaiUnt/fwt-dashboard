@@ -8,7 +8,7 @@ jobs:
   deploy:
     name: Deploy to Server
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -17,4 +17,8 @@ jobs:
           username: kai
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            /opt/fwt-dashboard/deploy.sh
+            cd /opt/fwt-dashboard
+            git fetch origin
+            git reset --hard origin/master
+            chmod +x scripts/deploy-prod.sh
+            ./scripts/deploy-prod.sh

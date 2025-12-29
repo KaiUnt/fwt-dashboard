@@ -14,7 +14,8 @@ interface AthleteSearchResult {
 
 interface SearchAthletesResponse {
   success: boolean;
-  athletes: AthleteSearchResult[];
+  athletes?: AthleteSearchResult[];
+  data?: AthleteSearchResult[];
 }
 
 export function useAdminAthleteSearch(query: string, enabled: boolean = true) {
@@ -32,7 +33,7 @@ export function useAdminAthleteSearch(query: string, enabled: boolean = true) {
         { getAccessToken }
       );
 
-      return data.athletes || [];
+      return data.athletes || data.data || [];
     },
     enabled: enabled && query.length >= 2,
     staleTime: 30 * 1000, // 30 seconds
