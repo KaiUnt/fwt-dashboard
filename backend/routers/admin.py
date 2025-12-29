@@ -495,9 +495,9 @@ async def seed_athletes_database(
         client = LiveheatsClient()
         admin_client = await get_admin_client(request) or supabase_client
 
-        # Get FWT series from current and next year only (to avoid timeout)
+        # Get FWT series from current year + next 2 years (to catch new riders)
         current_year = datetime.now().year
-        years = range(current_year, current_year + 2)  # e.g. 2025, 2026
+        years = range(current_year, current_year + 3)  # e.g. 2025, 2026, 2027
         series_data = await client.get_series_by_years("fwtglobal", years)
 
         if not series_data:
@@ -565,18 +565,15 @@ async def search_athletes(
     try:
         admin_client = await get_admin_client(request) or supabase_client
 
-        athletes = await admin_client.select("athletes", "*", {}, user_token)
+        # Build filter for search - use ilike for case-insensitive search in database
+        filters = {}
+        if q:
+            # Use ilike for case-insensitive partial match
+            filters["name"] = f"ilike.*{q}*"
+
+        athletes = await admin_client.select("athletes", "*", filters, user_token)
         if athletes is None:
             athletes = []
-
-        # Filter by search term
-        if q:
-            q_lower = q.lower()
-            athletes = [
-                a for a in athletes
-                if q_lower in (a.get("name") or "").lower()
-                or q_lower in (a.get("id") or "").lower()
-            ]
 
         # Sort by name
         athletes = sorted(athletes, key=lambda x: x.get("name", ""))

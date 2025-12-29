@@ -79,6 +79,9 @@ class SupabaseClient:
 
                     joined = ",".join(_quote(v) for v in value)
                     params[key] = f"in.({joined})"
+            elif isinstance(value, str) and value.startswith("ilike."):
+                # Pass through ilike filters directly (e.g., "ilike.*search*")
+                params[key] = value
             else:
                 params[key] = f"eq.{value}"
 
