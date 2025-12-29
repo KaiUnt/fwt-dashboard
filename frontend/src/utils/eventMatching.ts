@@ -8,27 +8,46 @@ interface EventLocationInfo {
 class FWTEventMatcher {
   private locations: string[] = [];
   private locationsLoaded: boolean = false;
+  private loadPromise: Promise<void> | null = null;
+  private lastLoadAttemptMs = 0;
+  private readonly retryCooldownMs = 15000;
 
   private async loadLocations(): Promise<void> {
     if (this.locationsLoaded) return;
+    if (this.loadPromise) {
+      await this.loadPromise;
+      return;
+    }
+
+    const now = Date.now();
+    if (now - this.lastLoadAttemptMs < this.retryCooldownMs) {
+      return;
+    }
+    this.lastLoadAttemptMs = now;
     
-    try {
+    this.loadPromise = (async () => {
       const response = await fetch('/all_locations.csv');
       if (!response.ok) {
         throw new Error(`CSV fetch failed: ${response.status} ${response.statusText}`);
       }
-      
+
       const csvText = await response.text();
       this.locations = csvText
         .split('\n')
         .map(line => line.trim())
         .filter(line => line.length > 0);
-      
+
       this.locationsLoaded = true;
+    })();
+
+    try {
+      await this.loadPromise;
     } catch (error) {
       console.error('Failed to load locations CSV:', error);
       this.locations = [];
-      this.locationsLoaded = true;
+      this.locationsLoaded = false;
+    } finally {
+      this.loadPromise = null;
     }
   }
 
