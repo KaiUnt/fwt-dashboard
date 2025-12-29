@@ -15,30 +15,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List, Dict, Any, Optional
-import asyncio
-from api.client import LiveheatsClient
-from datetime import datetime, timedelta, timezone
+from typing import Optional
 import uvicorn
 import logging
 import time as _time
 import httpx
 import re
-from pydantic import BaseModel, Field, validator
 
 # Import from backend modules
 from backend.db import SupabaseClient
-from backend.utils import (
-    extract_location_from_name,
-    extract_event_location,
-    extract_year_from_name,
-    normalize_event_for_matching,
-    calculate_event_core_similarity,
-    events_match_historically,
-    is_main_series,
-)
 from backend.routers import core as core_router
 from backend.routers import credits as credits_router
 from backend.routers import profile as profile_router
@@ -51,40 +37,12 @@ from backend.routers import users as users_router
 from backend.routers import debug as debug_router
 from backend.routers import events as events_router
 from backend.routers import event_access as event_access_router
-from backend.models import (
-    EventIdSchema,
-    AthleteIdSchema,
-    FriendRequestCreate,
-    FriendRequestResponse,
-    UserProfile,
-    CommentatorInfoWithAuthor,
-    CommentatorInfoCreate,
-    CommentatorInfoUpdate,
-    CreditsBalanceResponse,
-    EventAccessResponse,
-    PurchaseEventAccessRequest,
-    PurchaseEventAccessResponse,
-    MultiEventPurchaseRequest,
-    MultiEventPurchaseResponse,
-    CreditPackage,
-    CreditsTransactionResponse,
-    BatchEventAccessRequest,
-    BatchEventAccessResponse,
-    GrantCreditsRequest,
-    AdminCreditsAdjustRequest,
-    LogLoginRequest,
-    ProfileUpdateRequest,
-    PasswordChangeRequest,
-    VerifyPasswordRequest,
-)
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import secrets
 import time
 import jwt
 import json
-import base64
 try:
     import redis.asyncio as redis
 except Exception:
