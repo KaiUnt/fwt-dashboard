@@ -3,13 +3,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/utils/api';
 import { useAccessToken } from '@/providers/AuthProvider';
-import { SeriesRankingsResponse } from '@/types/series';
+import { SeriesData } from './useSeriesRankings';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface AdminAthleteSeriesRankingsResponse {
+  success: boolean;
   athlete_id: string;
-  series_rankings: SeriesRankingsResponse[];
+  series_rankings: SeriesData[];
   series_count: number;
   message: string;
 }
@@ -19,7 +20,7 @@ export function useAdminAthleteSeriesRankings(athleteId: string | null) {
 
   return useQuery({
     queryKey: ['admin-athlete-series-rankings', athleteId],
-    queryFn: async () => {
+    queryFn: async (): Promise<SeriesData[] | null> => {
       if (!athleteId) {
         return null;
       }
@@ -29,6 +30,7 @@ export function useAdminAthleteSeriesRankings(athleteId: string | null) {
         { getAccessToken }
       );
 
+      // Backend now returns same format as event endpoint
       return data.series_rankings;
     },
     enabled: !!athleteId,

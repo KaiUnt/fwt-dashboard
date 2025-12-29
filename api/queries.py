@@ -107,3 +107,17 @@ class GraphQLQueries:
         }
     }
     """
+
+    # Lightweight query for seeding - only athlete id and name, no results
+    GET_SERIES_ATHLETES_ONLY = """
+    query GetSeriesAthletesOnly($id: ID!, $divisionId: ID!) {
+        series(id: $id) {
+            rankings(divisionId: $divisionId) {
+                athlete {
+                    id
+                    name
+                }
+            }
+        }
+    }
+    """

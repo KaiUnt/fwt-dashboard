@@ -495,9 +495,9 @@ async def seed_athletes_database(
         client = LiveheatsClient()
         admin_client = await get_admin_client(request) or supabase_client
 
-        # Get FWT series from last 3 years
+        # Get FWT series from current year + next 2 years (to catch new riders)
         current_year = datetime.now().year
-        years = range(current_year - 2, current_year + 1)
+        years = range(current_year, current_year + 3)  # e.g. 2025, 2026, 2027
         series_data = await client.get_series_by_years("fwtglobal", years)
 
         if not series_data:
@@ -510,47 +510,37 @@ async def seed_athletes_database(
 
         series_ids = [s["id"] for s in series_data]
 
-        # Fetch all rankings to get athlete data
-        rankings = await client.fetch_multiple_series(series_ids, [])
+        # Use optimized seed function - lightweight query, batched processing
+        athletes_map = await client.seed_all_athletes(series_ids, batch_size=5)
 
-        # Extract unique athletes
-        athletes_map = {}
-        for series in rankings:
-            for division_name, division_rankings in series.get("divisions", {}).items():
-                for ranking in division_rankings:
-                    athlete = ranking.get("athlete", {})
-                    if athlete.get("id"):
-                        athletes_map[athlete["id"]] = {
-                            "id": athlete["id"],
-                            "name": athlete.get("name", "Unknown"),
-                            "last_seen": datetime.now(timezone.utc).isoformat()
-                        }
+        # Prepare data for bulk upsert
+        now = datetime.now(timezone.utc).isoformat()
+        athletes_data = [
+            {
+                "id": athlete_id,
+                "name": data["name"],
+                "last_seen": now
+            }
+            for athlete_id, data in athletes_map.items()
+        ]
 
-        added = 0
-        updated = 0
+        # Batch upsert in chunks of 500 to avoid request size limits
+        batch_size = 500
+        total_upserted = 0
 
-        for athlete_id, athlete_data in athletes_map.items():
+        for i in range(0, len(athletes_data), batch_size):
+            batch = athletes_data[i:i + batch_size]
             try:
-                existing = await admin_client.select("athletes", "id", {"id": athlete_id}, user_token)
-                if existing:
-                    await admin_client.update(
-                        "athletes",
-                        {"last_seen": athlete_data["last_seen"]},
-                        {"id": athlete_id},
-                        user_token,
-                    )
-                    updated += 1
-                else:
-                    await admin_client.insert("athletes", athlete_data, user_token)
-                    added += 1
+                await admin_client.upsert("athletes", batch, on_conflict="id", user_token=user_token)
+                total_upserted += len(batch)
+                logger.info(f"Upserted batch {i // batch_size + 1}: {len(batch)} athletes")
             except Exception as e:
-                logger.debug(f"Error seeding athlete {athlete_id}: {e}")
+                logger.error(f"Error upserting batch: {e}")
 
         return {
             "success": True,
             "message": f"Seeded athletes database",
-            "athletes_added": added,
-            "athletes_updated": updated,
+            "total_upserted": total_upserted,
             "total_processed": len(athletes_map)
         }
 
@@ -575,18 +565,15 @@ async def search_athletes(
     try:
         admin_client = await get_admin_client(request) or supabase_client
 
-        athletes = await admin_client.select("athletes", "*", {}, user_token)
+        # Build filter for search - use ilike for case-insensitive search in database
+        filters = {}
+        if q:
+            # Use ilike for case-insensitive partial match
+            filters["name"] = f"ilike.*{q}*"
+
+        athletes = await admin_client.select("athletes", "*", filters, user_token)
         if athletes is None:
             athletes = []
-
-        # Filter by search term
-        if q:
-            q_lower = q.lower()
-            athletes = [
-                a for a in athletes
-                if q_lower in (a.get("name") or "").lower()
-                or q_lower in (a.get("id") or "").lower()
-            ]
 
         # Sort by name
         athletes = sorted(athletes, key=lambda x: x.get("name", ""))
@@ -699,35 +686,22 @@ async def get_athlete_series_rankings(
             return {
                 "success": True,
                 "athlete_id": athlete_id,
-                "rankings": [],
+                "series_rankings": [],
+                "series_count": 0,
                 "message": "No FWT series found"
             }
 
         series_ids = [s["id"] for s in series_data]
 
-        # Fetch rankings for this athlete
+        # Fetch rankings for this athlete - returns same format as event endpoint
         rankings = await client.fetch_multiple_series(series_ids, [athlete_id])
-
-        # Extract athlete's rankings
-        athlete_rankings = []
-        for series in rankings:
-            for division_name, division_rankings in series.get("divisions", {}).items():
-                for ranking in division_rankings:
-                    if ranking.get("athlete", {}).get("id") == athlete_id:
-                        athlete_rankings.append({
-                            "series_id": series.get("series_id"),
-                            "series_name": series.get("series_name"),
-                            "division": division_name,
-                            "rank": ranking.get("rank"),
-                            "points": ranking.get("points"),
-                            "results": ranking.get("results", [])
-                        })
 
         return {
             "success": True,
             "athlete_id": athlete_id,
-            "rankings": athlete_rankings,
-            "total_series": len(athlete_rankings)
+            "series_rankings": rankings,
+            "series_count": len(rankings),
+            "message": f"Found {len(rankings)} series for athlete"
         }
 
     except HTTPException:

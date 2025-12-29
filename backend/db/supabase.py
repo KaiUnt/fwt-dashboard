@@ -79,6 +79,9 @@ class SupabaseClient:
 
                     joined = ",".join(_quote(v) for v in value)
                     params[key] = f"in.({joined})"
+            elif isinstance(value, str) and value.startswith("ilike."):
+                # Pass through ilike filters directly (e.g., "ilike.*search*")
+                params[key] = value
             else:
                 params[key] = f"eq.{value}"
 
@@ -255,6 +258,44 @@ class SupabaseClient:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.delete(url, headers=headers, params=params)
                 return await self._handle_response(response, "delete")
+        except httpx.TimeoutException:
+            logger.error("Supabase request timeout")
+            raise HTTPException(status_code=504, detail="Database request timeout")
+
+    async def upsert(
+        self,
+        table: str,
+        data: Union[Dict, List[Dict]],
+        on_conflict: str = "id",
+        user_token: Optional[str] = None
+    ) -> List[Dict]:
+        """
+        Upsert (insert or update) data into table.
+
+        Args:
+            table: Table name
+            data: Record(s) to upsert
+            on_conflict: Column(s) to use for conflict resolution (default: "id")
+            user_token: User JWT for RLS
+
+        Returns:
+            Upserted record(s)
+        """
+        self._validate_table_name(table)
+        self._validate_filter_key(on_conflict)
+
+        sanitized_data = self._sanitize_data(data)
+        url = f"{self.url}/rest/v1/{table}"
+        headers = self._get_headers(user_token)
+        # Add upsert header with merge-duplicates resolution
+        headers["Prefer"] = "return=representation,resolution=merge-duplicates"
+
+        params = {"on_conflict": on_conflict}
+
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(url, headers=headers, params=params, json=sanitized_data)
+                return await self._handle_response(response, "upsert")
         except httpx.TimeoutException:
             logger.error("Supabase request timeout")
             raise HTTPException(status_code=504, detail="Database request timeout")
