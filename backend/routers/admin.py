@@ -257,25 +257,41 @@ async def get_admin_overview(
     try:
         admin_client = await get_admin_client(request) or supabase_client
 
-        # Get various counts
-        users = await admin_client.select("user_profiles", "id", {}, user_token)
-        credits = await admin_client.select("user_credits", "credits", {}, user_token)
-        transactions = await admin_client.select("credit_transactions", "id", {}, user_token)
-        event_access = await admin_client.select("user_event_access", "id", {}, user_token)
-        athletes = await admin_client.select("athletes", "id", {}, user_token)
-        commentator_info = await admin_client.select("commentator_info", "id", {}, user_token)
+        # Get all user profiles for the users list
+        users = await admin_client.select("user_profiles", "*", {}, user_token)
+        if users is None:
+            users = []
 
-        total_credits = sum(c.get("credits", 0) for c in (credits or []))
+        # Get today's logins
+        from datetime import timedelta
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        login_activity = await admin_client.select("user_login_activity", "*", {}, user_token)
+        if login_activity is None:
+            login_activity = []
+
+        today_logins = [x for x in login_activity if (x.get("login_timestamp") or "").startswith(today_str)]
+        today_logins_sorted = sorted(today_logins, key=lambda entry: entry.get("login_timestamp", ""), reverse=True)[:50]
+
+        # Build user lookup for login details
+        user_lookup = {u.get("id"): u for u in users}
+        today_login_details = [
+            {
+                "user_id": entry.get("user_id"),
+                "full_name": (user_lookup.get(entry.get("user_id")) or {}).get("full_name"),
+                "email": (user_lookup.get(entry.get("user_id")) or {}).get("email"),
+                "login_timestamp": entry.get("login_timestamp"),
+                "ip_address": entry.get("ip_address"),
+                "user_agent": entry.get("user_agent"),
+            }
+            for entry in today_logins_sorted
+        ]
 
         return {
             "success": True,
-            "overview": {
-                "total_users": len(users or []),
-                "total_credits_in_system": total_credits,
-                "total_transactions": len(transactions or []),
-                "total_event_purchases": len(event_access or []),
-                "total_athletes_tracked": len(athletes or []),
-                "total_commentator_entries": len(commentator_info or [])
+            "data": {
+                "users": users,
+                "today_logins_count": len(today_logins),
+                "today_logins": today_login_details,
             }
         }
 
