@@ -93,6 +93,9 @@ export default withPWA({
     skipWaiting: true,
     clientsClaim: true,
     cleanupOutdatedCaches: true,
+    additionalManifestEntries: [
+      { url: '/all_locations.csv', revision: '1' },
+    ],
     // Disable default navigation handling
     navigateFallback: undefined,
     navigateFallbackDenylist: [/.*/],
