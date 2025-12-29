@@ -60,6 +60,7 @@ export function CommentatorInfoModal({
   const { isAdmin } = useAuth();
   const { getAccessToken } = useAccessToken();
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  const [csvAthletes, setCsvAthletes] = useState<Athlete[]>(athletes);
   const [formData, setFormData] = useState<Partial<CommentatorInfo>>({
     homebase: '',
     team: '',
@@ -98,6 +99,58 @@ export function CommentatorInfoModal({
   const [activeTab, setActiveTab] = useState<'form' | 'csv'>('form');
   const updateMutation = useUpdateCommentatorInfo();
   const bulkImportMutation = useBulkImportCommentatorInfo();
+
+  useEffect(() => {
+    setCsvAthletes(athletes);
+  }, [athletes]);
+
+  useEffect(() => {
+    if (!isOpen || !isAdmin) return;
+    if (athletes.length > 0 || csvAthletes.length > 0) return;
+
+    let isMounted = true;
+    const loadAllAthletes = async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
+
+        const response = await fetch('/api/admin/athletes/search?limit=1000', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          console.error('Failed to load admin athlete directory:', response.status);
+          return;
+        }
+
+        const data = await response.json() as { athletes?: Array<{ id?: string; name?: string; full_name?: string }>; data?: Array<{ id?: string; name?: string; full_name?: string }> };
+        const rawAthletes = data.athletes || data.data || [];
+        if (!Array.isArray(rawAthletes)) return;
+
+        const normalized = rawAthletes
+          .filter(entry => entry?.id && (entry.name || entry.full_name))
+          .map(entry => ({
+            id: entry.id as string,
+            name: (entry.name || entry.full_name || '').trim(),
+            status: 'confirmed' as const,
+          }));
+
+        if (isMounted && normalized.length > 0) {
+          setCsvAthletes(normalized);
+        }
+      } catch (error) {
+        console.error('Failed to load admin athlete directory:', error);
+      }
+    };
+
+    loadAllAthletes();
+    return () => {
+      isMounted = false;
+    };
+  }, [athletes.length, csvAthletes.length, getAccessToken, isAdmin, isOpen]);
 
   // Load available users for admins
   useEffect(() => {
@@ -547,9 +600,9 @@ export function CommentatorInfoModal({
 
           {/* Content */}
           <div className="px-6 py-6 max-h-[70vh] overflow-y-auto">
-            {activeTab === 'csv' && athletes.length > 0 ? (
+            {activeTab === 'csv' && csvAthletes.length > 0 ? (
               <CSVUploadComponent
-                athletes={athletes}
+                athletes={csvAthletes}
                 onDataParsed={handleCSVDataParsed}
                 onClose={() => setActiveTab('form')}
                 onBulkImport={handleBulkImport}
