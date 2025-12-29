@@ -510,21 +510,8 @@ async def seed_athletes_database(
 
         series_ids = [s["id"] for s in series_data]
 
-        # Fetch all rankings to get athlete data
-        rankings = await client.fetch_multiple_series(series_ids, [])
-
-        # Extract unique athletes
-        athletes_map = {}
-        for series in rankings:
-            for division_name, division_rankings in series.get("divisions", {}).items():
-                for ranking in division_rankings:
-                    athlete = ranking.get("athlete", {})
-                    if athlete.get("id"):
-                        athletes_map[athlete["id"]] = {
-                            "id": athlete["id"],
-                            "name": athlete.get("name", "Unknown"),
-                            "last_seen": datetime.now(timezone.utc).isoformat()
-                        }
+        # Use optimized seed function - lightweight query, batched processing
+        athletes_map = await client.seed_all_athletes(series_ids, batch_size=5)
 
         added = 0
         updated = 0
@@ -535,13 +522,17 @@ async def seed_athletes_database(
                 if existing:
                     await admin_client.update(
                         "athletes",
-                        {"last_seen": athlete_data["last_seen"]},
+                        {"last_seen": datetime.now(timezone.utc).isoformat()},
                         {"id": athlete_id},
                         user_token,
                     )
                     updated += 1
                 else:
-                    await admin_client.insert("athletes", athlete_data, user_token)
+                    await admin_client.insert("athletes", {
+                        "id": athlete_id,
+                        "name": athlete_data["name"],
+                        "last_seen": datetime.now(timezone.utc).isoformat()
+                    }, user_token)
                     added += 1
             except Exception as e:
                 logger.debug(f"Error seeding athlete {athlete_id}: {e}")

@@ -350,7 +350,7 @@ class LiveheatsClient:
                 if rankings and "series" in rankings and "rankings" in rankings["series"]:
                     filtered_rankings = [
                         r for r in rankings["series"]["rankings"]
-                        if not athlete_ids or r["athlete"]["id"] in athlete_ids
+                        if r["athlete"]["id"] in athlete_ids
                     ]
                     if filtered_rankings:
                         results[division_obj["name"]] = filtered_rankings
@@ -401,3 +401,77 @@ class LiveheatsClient:
                 continue
                 
         return future_events
+
+    async def seed_all_athletes(self, series_ids: List[str], batch_size: int = 5) -> Dict[str, Dict[str, str]]:
+        """
+        Fetch all athletes from series for seeding database.
+        Uses lightweight query (only id + name) and processes in batches.
+
+        Returns: Dict mapping athlete_id -> {id, name}
+        """
+        athletes_map: Dict[str, Dict[str, str]] = {}
+
+        async with self.client as client:
+            # Process series in batches to avoid timeout
+            for i in range(0, len(series_ids), batch_size):
+                batch = series_ids[i:i + batch_size]
+                logger.info(f"Processing series batch {i // batch_size + 1}/{(len(series_ids) + batch_size - 1) // batch_size}")
+
+                # Process each series in the batch
+                tasks = [self._fetch_series_athletes(client, series_id) for series_id in batch]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                for result in results:
+                    if isinstance(result, dict):
+                        athletes_map.update(result)
+
+                logger.info(f"Total athletes found so far: {len(athletes_map)}")
+
+        return athletes_map
+
+    async def _fetch_series_athletes(self, client: GraphQLClient, series_id: str) -> Dict[str, Dict[str, str]]:
+        """Fetch athletes from a single series using lightweight query."""
+        athletes: Dict[str, Dict[str, str]] = {}
+
+        try:
+            # Get divisions for this series
+            divisions_data = await client.execute(
+                self.queries.GET_DIVISIONS,
+                {"id": str(series_id)}
+            )
+
+            if not divisions_data or "series" not in divisions_data:
+                return athletes
+
+            series_data = divisions_data["series"]
+            if not series_data:
+                return athletes
+
+            divisions = series_data.get("rankingsDivisions", [])
+            if not divisions:
+                return athletes
+
+            # Fetch athletes from each division using lightweight query
+            for division in divisions:
+                try:
+                    rankings_data = await client.execute(
+                        self.queries.GET_SERIES_ATHLETES_ONLY,
+                        {"id": series_id, "divisionId": division["id"]}
+                    )
+
+                    if rankings_data and "series" in rankings_data and "rankings" in rankings_data["series"]:
+                        for ranking in rankings_data["series"]["rankings"]:
+                            athlete = ranking.get("athlete", {})
+                            if athlete.get("id") and athlete.get("name"):
+                                athletes[athlete["id"]] = {
+                                    "id": athlete["id"],
+                                    "name": athlete["name"]
+                                }
+                except Exception as e:
+                    logger.debug(f"Error fetching division {division.get('name')}: {e}")
+                    continue
+
+        except Exception as e:
+            logger.debug(f"Error fetching series {series_id}: {e}")
+
+        return athletes
