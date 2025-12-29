@@ -495,9 +495,9 @@ async def seed_athletes_database(
         client = LiveheatsClient()
         admin_client = await get_admin_client(request) or supabase_client
 
-        # Get FWT series from last 3 years
+        # Get FWT series from current and next year only (to avoid timeout)
         current_year = datetime.now().year
-        years = range(current_year - 2, current_year + 1)
+        years = range(current_year, current_year + 2)  # e.g. 2025, 2026
         series_data = await client.get_series_by_years("fwtglobal", years)
 
         if not series_data:
