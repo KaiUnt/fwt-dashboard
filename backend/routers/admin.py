@@ -73,7 +73,7 @@ async def grant_credits_to_user(
             "target_user_id": user_id,
             "credits_to_grant": grant_request.credits,
             "admin_note": grant_request.note
-        })
+        }, user_token)
 
         if not result:
             raise HTTPException(status_code=500, detail="No response from grant function")
@@ -111,10 +111,10 @@ async def get_credits_statistics(
 
     try:
         # Get various statistics
-        total_users = await supabase_client.select("user_credits", "COUNT(*)", {})
-        total_credits_distributed = await supabase_client.select("user_credits", "SUM(credits)", {})
-        total_transactions = await supabase_client.select("credit_transactions", "COUNT(*)", {})
-        total_purchases = await supabase_client.select("credit_purchases", "COUNT(*)", {"payment_status": "completed"})
+        total_users = await supabase_client.select("user_credits", "COUNT(*)", {}, user_token)
+        total_credits_distributed = await supabase_client.select("user_credits", "SUM(credits)", {}, user_token)
+        total_transactions = await supabase_client.select("credit_transactions", "COUNT(*)", {}, user_token)
+        total_purchases = await supabase_client.select("credit_purchases", "COUNT(*)", {"payment_status": "completed"}, user_token)
 
         return {
             "success": True,
@@ -153,6 +153,7 @@ async def get_admin_users(
             "user_profiles",
             "id, full_name, email, role, organization",
             {},
+            user_token,
         )
 
         if users is None:
@@ -200,12 +201,12 @@ async def get_users_summary(
         admin_client = await get_admin_client(request) or supabase_client
 
         # Get all user profiles
-        users = await admin_client.select("user_profiles", "*", {})
+        users = await admin_client.select("user_profiles", "*", {}, user_token)
         if users is None:
             users = []
 
         # Get all credits
-        credits = await admin_client.select("user_credits", "*", {})
+        credits = await admin_client.select("user_credits", "*", {}, user_token)
         if credits is None:
             credits = []
 
@@ -257,12 +258,12 @@ async def get_admin_overview(
         admin_client = await get_admin_client(request) or supabase_client
 
         # Get various counts
-        users = await admin_client.select("user_profiles", "id", {})
-        credits = await admin_client.select("user_credits", "credits", {})
-        transactions = await admin_client.select("credit_transactions", "id", {})
-        event_access = await admin_client.select("user_event_access", "id", {})
-        athletes = await admin_client.select("athletes", "id", {})
-        commentator_info = await admin_client.select("commentator_info", "id", {})
+        users = await admin_client.select("user_profiles", "id", {}, user_token)
+        credits = await admin_client.select("user_credits", "credits", {}, user_token)
+        transactions = await admin_client.select("credit_transactions", "id", {}, user_token)
+        event_access = await admin_client.select("user_event_access", "id", {}, user_token)
+        athletes = await admin_client.select("athletes", "id", {}, user_token)
+        commentator_info = await admin_client.select("commentator_info", "id", {}, user_token)
 
         total_credits = sum(c.get("credits", 0) for c in (credits or []))
 
@@ -307,7 +308,8 @@ async def adjust_user_credits(
         credits_row = await supabase_client.select(
             "user_credits",
             "credits",
-            {"user_id": target_user_id}
+            {"user_id": target_user_id},
+            user_token,
         )
 
         current_credits = credits_row[0].get("credits", 0) if credits_row else 0
@@ -318,7 +320,8 @@ async def adjust_user_credits(
             await supabase_client.update(
                 "user_credits",
                 {"credits": new_credits, "updated_at": datetime.now().isoformat()},
-                {"user_id": target_user_id}
+                {"user_id": target_user_id},
+                user_token,
             )
         else:
             await supabase_client.insert(
@@ -328,7 +331,8 @@ async def adjust_user_credits(
                     "credits": new_credits,
                     "created_at": datetime.now().isoformat(),
                     "updated_at": datetime.now().isoformat()
-                }]
+                }],
+                user_token,
             )
 
         # Log transaction
@@ -342,7 +346,8 @@ async def adjust_user_credits(
                 "credits_after": new_credits,
                 "description": f"Admin adjustment by {current_user_id}: {reason}",
                 "created_at": datetime.now().isoformat()
-            }]
+            }],
+            user_token,
         )
 
         return {
@@ -377,7 +382,7 @@ async def list_credit_purchases(
         if status:
             filters["payment_status"] = status
 
-        purchases = await admin_client.select("credit_purchases", "*", filters)
+        purchases = await admin_client.select("credit_purchases", "*", filters, user_token)
 
         if purchases is None:
             purchases = []
@@ -452,16 +457,17 @@ async def seed_athletes_database(
 
         for athlete_id, athlete_data in athletes_map.items():
             try:
-                existing = await admin_client.select("athletes", "id", {"id": athlete_id})
+                existing = await admin_client.select("athletes", "id", {"id": athlete_id}, user_token)
                 if existing:
                     await admin_client.update(
                         "athletes",
                         {"last_seen": athlete_data["last_seen"]},
-                        {"id": athlete_id}
+                        {"id": athlete_id},
+                        user_token,
                     )
                     updated += 1
                 else:
-                    await admin_client.insert("athletes", athlete_data)
+                    await admin_client.insert("athletes", athlete_data, user_token)
                     added += 1
             except Exception as e:
                 logger.debug(f"Error seeding athlete {athlete_id}: {e}")
@@ -495,7 +501,7 @@ async def search_athletes(
     try:
         admin_client = await get_admin_client(request) or supabase_client
 
-        athletes = await admin_client.select("athletes", "*", {})
+        athletes = await admin_client.select("athletes", "*", {}, user_token)
         if athletes is None:
             athletes = []
 
@@ -567,16 +573,17 @@ async def sync_athletes_from_event(
 
         for athlete in athletes_in_event:
             try:
-                existing = await admin_client.select("athletes", "id", {"id": athlete["id"]})
+                existing = await admin_client.select("athletes", "id", {"id": athlete["id"]}, user_token)
                 if existing:
                     await admin_client.update(
                         "athletes",
                         {"last_seen": athlete["last_seen"]},
-                        {"id": athlete["id"]}
+                        {"id": athlete["id"]},
+                        user_token,
                     )
                     updated += 1
                 else:
-                    await admin_client.insert("athletes", athlete)
+                    await admin_client.insert("athletes", athlete, user_token)
                     added += 1
             except Exception as e:
                 logger.debug(f"Error syncing athlete {athlete['id']}: {e}")
