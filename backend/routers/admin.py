@@ -513,35 +513,34 @@ async def seed_athletes_database(
         # Use optimized seed function - lightweight query, batched processing
         athletes_map = await client.seed_all_athletes(series_ids, batch_size=5)
 
-        added = 0
-        updated = 0
+        # Prepare data for bulk upsert
+        now = datetime.now(timezone.utc).isoformat()
+        athletes_data = [
+            {
+                "id": athlete_id,
+                "name": data["name"],
+                "last_seen": now
+            }
+            for athlete_id, data in athletes_map.items()
+        ]
 
-        for athlete_id, athlete_data in athletes_map.items():
+        # Batch upsert in chunks of 500 to avoid request size limits
+        batch_size = 500
+        total_upserted = 0
+
+        for i in range(0, len(athletes_data), batch_size):
+            batch = athletes_data[i:i + batch_size]
             try:
-                existing = await admin_client.select("athletes", "id", {"id": athlete_id}, user_token)
-                if existing:
-                    await admin_client.update(
-                        "athletes",
-                        {"last_seen": datetime.now(timezone.utc).isoformat()},
-                        {"id": athlete_id},
-                        user_token,
-                    )
-                    updated += 1
-                else:
-                    await admin_client.insert("athletes", {
-                        "id": athlete_id,
-                        "name": athlete_data["name"],
-                        "last_seen": datetime.now(timezone.utc).isoformat()
-                    }, user_token)
-                    added += 1
+                await admin_client.upsert("athletes", batch, on_conflict="id", user_token=user_token)
+                total_upserted += len(batch)
+                logger.info(f"Upserted batch {i // batch_size + 1}: {len(batch)} athletes")
             except Exception as e:
-                logger.debug(f"Error seeding athlete {athlete_id}: {e}")
+                logger.error(f"Error upserting batch: {e}")
 
         return {
             "success": True,
             "message": f"Seeded athletes database",
-            "athletes_added": added,
-            "athletes_updated": updated,
+            "total_upserted": total_upserted,
             "total_processed": len(athletes_map)
         }
 
