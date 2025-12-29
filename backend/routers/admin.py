@@ -191,9 +191,12 @@ async def get_admin_users(
 @router.get("/users/summary")
 async def get_users_summary(
     request: Request,
+    search: str = "",
+    limit: int = 20,
+    offset: int = 0,
     user_token: str = Depends(get_user_token)
 ):
-    """Get user summary statistics (Admin only)"""
+    """Get user summary with credits and purchased events (Admin only)"""
     supabase_client = await get_supabase(request)
     current_user_id = await require_admin(request, user_token)
 
@@ -210,32 +213,55 @@ async def get_users_summary(
         if credits is None:
             credits = []
 
-        # Build credits lookup
+        # Get all event access records
+        event_access = await admin_client.select("user_event_access", "user_id, id", {}, user_token)
+        if event_access is None:
+            event_access = []
+
+        # Build lookups
         credits_lookup = {c["user_id"]: c.get("credits", 0) for c in credits}
 
-        # Calculate statistics
-        total_users = len(users)
-        admin_count = sum(1 for u in users if u.get("role") == "admin")
-        users_with_credits = sum(1 for u in users if credits_lookup.get(u["id"], 0) > 0)
-        total_credits = sum(credits_lookup.values())
+        # Count purchased events per user
+        events_count_lookup = {}
+        for access in event_access:
+            user_id = access.get("user_id")
+            if user_id:
+                events_count_lookup[user_id] = events_count_lookup.get(user_id, 0) + 1
 
-        # Get recent logins (users with login_at in last 7 days)
-        from datetime import timedelta
-        seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        recent_logins = sum(
-            1 for u in users
-            if u.get("last_login_at") and u["last_login_at"] > seven_days_ago
-        )
+        # Build user summary list
+        user_summaries = []
+        for u in users:
+            user_id = u.get("id")
+            user_summaries.append({
+                "id": user_id,
+                "full_name": u.get("full_name"),
+                "email": u.get("email"),
+                "role": u.get("role"),
+                "organization": u.get("organization"),
+                "is_active": u.get("is_active"),
+                "created_at": u.get("created_at"),
+                "credits": credits_lookup.get(user_id, 0),
+                "purchased_events_count": events_count_lookup.get(user_id, 0),
+            })
+
+        # Filter by search term if provided
+        if search:
+            search_lower = search.lower()
+            user_summaries = [
+                u for u in user_summaries
+                if search_lower in (u.get("full_name") or "").lower()
+                or search_lower in (u.get("email") or "").lower()
+            ]
+
+        total = len(user_summaries)
+
+        # Apply pagination
+        user_summaries = user_summaries[offset: offset + limit]
 
         return {
             "success": True,
-            "summary": {
-                "total_users": total_users,
-                "admin_users": admin_count,
-                "users_with_credits": users_with_credits,
-                "total_credits_distributed": total_credits,
-                "active_last_7_days": recent_logins
-            }
+            "users": user_summaries,
+            "total": total,
         }
 
     except HTTPException:
@@ -383,36 +409,66 @@ async def adjust_user_credits(
 @router.get("/credits/purchases")
 async def list_credit_purchases(
     request: Request,
+    search: str = "",
     status: str = None,
-    limit: int = 100,
+    limit: int = 20,
+    offset: int = 0,
     user_token: str = Depends(get_user_token)
 ):
-    """List credit purchases (Admin only)"""
+    """List event purchases with user and event info (Admin only)"""
     supabase_client = await get_supabase(request)
     current_user_id = await require_admin(request, user_token)
 
     try:
         admin_client = await get_admin_client(request) or supabase_client
 
-        filters = {}
-        if status:
-            filters["payment_status"] = status
+        # Get event access records (these are the "purchases")
+        event_access = await admin_client.select("user_event_access", "*", {}, user_token)
+        if event_access is None:
+            event_access = []
 
-        purchases = await admin_client.select("credit_purchases", "*", filters, user_token)
+        # Get user profiles for lookup
+        users = await admin_client.select("user_profiles", "id, full_name, email", {}, user_token)
+        user_lookup = {u["id"]: u for u in (users or [])}
 
-        if purchases is None:
-            purchases = []
+        # Build purchase rows with user info
+        purchases = []
+        for access in event_access:
+            user_id = access.get("user_id")
+            user_info = user_lookup.get(user_id, {})
+            purchases.append({
+                "user_id": user_id,
+                "user_full_name": user_info.get("full_name"),
+                "user_email": user_info.get("email"),
+                "event_id": access.get("event_id"),
+                "event_name": access.get("event_name"),
+                "granted_at": access.get("granted_at") or access.get("created_at"),
+                "access_type": access.get("access_type"),
+            })
 
-        # Sort by created_at descending
-        purchases = sorted(purchases, key=lambda x: x.get("created_at", ""), reverse=True)
+        # Filter by search term if provided
+        if search:
+            search_lower = search.lower()
+            purchases = [
+                p for p in purchases
+                if search_lower in (p.get("user_full_name") or "").lower()
+                or search_lower in (p.get("user_email") or "").lower()
+                or search_lower in (p.get("event_name") or "").lower()
+                or search_lower in (p.get("event_id") or "").lower()
+            ]
 
-        # Apply limit
-        purchases = purchases[:limit]
+        # Sort by granted_at descending
+        purchases = sorted(purchases, key=lambda x: x.get("granted_at") or "", reverse=True)
+
+        total = len(purchases)
+
+        # Apply pagination
+        purchases = purchases[offset: offset + limit]
 
         return {
             "success": True,
-            "data": purchases,
-            "total": len(purchases)
+            "purchases": purchases,
+            "total": total
         }
 
     except HTTPException:
