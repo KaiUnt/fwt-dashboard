@@ -699,35 +699,22 @@ async def get_athlete_series_rankings(
             return {
                 "success": True,
                 "athlete_id": athlete_id,
-                "rankings": [],
+                "series_rankings": [],
+                "series_count": 0,
                 "message": "No FWT series found"
             }
 
         series_ids = [s["id"] for s in series_data]
 
-        # Fetch rankings for this athlete
+        # Fetch rankings for this athlete - returns same format as event endpoint
         rankings = await client.fetch_multiple_series(series_ids, [athlete_id])
-
-        # Extract athlete's rankings
-        athlete_rankings = []
-        for series in rankings:
-            for division_name, division_rankings in series.get("divisions", {}).items():
-                for ranking in division_rankings:
-                    if ranking.get("athlete", {}).get("id") == athlete_id:
-                        athlete_rankings.append({
-                            "series_id": series.get("series_id"),
-                            "series_name": series.get("series_name"),
-                            "division": division_name,
-                            "rank": ranking.get("rank"),
-                            "points": ranking.get("points"),
-                            "results": ranking.get("results", [])
-                        })
 
         return {
             "success": True,
             "athlete_id": athlete_id,
-            "rankings": athlete_rankings,
-            "total_series": len(athlete_rankings)
+            "series_rankings": rankings,
+            "series_count": len(rankings),
+            "message": f"Found {len(rankings)} series for athlete"
         }
 
     except HTTPException:
