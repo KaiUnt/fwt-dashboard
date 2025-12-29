@@ -9,7 +9,7 @@ import { AppHeader } from '@/components/AppHeader';
 // Username validation function
 const validateUsername = (username: string): boolean => {
   if (username.length < 2 || username.length > 30) return false;
-  if (!/^[a-zA-Z0-9_-]+$/.test(username)) return false;
+  if (!/^[\p{L}\p{N}_.\- ]+$/u.test(username)) return false;
   if (/^[0-9]+$/.test(username)) return false;
   if (/^[_-]/.test(username) || /[_-]$/.test(username)) return false;
   const reserved = ['admin', 'administrator', 'root', 'system', 'api', 'www', 'ftp', 'mail', 'test', 'user', 'guest', 'null', 'undefined'];

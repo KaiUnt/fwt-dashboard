@@ -429,7 +429,7 @@
     "sendRequestSubtitle": "Verbinde dich mit anderen Kommentatoren per Benutzername",
     "usernamePlaceholder": "Benutzername des Freundes eingeben",
     "usernameRequired": "Benutzername ist erforderlich",
-    "invalidUsername": "Benutzername muss 2-30 Zeichen haben, nur Buchstaben, Zahlen, _ und -",
+    "invalidUsername": "Benutzername muss 2-30 Zeichen haben, nur Buchstaben, Zahlen, Leerzeichen, Punkt, _ und -",
     "sendRequest": "Anfrage senden",
     "sending": "Sende...",
     "requestSentSuccess": "Freundschaftsanfrage erfolgreich gesendet!",

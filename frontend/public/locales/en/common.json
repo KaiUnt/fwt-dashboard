@@ -428,7 +428,7 @@
     "sendRequestSubtitle": "Connect with other commentators by username",
     "usernamePlaceholder": "Enter friend's username",
     "usernameRequired": "Username is required",
-    "invalidUsername": "Username must be 2-30 characters, letters, numbers, _ and - only",
+    "invalidUsername": "Username must be 2-30 characters, letters, numbers, spaces, . , _ and - only",
     "sendRequest": "Send Request",
     "sending": "Sending...",
     "requestSentSuccess": "Friend request sent successfully!",
