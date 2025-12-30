@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import { getCountryFlag, getNationalityDisplay, countUniqueNationalities, matchesNationalitySearch } from '@/utils/nationality';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { SeriesData, SeriesRegion, AthleteMainRanking } from '@/hooks/useSeriesRankings';
-import { getAllAthleteMainRankings, SERIES_CATEGORY_COLORS } from '@/hooks/useSeriesRankings';
+import { getAllAthleteMainRankings, getCurrentYearAthleteMainRankings, SERIES_CATEGORY_COLORS } from '@/hooks/useSeriesRankings';
 
 // Sort options
 export type SortOption = 'bib' | 'name' | 'division' | 'ranking';
@@ -414,7 +414,7 @@ export function AthleteNavigation({
                       ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
                     );
                     const isActive = actualIndex === currentIndex;
-                    const rankings = getAllAthleteMainRankings(seriesData || [], athlete.id, athlete.division, selectedRegion);
+                    const rankings = getCurrentYearAthleteMainRankings(seriesData || [], athlete.id, athlete.division, selectedRegion);
 
                     return (
                       <button
@@ -477,7 +477,7 @@ export function AthleteNavigation({
                 ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
               );
               const isActive = actualIndex === currentIndex;
-              const rankings = getAllAthleteMainRankings(seriesData || [], athlete.id, athlete.division, selectedRegion);
+              const rankings = getCurrentYearAthleteMainRankings(seriesData || [], athlete.id, athlete.division, selectedRegion);
 
               return (
                 <button

@@ -1206,3 +1206,18 @@ export function getAllAthleteMainRankings(
 
   return rankings;
 }
+
+// Helper function to get main series rankings for CURRENT YEAR ONLY
+// Used in AthleteNavigation for badge display
+export function getCurrentYearAthleteMainRankings(
+  seriesData: SeriesData[],
+  athleteId: string,
+  division: string | undefined,
+  selectedRegion: SeriesRegion = '1'
+): AthleteMainRanking[] {
+  const allRankings = getAllAthleteMainRankings(seriesData, athleteId, division, selectedRegion);
+  const currentYear = new Date().getFullYear();
+
+  // Filter to only current year
+  return allRankings.filter(r => r.year === currentYear);
+}
