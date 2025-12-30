@@ -297,18 +297,21 @@ export interface AthleteSeriesOverview {
   totalResults: number;
 }
 
+// Series category type - used throughout the app
+export type SeriesCategoryType = 'pro' | 'challenger' | 'qualifier' | 'junior' | 'junior_wc' | 'other';
+
 export interface SeriesRankingDetail {
   series: SeriesData;
   ranking: SeriesRanking;
   division: string;
   year: number;
-  category: 'pro' | 'challenger' | 'qualifier' | 'junior' | 'other';
+  category: SeriesCategoryType;
   priority: number; // For sorting (higher = more important)
 }
 
 export interface SeriesCategory {
   name: string;
-  type: 'pro' | 'challenger' | 'qualifier' | 'junior' | 'other';
+  type: SeriesCategoryType;
   count: number;
   latestYear: number;
   bestRanking?: number;
@@ -322,7 +325,7 @@ export interface EventResult {
   location?: string;
   year: number;
   seriesInstances: SeriesInstance[];
-  primaryCategory: 'pro' | 'challenger' | 'qualifier' | 'junior' | 'other';
+  primaryCategory: SeriesCategoryType;
   date?: string;
 }
 
@@ -330,7 +333,7 @@ export interface SeriesInstance {
   series: SeriesData;
   ranking: SeriesRanking;
   division: string;
-  category: 'pro' | 'challenger' | 'qualifier' | 'junior' | 'other';
+  category: SeriesCategoryType;
   priority: number;
 }
 
@@ -347,7 +350,7 @@ export interface EventBasedOverview {
 export interface SeriesDetailView {
   seriesInfo: {
     name: string;
-    category: 'pro' | 'challenger' | 'qualifier' | 'junior' | 'other';
+    category: SeriesCategoryType;
     year: number;
     isMainSeries: boolean;
   };
@@ -385,43 +388,51 @@ export interface EventResultDetail {
 }
 
 // Helper function to categorize series
-export function categorizeSeriesType(seriesName: string): 'pro' | 'challenger' | 'qualifier' | 'junior' | 'other' {
+export function categorizeSeriesType(seriesName: string): SeriesCategoryType {
   const name = seriesName.toLowerCase();
-  
+
+  // Junior World Championship (must be checked before regular junior)
+  // Patterns: "Junior World Championship", "JWC", "Junior Worlds"
+  if ((name.includes('junior') && name.includes('world') && name.includes('champion')) ||
+      name.includes('jwc') ||
+      (name.includes('junior') && name.includes('worlds'))) {
+    return 'junior_wc';
+  }
+
   // FWT Pro Tour / Pro Level Events
-  if (name.includes('fwt pro') || 
-      name.includes('pro tour') || 
-      name.includes('fwt tour') || 
+  if (name.includes('fwt pro') ||
+      name.includes('pro tour') ||
+      name.includes('fwt tour') ||
       name.includes('world tour') ||
       name.includes('qualified riders') ||
       name.includes('bonus points')) {
     return 'pro';
   }
-  
+
   // FWT Challenger Events
-  if (name.includes('challenger') || 
+  if (name.includes('challenger') ||
       name.includes('fwt challenger')) {
     return 'challenger';
   }
-  
+
   // Qualifier Events (including star ratings and FWQ)
-  if (name.includes('qualifier') || 
+  if (name.includes('qualifier') ||
       name.includes('fwq') ||
       name.includes('ifsa qualifier') ||
       name.match(/\b[1-4]\*/) || // Matches 1*, 2*, 3*, 4*
       name.includes('final')) { // FWQ Final
     return 'qualifier';
   }
-  
-  // Junior / Youth Events
-  if (name.includes('junior') || 
-      name.includes('youth') || 
-      name.includes('u18') || 
+
+  // Junior / Youth Events (regular junior tour)
+  if (name.includes('junior') ||
+      name.includes('youth') ||
+      name.includes('u18') ||
       name.includes('u21') ||
       name.includes('kids')) {
     return 'junior';
   }
-  
+
   // Regional/National/Other Events
   return 'other';
 }
@@ -429,14 +440,14 @@ export function categorizeSeriesType(seriesName: string): 'pro' | 'challenger' |
 // Helper function to determine if series is a main season ranking or admin list
 export function isMainSeasonRanking(seriesName: string): boolean {
   const name = seriesName.toLowerCase();
-  
+
   // Administrative lists patterns (these are NOT main rankings)
-  if (name.includes('qualifying list') || 
-      name.includes('seeding list') || 
+  if (name.includes('qualifying list') ||
+      name.includes('seeding list') ||
       name.includes('national rankings')) {
     return false;
   }
-  
+
   // Main season rankings patterns
   if (name.match(/fwt pro tour.*\d{4}/)) {
     return true;
@@ -453,10 +464,15 @@ export function isMainSeasonRanking(seriesName: string): boolean {
   if (name.match(/fwt junior region \d+.*\d{4}/)) {
     return true;
   }
+  // Junior World Championship rankings
+  if ((name.includes('junior') && name.includes('world') && name.includes('champion')) ||
+      name.includes('jwc')) {
+    return true;
+  }
   if (name.includes('world championship') && name.includes('ranking')) {
     return true; // World Championships are main rankings
   }
-  
+
   // Default to admin list if pattern doesn't match
   return false;
 }
@@ -526,9 +542,10 @@ export function calculateSeriesPriority(seriesDetail: SeriesRankingDetail): numb
   // Category priority
   switch (seriesDetail.category) {
     case 'pro': priority += 50; break;
-    case 'challenger': priority += 30; break;
+    case 'challenger': priority += 40; break;
+    case 'junior_wc': priority += 35; break; // Junior World Championship higher than regular junior
     case 'qualifier': priority += 20; break;
-    case 'junior': priority += 10; break;
+    case 'junior': priority += 15; break;
     default: priority += 5; break;
   }
   
@@ -613,7 +630,7 @@ export function getAthleteSeriesOverview(
   }
   
   const categories = Array.from(categoryMap.values()).sort((a, b) => {
-    const priority = { pro: 4, challenger: 3, qualifier: 2, junior: 1, other: 0 };
+    const priority: Record<SeriesCategoryType, number> = { pro: 5, challenger: 4, junior_wc: 3, qualifier: 2, junior: 1, other: 0 };
     return priority[b.type] - priority[a.type];
   });
   
@@ -641,7 +658,7 @@ export function getAthleteSeriesOverview(
 // Function to filter series overview by category and year
 export function filterSeriesOverview(
   overview: AthleteSeriesOverview,
-  category?: 'pro' | 'challenger' | 'qualifier' | 'junior' | 'other' | 'all',
+  category?: SeriesCategoryType | 'all',
   year?: number | 'all'
 ): SeriesRankingDetail[] {
   
@@ -822,7 +839,7 @@ export function getEventBasedOverview(
   }
   
   const availableCategories = Array.from(categoryMap.values()).sort((a, b) => {
-    const priority = { pro: 4, challenger: 3, qualifier: 2, junior: 1, other: 0 };
+    const priority: Record<SeriesCategoryType, number> = { pro: 5, challenger: 4, junior_wc: 3, qualifier: 2, junior: 1, other: 0 };
     return priority[b.type] - priority[a.type];
   });
   
@@ -842,7 +859,7 @@ export function getEventBasedOverview(
 // Function to filter event-based overview
 export function filterEventBasedOverview(
   overview: EventBasedOverview,
-  category?: 'pro' | 'challenger' | 'qualifier' | 'junior' | 'other' | 'all',
+  category?: SeriesCategoryType | 'all',
   year?: number | 'all'
 ): EventResult[] {
   
@@ -1115,4 +1132,77 @@ export function getAllEventsChronologically(
   });
   
   return allEvents;
-} 
+}
+
+// Interface for athlete main rankings (multiple per year possible)
+export interface AthleteMainRanking {
+  seriesName: string;
+  category: SeriesCategoryType;
+  place: number;
+  points?: number;
+  division: string;
+  year: number;
+  region: SeriesRegion | null; // null for global (Pro Tour)
+}
+
+// Color scheme for series categories
+export const SERIES_CATEGORY_COLORS: Record<SeriesCategoryType, { bg: string; text: string; border: string; name: string }> = {
+  pro: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', name: 'Pro' },
+  challenger: { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300', name: 'Challenger' },
+  qualifier: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', name: 'Qualifier' },
+  junior: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300', name: 'Junior' },
+  junior_wc: { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-300', name: 'Junior WC' },
+  other: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300', name: 'Other' }
+};
+
+// Helper function to get ALL main series rankings for an athlete in a specific region
+// Returns multiple rankings if athlete competes in multiple series (e.g., Qualifier + Challenger)
+export function getAllAthleteMainRankings(
+  seriesData: SeriesData[],
+  athleteId: string,
+  division: string | undefined,
+  selectedRegion: SeriesRegion = '1'
+): AthleteMainRanking[] {
+  if (!seriesData || !division) return [];
+
+  const rankings: AthleteMainRanking[] = [];
+
+  for (const series of seriesData) {
+    // Only look at main season rankings for the selected region
+    if (!isMainSeasonRankingForRegion(series.series_name, selectedRegion)) continue;
+
+    const divisionRankings = series.divisions[division];
+    if (!divisionRankings) continue;
+
+    const athleteRanking = divisionRankings.find(r => r.athlete.id === athleteId);
+    if (!athleteRanking || !athleteRanking.place) continue;
+
+    const category = categorizeSeriesType(series.series_name);
+    const year = extractSeriesYear(series.series_name);
+    const region = extractSeriesRegion(series.series_name);
+
+    rankings.push({
+      seriesName: series.series_name,
+      category,
+      place: athleteRanking.place,
+      points: athleteRanking.points,
+      division,
+      year,
+      region
+    });
+  }
+
+  // Sort by category priority (pro > challenger > junior_wc > qualifier > junior > other)
+  const categoryPriority: Record<SeriesCategoryType, number> = {
+    pro: 6,
+    challenger: 5,
+    junior_wc: 4,
+    qualifier: 3,
+    junior: 2,
+    other: 1
+  };
+
+  rankings.sort((a, b) => categoryPriority[b.category] - categoryPriority[a.category]);
+
+  return rankings;
+}

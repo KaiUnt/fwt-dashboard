@@ -5,8 +5,8 @@ import { Athlete, MultiEventAthlete } from '@/types/athletes';
 import { useState, useMemo } from 'react';
 import { getCountryFlag, getNationalityDisplay, countUniqueNationalities, matchesNationalitySearch } from '@/utils/nationality';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { SeriesData, SeriesRegion } from '@/hooks/useSeriesRankings';
-import { isMainSeasonRankingForRegion } from '@/hooks/useSeriesRankings';
+import type { SeriesData, SeriesRegion, AthleteMainRanking } from '@/hooks/useSeriesRankings';
+import { getAllAthleteMainRankings, SERIES_CATEGORY_COLORS } from '@/hooks/useSeriesRankings';
 
 // Sort options
 export type SortOption = 'bib' | 'name' | 'division' | 'ranking';
@@ -16,6 +16,40 @@ export type DivisionFilter = 'all' | 'Ski Men' | 'Ski Women' | 'Snowboard Men' |
 
 // Division order for sorting
 const DIVISION_ORDER = ['Ski Men', 'Ski Women', 'Snowboard Men', 'Snowboard Women'];
+
+// Component to render multiple ranking badges
+function RankingBadges({
+  rankings,
+  isActive
+}: {
+  rankings: AthleteMainRanking[];
+  isActive: boolean;
+}) {
+  if (!rankings || rankings.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {rankings.map((ranking, idx) => {
+        const colors = SERIES_CATEGORY_COLORS[ranking.category];
+        return (
+          <span
+            key={`${ranking.category}-${idx}`}
+            className={`
+              inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold border
+              ${isActive
+                ? `${colors.bg} ${colors.text} ${colors.border}`
+                : `${colors.bg} ${colors.text} ${colors.border}`
+              }
+            `}
+            title={`${colors.name}: #${ranking.place}`}
+          >
+            #{ranking.place}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 interface AthleteNavigationProps {
   athletes: (Athlete | MultiEventAthlete)[];
@@ -30,31 +64,17 @@ interface AthleteNavigationProps {
   selectedRegion?: SeriesRegion;
 }
 
-// Helper function to get athlete ranking from series data
+// Helper function to get primary athlete ranking (for sorting purposes)
 // Only considers Main Series for the selected region
-function getAthleteRanking(
+function getPrimaryAthleteRanking(
   athleteId: string,
   division: string | undefined,
   seriesData?: SeriesData[],
   selectedRegion: SeriesRegion = '1'
 ): number | undefined {
-  if (!seriesData || !division) return undefined;
-
-  for (const series of seriesData) {
-    // Only consider Main Series for the selected region
-    if (!isMainSeasonRankingForRegion(series.series_name, selectedRegion)) {
-      continue;
-    }
-
-    const divisionRankings = series.divisions[division];
-    if (divisionRankings) {
-      const ranking = divisionRankings.find(r => r.athlete.id === athleteId);
-      if (ranking?.place) {
-        return ranking.place;
-      }
-    }
-  }
-  return undefined;
+  const rankings = getAllAthleteMainRankings(seriesData || [], athleteId, division, selectedRegion);
+  // Return the first (highest priority) ranking's place
+  return rankings.length > 0 ? rankings[0].place : undefined;
 }
 
 export function AthleteNavigation({
@@ -167,8 +187,8 @@ export function AthleteNavigation({
           // First sort by division
           if (divA !== divB) return divA - divB;
           // Within division, sort by ranking (athletes without ranking go to the end)
-          const rankA = getAthleteRanking(a.id, a.division, seriesData, selectedRegion) || 5000;
-          const rankB = getAthleteRanking(b.id, b.division, seriesData, selectedRegion) || 5000;
+          const rankA = getPrimaryAthleteRanking(a.id, a.division, seriesData, selectedRegion) || 5000;
+          const rankB = getPrimaryAthleteRanking(b.id, b.division, seriesData, selectedRegion) || 5000;
           return rankA - rankB;
         });
         break;
@@ -394,7 +414,7 @@ export function AthleteNavigation({
                       ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
                     );
                     const isActive = actualIndex === currentIndex;
-                    const ranking = getAthleteRanking(athlete.id, athlete.division, seriesData, selectedRegion);
+                    const rankings = getAllAthleteMainRankings(seriesData || [], athlete.id, athlete.division, selectedRegion);
 
                     return (
                       <button
@@ -435,15 +455,8 @@ export function AthleteNavigation({
                               `}>
                                 {getNationalityDisplay(athlete.nationality)}
                               </span>
-                              {/* Always show ranking badge */}
-                              {ranking && (
-                                <span className={`
-                                  inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold
-                                  ${isActive ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-800'}
-                                `}>
-                                  #{ranking}
-                                </span>
-                              )}
+                              {/* Show all ranking badges with category colors */}
+                              <RankingBadges rankings={rankings} isActive={isActive} />
                             </div>
                           </div>
                         </div>
@@ -464,7 +477,7 @@ export function AthleteNavigation({
                 ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
               );
               const isActive = actualIndex === currentIndex;
-              const ranking = getAthleteRanking(athlete.id, athlete.division, seriesData, selectedRegion);
+              const rankings = getAllAthleteMainRankings(seriesData || [], athlete.id, athlete.division, selectedRegion);
 
               return (
                 <button
@@ -506,15 +519,8 @@ export function AthleteNavigation({
                           {getNationalityDisplay(athlete.nationality)}
                         </span>
 
-                        {/* Always show ranking badge */}
-                        {ranking && (
-                          <span className={`
-                            inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold
-                            ${isActive ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-800'}
-                          `}>
-                            #{ranking}
-                          </span>
-                        )}
+                        {/* Show all ranking badges with category colors */}
+                        <RankingBadges rankings={rankings} isActive={isActive} />
 
                         {athlete.status === 'waitlisted' && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
