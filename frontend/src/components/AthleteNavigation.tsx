@@ -155,9 +155,9 @@ export function AthleteNavigation({
           const divB = divIndexB === -1 ? 999 : divIndexB;
           // First sort by division
           if (divA !== divB) return divA - divB;
-          // Within division, sort by ranking
-          const rankA = getAthleteRanking(a.id, a.division, seriesData) || 999;
-          const rankB = getAthleteRanking(b.id, b.division, seriesData) || 999;
+          // Within division, sort by ranking (athletes without ranking go to the end)
+          const rankA = getAthleteRanking(a.id, a.division, seriesData) || 5000;
+          const rankB = getAthleteRanking(b.id, b.division, seriesData) || 5000;
           return rankA - rankB;
         });
         break;
@@ -190,7 +190,7 @@ export function AthleteNavigation({
   }, [filteredAthletes, showDivisionHeaders]);
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+    <div className="bg-white rounded-xl shadow-lg overflow-visible">
       {/* Header */}
       <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
         <div className="flex items-center space-x-2">
@@ -355,7 +355,7 @@ export function AthleteNavigation({
       </div>
 
       {/* Athletes List */}
-      <div className="max-h-96 overflow-y-auto">
+      <div className="max-h-96 overflow-y-auto overflow-x-hidden rounded-b-xl">
         {filteredAthletes.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
             <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
@@ -383,7 +383,7 @@ export function AthleteNavigation({
                       ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
                     );
                     const isActive = actualIndex === currentIndex;
-                    const ranking = sortOption === 'ranking' ? getAthleteRanking(athlete.id, athlete.division, seriesData) : undefined;
+                    const ranking = getAthleteRanking(athlete.id, athlete.division, seriesData);
 
                     return (
                       <button
@@ -395,17 +395,8 @@ export function AthleteNavigation({
                         `}
                       >
                         <div className="flex items-center space-x-3">
-                          {/* Ranking Badge (when sorting by ranking) */}
-                          {sortOption === 'ranking' && ranking && (
-                            <div className={`
-                              flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
-                              ${isActive ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-800'}
-                            `}>
-                              #{ranking}
-                            </div>
-                          )}
                           {/* BIB */}
-                          {athlete.bib && sortOption !== 'ranking' && (
+                          {athlete.bib && (
                             <div className={`
                               flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
                               ${isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}
@@ -433,10 +424,13 @@ export function AthleteNavigation({
                               `}>
                                 {getNationalityDisplay(athlete.nationality)}
                               </span>
-                              {/* Show BIB as secondary info when sorting by ranking */}
-                              {sortOption === 'ranking' && athlete.bib && (
-                                <span className="text-xs text-gray-400">
-                                  BIB {athlete.bib}
+                              {/* Always show ranking badge */}
+                              {ranking && (
+                                <span className={`
+                                  inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold
+                                  ${isActive ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-800'}
+                                `}>
+                                  #{ranking}
                                 </span>
                               )}
                             </div>
@@ -459,6 +453,7 @@ export function AthleteNavigation({
                 ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
               );
               const isActive = actualIndex === currentIndex;
+              const ranking = getAthleteRanking(athlete.id, athlete.division, seriesData);
 
               return (
                 <button
@@ -499,6 +494,16 @@ export function AthleteNavigation({
                         `}>
                           {getNationalityDisplay(athlete.nationality)}
                         </span>
+
+                        {/* Always show ranking badge */}
+                        {ranking && (
+                          <span className={`
+                            inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold
+                            ${isActive ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-800'}
+                          `}>
+                            #{ranking}
+                          </span>
+                        )}
 
                         {athlete.status === 'waitlisted' && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
