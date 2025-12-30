@@ -49,7 +49,8 @@ export async function middleware(request: NextRequest) {
     '/sw.js',
     '/workbox',
     '/manifest.json',
-    '/locales'  // Translation files
+    '/locales',  // Translation files
+    '/all_locations.csv'  // Static location data for event matching (no auth needed)
   ]
 
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
