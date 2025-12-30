@@ -1,38 +1,193 @@
 'use client';
 
-import { Users, Search } from 'lucide-react';
+import { Users, Search, SlidersHorizontal, Filter, ChevronDown } from 'lucide-react';
 import { Athlete, MultiEventAthlete } from '@/types/athletes';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { getCountryFlag, getNationalityDisplay, countUniqueNationalities, matchesNationalitySearch } from '@/utils/nationality';
 import { useTranslation } from '@/hooks/useTranslation';
+import type { SeriesData } from '@/hooks/useSeriesRankings';
+
+// Sort options
+export type SortOption = 'bib' | 'name' | 'division' | 'ranking';
+
+// Division filter options
+export type DivisionFilter = 'all' | 'Ski Men' | 'Ski Women' | 'Snowboard Men' | 'Snowboard Women';
+
+// Division order for sorting
+const DIVISION_ORDER = ['Ski Men', 'Ski Women', 'Snowboard Men', 'Snowboard Women'];
 
 interface AthleteNavigationProps {
   athletes: (Athlete | MultiEventAthlete)[];
   currentIndex: number;
   onNavigate: (index: number) => void;
+  // Optional: Series data for ranking sort (passed from parent, no extra API calls)
+  seriesData?: SeriesData[];
+  // Optional: Multi-event support
+  isMultiEvent?: boolean;
+  eventNames?: { id: string; name: string }[];
 }
 
-export function AthleteNavigation({ athletes, currentIndex, onNavigate }: AthleteNavigationProps) {
+// Helper function to get athlete ranking from series data
+function getAthleteRanking(
+  athleteId: string,
+  division: string | undefined,
+  seriesData?: SeriesData[]
+): number | undefined {
+  if (!seriesData || !division) return undefined;
+
+  for (const series of seriesData) {
+    const divisionRankings = series.divisions[division];
+    if (divisionRankings) {
+      const ranking = divisionRankings.find(r => r.athlete.id === athleteId);
+      if (ranking?.place) {
+        return ranking.place;
+      }
+    }
+  }
+  return undefined;
+}
+
+export function AthleteNavigation({
+  athletes,
+  currentIndex,
+  onNavigate,
+  seriesData,
+  isMultiEvent = false,
+  eventNames = []
+}: AthleteNavigationProps) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState<SortOption>('bib');
+  const [divisionFilter, setDivisionFilter] = useState<DivisionFilter>('all');
+  const [eventFilter, setEventFilter] = useState<string>('all');
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
   // Check if any athlete has a BIB number - if yes, hide waitlisted athletes
   const hasBibNumbers = athletes.some(athlete => athlete.bib);
-  
+
   // Filter out waitlisted athletes if BIB numbers are assigned
-  const relevantAthletes = hasBibNumbers 
+  const relevantAthletes = hasBibNumbers
     ? athletes.filter(athlete => athlete.status === 'confirmed')
     : athletes;
 
-  const filteredAthletes = relevantAthletes.filter(athlete =>
-    athlete.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    athlete.bib?.toString().includes(searchQuery) ||
-    matchesNationalitySearch(athlete.nationality, searchQuery)
-  );
+  // Get available divisions from athletes
+  const availableDivisions = useMemo(() => {
+    const divisions = new Set<string>();
+    relevantAthletes.forEach(athlete => {
+      if (athlete.division) {
+        divisions.add(athlete.division);
+      }
+    });
+    return DIVISION_ORDER.filter(d => divisions.has(d));
+  }, [relevantAthletes]);
+
+  // Get available events for multi-event mode
+  const availableEvents = useMemo(() => {
+    if (!isMultiEvent) return [];
+    const events = new Set<string>();
+    relevantAthletes.forEach(athlete => {
+      if ('eventSource' in athlete && athlete.eventSource) {
+        events.add(athlete.eventSource);
+      }
+    });
+    return Array.from(events);
+  }, [relevantAthletes, isMultiEvent]);
+
+  // Apply filters and sorting
+  const processedAthletes = useMemo(() => {
+    let result = [...relevantAthletes];
+
+    // Apply search filter
+    if (searchQuery) {
+      result = result.filter(athlete =>
+        athlete.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        athlete.bib?.toString().includes(searchQuery) ||
+        matchesNationalitySearch(athlete.nationality, searchQuery)
+      );
+    }
+
+    // Apply division filter
+    if (divisionFilter !== 'all') {
+      result = result.filter(athlete => athlete.division === divisionFilter);
+    }
+
+    // Apply event filter (multi-event mode)
+    if (eventFilter !== 'all' && isMultiEvent) {
+      result = result.filter(athlete =>
+        'eventSource' in athlete && athlete.eventSource === eventFilter
+      );
+    }
+
+    // Apply sorting
+    switch (sortOption) {
+      case 'bib':
+        result.sort((a, b) => {
+          const bibA = parseInt(a.bib || '999');
+          const bibB = parseInt(b.bib || '999');
+          return bibA - bibB;
+        });
+        break;
+
+      case 'name':
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+
+      case 'division':
+        result.sort((a, b) => {
+          const divIndexA = DIVISION_ORDER.indexOf(a.division || '');
+          const divIndexB = DIVISION_ORDER.indexOf(b.division || '');
+          const divA = divIndexA === -1 ? 999 : divIndexA;
+          const divB = divIndexB === -1 ? 999 : divIndexB;
+          if (divA !== divB) return divA - divB;
+          // Within division, sort by BIB
+          const bibA = parseInt(a.bib || '999');
+          const bibB = parseInt(b.bib || '999');
+          return bibA - bibB;
+        });
+        break;
+
+      case 'ranking':
+        result.sort((a, b) => {
+          const divIndexA = DIVISION_ORDER.indexOf(a.division || '');
+          const divIndexB = DIVISION_ORDER.indexOf(b.division || '');
+          const divA = divIndexA === -1 ? 999 : divIndexA;
+          const divB = divIndexB === -1 ? 999 : divIndexB;
+          // First sort by division
+          if (divA !== divB) return divA - divB;
+          // Within division, sort by ranking
+          const rankA = getAthleteRanking(a.id, a.division, seriesData) || 999;
+          const rankB = getAthleteRanking(b.id, b.division, seriesData) || 999;
+          return rankA - rankB;
+        });
+        break;
+    }
+
+    return result;
+  }, [relevantAthletes, searchQuery, divisionFilter, eventFilter, sortOption, seriesData, isMultiEvent]);
+
+  // For display - use processedAthletes instead of filteredAthletes
+  const filteredAthletes = processedAthletes;
 
   // Count unique nationalities using the new utility
   const totalNationalities = countUniqueNationalities(relevantAthletes);
   const filteredNationalities = countUniqueNationalities(filteredAthletes);
+
+  // Check if we should show division headers (for division/ranking sort without filter)
+  const showDivisionHeaders = (sortOption === 'division' || sortOption === 'ranking') && divisionFilter === 'all';
+
+  // Group athletes by division for rendering with headers
+  const athletesByDivision = useMemo(() => {
+    if (!showDivisionHeaders) return null;
+
+    const grouped: Record<string, typeof filteredAthletes> = {};
+    filteredAthletes.forEach(athlete => {
+      const div = athlete.division || 'Other';
+      if (!grouped[div]) grouped[div] = [];
+      grouped[div].push(athlete);
+    });
+    return grouped;
+  }, [filteredAthletes, showDivisionHeaders]);
 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden">
@@ -62,6 +217,141 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-950 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
+
+        {/* Sort & Filter Controls */}
+        <div className="flex items-center gap-2 mt-3">
+          {/* Sort Dropdown */}
+          <div className="relative flex-1">
+            <button
+              onClick={() => {
+                setShowSortDropdown(!showSortDropdown);
+                setShowFilterDropdown(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors"
+            >
+              <span className="flex items-center gap-2 text-gray-700">
+                <SlidersHorizontal className="h-4 w-4" />
+                {t(`navigation.sort.${sortOption}`)}
+              </span>
+              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showSortDropdown && (
+              <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
+                {(['bib', 'name', 'division', 'ranking'] as SortOption[]).map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => {
+                      setSortOption(option);
+                      setShowSortDropdown(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                      sortOption === option ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                    }`}
+                  >
+                    {t(`navigation.sort.${option}`)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Filter Dropdown */}
+          <div className="relative flex-1">
+            <button
+              onClick={() => {
+                setShowFilterDropdown(!showFilterDropdown);
+                setShowSortDropdown(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-colors ${
+                divisionFilter !== 'all' || eventFilter !== 'all'
+                  ? 'border-blue-300 bg-blue-50 text-blue-700'
+                  : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                {divisionFilter !== 'all'
+                  ? divisionFilter
+                  : eventFilter !== 'all'
+                  ? eventNames.find(e => e.id === eventFilter)?.name || 'Event'
+                  : t('navigation.filter.all')}
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showFilterDropdown && (
+              <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                {/* Division filters */}
+                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
+                  {t('navigation.filter.division')}
+                </div>
+                <button
+                  onClick={() => {
+                    setDivisionFilter('all');
+                    setShowFilterDropdown(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                    divisionFilter === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  {t('navigation.filter.allDivisions')}
+                </button>
+                {availableDivisions.map((division) => (
+                  <button
+                    key={division}
+                    onClick={() => {
+                      setDivisionFilter(division as DivisionFilter);
+                      setShowFilterDropdown(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                      divisionFilter === division ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                    }`}
+                  >
+                    {division}
+                  </button>
+                ))}
+
+                {/* Event filters (only for multi-event) */}
+                {isMultiEvent && availableEvents.length > 0 && (
+                  <>
+                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t border-b border-gray-100 mt-1">
+                      {t('navigation.filter.event')}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEventFilter('all');
+                        setShowFilterDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                        eventFilter === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                      }`}
+                    >
+                      {t('navigation.filter.allEvents')}
+                    </button>
+                    {availableEvents.map((eventId) => {
+                      const eventName = eventNames.find(e => e.id === eventId)?.name || eventId;
+                      return (
+                        <button
+                          key={eventId}
+                          onClick={() => {
+                            setEventFilter(eventId);
+                            setShowFilterDropdown(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                            eventFilter === eventId ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                          }`}
+                        >
+                          {eventName}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Athletes List */}
@@ -71,16 +361,105 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
             <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
             <p className="text-sm">{t('search.noAthletesFound')}</p>
           </div>
+        ) : showDivisionHeaders && athletesByDivision ? (
+          // Render with division headers
+          <div>
+            {DIVISION_ORDER.filter(div => athletesByDivision[div]?.length > 0).map((divisionName) => (
+              <div key={divisionName}>
+                {/* Division Header */}
+                <div className="sticky top-0 bg-gray-100 px-4 py-2 border-b border-gray-200">
+                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {divisionName}
+                  </span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    ({athletesByDivision[divisionName].length})
+                  </span>
+                </div>
+                {/* Athletes in this division */}
+                <div className="divide-y divide-gray-200">
+                  {athletesByDivision[divisionName].map((athlete, index) => {
+                    const actualIndex = athletes.findIndex(a =>
+                      a.id === athlete.id &&
+                      ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
+                    );
+                    const isActive = actualIndex === currentIndex;
+                    const ranking = sortOption === 'ranking' ? getAthleteRanking(athlete.id, athlete.division, seriesData) : undefined;
+
+                    return (
+                      <button
+                        key={`${athlete.id}-${'eventSource' in athlete ? athlete.eventSource : index}`}
+                        onClick={() => onNavigate(actualIndex)}
+                        className={`
+                          w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors
+                          ${isActive ? 'bg-blue-50 border-r-2 border-blue-500' : ''}
+                        `}
+                      >
+                        <div className="flex items-center space-x-3">
+                          {/* Ranking Badge (when sorting by ranking) */}
+                          {sortOption === 'ranking' && ranking && (
+                            <div className={`
+                              flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
+                              ${isActive ? 'bg-yellow-500 text-white' : 'bg-yellow-100 text-yellow-800'}
+                            `}>
+                              #{ranking}
+                            </div>
+                          )}
+                          {/* BIB */}
+                          {athlete.bib && sortOption !== 'ranking' && (
+                            <div className={`
+                              flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
+                              ${isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'}
+                            `}>
+                              {athlete.bib}
+                            </div>
+                          )}
+
+                          {/* Athlete Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <p className={`
+                                text-sm font-medium truncate
+                                ${isActive ? 'text-blue-900' : 'text-gray-900'}
+                              `}>
+                                {athlete.name}
+                              </p>
+                              <span className="text-lg">{getCountryFlag(athlete.nationality)}</span>
+                            </div>
+
+                            <div className="flex items-center space-x-2 mt-1">
+                              <span className={`
+                                text-xs
+                                ${isActive ? 'text-blue-600' : 'text-gray-700'}
+                              `}>
+                                {getNationalityDisplay(athlete.nationality)}
+                              </span>
+                              {/* Show BIB as secondary info when sorting by ranking */}
+                              {sortOption === 'ranking' && athlete.bib && (
+                                <span className="text-xs text-gray-400">
+                                  BIB {athlete.bib}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
+          // Render without division headers (flat list)
           <div className="divide-y divide-gray-200">
             {filteredAthletes.map((athlete, index) => {
-              // Find the actual index in the full athletes array  
-              const actualIndex = athletes.findIndex(a => 
-                a.id === athlete.id && 
+              // Find the actual index in the full athletes array
+              const actualIndex = athletes.findIndex(a =>
+                a.id === athlete.id &&
                 ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
               );
               const isActive = actualIndex === currentIndex;
-              
+
               return (
                 <button
                   key={`${athlete.id}-${'eventSource' in athlete ? athlete.eventSource : index}`}
@@ -100,7 +479,7 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
                         {athlete.bib}
                       </div>
                     )}
-                    
+
                     {/* Athlete Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
@@ -112,7 +491,7 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
                         </p>
                         <span className="text-lg">{getCountryFlag(athlete.nationality)}</span>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2 mt-1">
                         <span className={`
                           text-xs
@@ -120,7 +499,7 @@ export function AthleteNavigation({ athletes, currentIndex, onNavigate }: Athlet
                         `}>
                           {getNationalityDisplay(athlete.nationality)}
                         </span>
-                        
+
                         {athlete.status === 'waitlisted' && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                             WL

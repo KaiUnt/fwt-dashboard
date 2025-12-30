@@ -208,6 +208,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 athletes={athletes}
                 currentIndex={currentAthleteIndex}
                 onNavigate={jumpToAthlete}
+                seriesData={seriesData?.series_rankings}
               />
               
               {/* 2. Athlete Info (Name, Birth, Commentator Field) */}
@@ -319,8 +320,9 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
               athletes={athletes}
               currentIndex={currentAthleteIndex}
               onNavigate={jumpToAthlete}
+              seriesData={seriesData?.series_rankings}
             />
-            
+
             {/* Performance Curve */}
             {seriesData?.series_rankings && currentAthlete && (
               <PerformanceCurve

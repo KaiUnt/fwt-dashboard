@@ -251,6 +251,12 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
             athletes={combinedAthletes}
             currentIndex={currentAthleteIndex}
             onNavigate={jumpToAthlete}
+            seriesData={multiEventRankings?.combined?.series_rankings}
+            isMultiEvent={true}
+            eventNames={[
+              { id: eventId1, name: event1Data.event.name },
+              { id: eventId2, name: event2Data.event.name }
+            ]}
           />
           
           {currentAthlete && (
@@ -397,6 +403,12 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                athletes={combinedAthletes}
                currentIndex={currentAthleteIndex}
                onNavigate={jumpToAthlete}
+               seriesData={multiEventRankings?.combined?.series_rankings}
+               isMultiEvent={true}
+               eventNames={[
+                 { id: eventId1, name: event1Data.event.name },
+                 { id: eventId2, name: event2Data.event.name }
+               ]}
              />
              
              {/* Performance Curve */}
