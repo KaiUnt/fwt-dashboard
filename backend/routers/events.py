@@ -66,27 +66,15 @@ def get_admin_client(request: Request):
 
 
 async def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
-    """Import and use the main app's token extraction."""
+    """Import and use the main app's token extraction with full signature verification."""
     import sys
     if "backend_api" in sys.modules:
         main_module = sys.modules["backend_api"]
         return await main_module.extract_user_id_from_token(credentials)
 
-    # Fallback: decode token directly
-    import jwt
-    token = credentials.credentials if credentials else None
-    if not token:
-        raise HTTPException(status_code=401, detail="Authorization token required")
-
-    try:
-        claims = jwt.decode(token, options={"verify_signature": False})
-        user_id = claims.get("sub", "").strip()
-        if not user_id:
-            raise HTTPException(status_code=401, detail="User ID not found in token")
-        return user_id
-    except Exception as e:
-        logger.error(f"Token decode error: {e}")
-        raise HTTPException(status_code=401, detail="Invalid token")
+    # Security: Never decode without verification - fail fast if main module not loaded
+    logger.error("backend_api module not loaded - cannot verify JWT signature")
+    raise HTTPException(status_code=500, detail="Authentication module not available")
 
 
 @router.get("/api/events")
@@ -313,23 +301,57 @@ async def get_event_athletes(
 async def get_multi_event_athletes(
     event_id1: str,
     event_id2: str,
-    current_user_id: str = Depends(extract_user_id_from_token)
+    request: Request,
+    current_user_id: str = Depends(extract_user_id_from_token),
+    force_refresh: bool = False
 ):
     """Get combined athletes from two events, sorted by BIB numbers for live commentary"""
     try:
         from api.client import LiveheatsClient
 
         client = LiveheatsClient()
+        redis_client = await get_redis_client(request)
+        ttl_seconds = int(os.getenv("EVENTS_TTL_SECONDS", "3600"))
 
-        # Fetch both events sequentially to avoid type issues
+        async def get_event_data(event_id: str):
+            """Get event data from cache or API, and cache if fetched."""
+            cache_key = f"eventAthletes:{event_id}"
+
+            # Try cache first
+            if redis_client and not force_refresh:
+                try:
+                    cached_json = await redis_client.get(cache_key)
+                    if cached_json:
+                        payload = json.loads(cached_json)
+                        if payload is not None:
+                            logger.debug(f"Cache hit for {cache_key}")
+                            return payload
+                except Exception as e:
+                    logger.warning(f"Redis read failed for {cache_key}: {e}")
+
+            # Cache miss - fetch from API
+            logger.debug(f"Cache miss for {cache_key}, fetching from API")
+            data = await client.get_event_athletes(event_id)
+
+            # Store in cache for future requests
+            if redis_client and data:
+                try:
+                    await redis_client.setex(cache_key, ttl_seconds, json.dumps(data))
+                    logger.debug(f"Cached {cache_key}")
+                except Exception as e:
+                    logger.warning(f"Redis write failed for {cache_key}: {e}")
+
+            return data
+
+        # Fetch both events (from cache or API)
         try:
-            event1_data = await client.get_event_athletes(event_id1)
+            event1_data = await get_event_data(event_id1)
         except Exception as e:
             logger.error(f"Error fetching event {event_id1}: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to fetch event {event_id1}")
 
         try:
-            event2_data = await client.get_event_athletes(event_id2)
+            event2_data = await get_event_data(event_id2)
         except Exception as e:
             logger.error(f"Error fetching event {event_id2}: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to fetch event {event_id2}")

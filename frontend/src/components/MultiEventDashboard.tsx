@@ -33,14 +33,15 @@ interface CombinedAthlete extends Athlete {
 export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardProps) {
   const router = useRouter();
   const { getAccessToken } = useAccessToken();
-  const { data: multiEventData, isLoading, error } = useOfflineMultiEventAthletes(eventId1, eventId2);
+  const { data: multiEventData, isLoading, error, refetch: refetchAthletes } = useOfflineMultiEventAthletes(eventId1, eventId2);
 
   // Fetch series rankings for both events using offline-first approach
-  const { data: multiEventRankings, isLoading: seriesLoading } = useOfflineMultiEventSeriesRankings(eventId1, eventId2);
+  const { data: multiEventRankings, isLoading: seriesLoading, refetch: refetchSeries } = useOfflineMultiEventSeriesRankings(eventId1, eventId2);
 
   const [currentAthleteIndex, setCurrentAthleteIndex] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
   const [showBibJump, setShowBibJump] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Extract data from multi-event response
   const event1Data = multiEventData?.event1;
@@ -214,18 +215,23 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
           <div className="flex items-center justify-end space-x-2">
             <button
               onClick={async () => {
-                const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                await Promise.all([
-                  apiFetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`, { getAccessToken }),
-                  apiFetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`, { getAccessToken }),
-                  apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`, { getAccessToken }),
-                  apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`, { getAccessToken }),
-                ]);
+                setIsRefreshing(true);
+                try {
+                  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                  await Promise.all([
+                    apiFetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`, { getAccessToken }).then(() => refetchAthletes()),
+                    apiFetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`, { getAccessToken }),
+                    apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`, { getAccessToken }).then(() => refetchSeries()),
+                    apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`, { getAccessToken }),
+                  ]);
+                } finally {
+                  setIsRefreshing(false);
+                }
               }}
-              className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${isRefreshing ? 'bg-gray-200 text-gray-500' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
               title="Aktualisieren"
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               <span className="text-sm">Aktualisieren</span>
             </button>
 
@@ -356,18 +362,23 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
              <div className="flex items-center justify-end space-x-2">
                <button
                  onClick={async () => {
-                   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                   await Promise.all([
-                     apiFetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`, { getAccessToken }),
-                     apiFetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`, { getAccessToken }),
-                     apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`, { getAccessToken }),
-                     apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`, { getAccessToken }),
-                   ]);
+                   setIsRefreshing(true);
+                   try {
+                     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                     await Promise.all([
+                       apiFetch(`${API_BASE_URL}/api/events/${eventId1}/athletes?force_refresh=true`, { getAccessToken }).then(() => refetchAthletes()),
+                       apiFetch(`${API_BASE_URL}/api/events/${eventId2}/athletes?force_refresh=true`, { getAccessToken }),
+                       apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId1}?force_refresh=true`, { getAccessToken }).then(() => refetchSeries()),
+                       apiFetch(`${API_BASE_URL}/api/series/rankings/${eventId2}?force_refresh=true`, { getAccessToken }),
+                     ]);
+                   } finally {
+                     setIsRefreshing(false);
+                   }
                  }}
-                 className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                 className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${isRefreshing ? 'bg-gray-200 text-gray-500' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                  title="Aktualisieren"
                >
-                 <RefreshCw className="h-4 w-4" />
+                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                  <span className="text-sm">Aktualisieren</span>
                </button>
 

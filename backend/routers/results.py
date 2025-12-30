@@ -39,29 +39,15 @@ async def get_redis_client(request: Request):
 
 
 async def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
-    """Import and use the main app's token extraction."""
-    # Import here to avoid circular imports
+    """Import and use the main app's token extraction with full signature verification."""
     import sys
     if "backend_api" in sys.modules:
         main_module = sys.modules["backend_api"]
         return await main_module.extract_user_id_from_token(credentials)
 
-    # Fallback: decode token directly
-    import jwt
-    token = credentials.credentials if credentials else None
-    if not token:
-        raise HTTPException(status_code=401, detail="Authorization token required")
-
-    try:
-        # Decode without verification for user_id extraction (verification happens elsewhere)
-        claims = jwt.decode(token, options={"verify_signature": False})
-        user_id = claims.get("sub", "").strip()
-        if not user_id:
-            raise HTTPException(status_code=401, detail="User ID not found in token")
-        return user_id
-    except Exception as e:
-        logger.error(f"Token decode error: {e}")
-        raise HTTPException(status_code=401, detail="Invalid token")
+    # Security: Never decode without verification - fail fast if main module not loaded
+    logger.error("backend_api module not loaded - cannot verify JWT signature")
+    raise HTTPException(status_code=500, detail="Authentication module not available")
 
 
 @router.get("/api/series/rankings/{event_id}")

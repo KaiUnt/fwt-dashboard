@@ -9,11 +9,16 @@ from typing import Dict, Any
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from backend.models import ProfileUpdateRequest, VerifyPasswordRequest, PasswordChangeRequest
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
+
+# Rate limiter for sensitive endpoints
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/profile", tags=["Profile"])
 
@@ -67,6 +72,7 @@ async def update_profile(
 
 
 @router.post("/verify-password")
+@limiter.limit("5/minute")
 async def verify_password(
     req: VerifyPasswordRequest,
     request: Request,
@@ -102,6 +108,7 @@ async def verify_password(
 
 
 @router.post("/change-password")
+@limiter.limit("5/minute")
 async def change_password(
     req: PasswordChangeRequest,
     request: Request,
