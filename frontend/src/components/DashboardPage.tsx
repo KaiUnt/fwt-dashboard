@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
-import { useOfflineSeriesRankings } from '@/hooks/useSeriesRankings';
+import { ChevronLeft, ChevronRight, RefreshCw, Globe } from 'lucide-react';
+import { useOfflineSeriesRankings, SeriesRegion } from '@/hooks/useSeriesRankings';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { AthleteCard } from './AthleteCard';
 import { AthleteNavigation } from './AthleteNavigation';
@@ -33,6 +33,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentAthleteIndex, setCurrentAthleteIndex] = useState(0);
   const [showBibJump, setShowBibJump] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<SeriesRegion>('1'); // Default: Region 1 (Europe-Asia-Oceania)
 
   const athletes = athletesData?.athletes || [];
   const currentAthlete = athletes[currentAthleteIndex];
@@ -169,6 +170,16 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
         <div className="block lg:hidden space-y-6">
           {/* Toolbar above list (mobile) */}
           <div className="flex items-center justify-end space-x-2">
+            {/* Region Switch */}
+            <button
+              onClick={() => setSelectedRegion(selectedRegion === '1' ? '2' : '1')}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+              title={selectedRegion === '1' ? 'Region 1: Europe-Asia-Oceania' : 'Region 2: Americas'}
+            >
+              <Globe className="h-4 w-4" />
+              <span className="text-sm font-medium">R{selectedRegion}</span>
+            </button>
+
             <button
               onClick={async () => {
                 setIsRefreshing(true);
@@ -209,6 +220,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 currentIndex={currentAthleteIndex}
                 onNavigate={jumpToAthlete}
                 seriesData={seriesData?.series_rankings}
+                selectedRegion={selectedRegion}
               />
               
               {/* 2. Athlete Info (Name, Birth, Commentator Field) */}
@@ -233,6 +245,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                     athleteId={currentAthlete.id}
                     athleteName={currentAthlete.name}
                     seriesData={seriesData.series_rankings}
+                    selectedRegion={selectedRegion}
                   />
                   <AthleteSeriesRankings
                     athleteId={currentAthlete.id}
@@ -284,6 +297,16 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
           <div className="w-80 space-y-4">
             {/* Toolbar above list (desktop) */}
             <div className="flex items-center justify-end space-x-2">
+              {/* Region Switch */}
+              <button
+                onClick={() => setSelectedRegion(selectedRegion === '1' ? '2' : '1')}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+                title={selectedRegion === '1' ? 'Region 1: Europe-Asia-Oceania' : 'Region 2: Americas'}
+              >
+                <Globe className="h-4 w-4" />
+                <span className="text-sm font-medium">R{selectedRegion}</span>
+              </button>
+
               <button
                 onClick={async () => {
                   setIsRefreshing(true);
@@ -321,6 +344,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
               currentIndex={currentAthleteIndex}
               onNavigate={jumpToAthlete}
               seriesData={seriesData?.series_rankings}
+              selectedRegion={selectedRegion}
             />
 
             {/* Performance Curve */}
@@ -329,6 +353,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 athleteId={currentAthlete.id}
                 athleteName={currentAthlete.name}
                 seriesData={seriesData.series_rankings}
+                selectedRegion={selectedRegion}
               />
             )}
           </div>

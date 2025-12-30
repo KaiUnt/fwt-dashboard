@@ -461,6 +461,48 @@ export function isMainSeasonRanking(seriesName: string): boolean {
   return false;
 }
 
+// Type for region selection
+export type SeriesRegion = '1' | '2';
+
+// Helper function to extract region from series name
+export function extractSeriesRegion(seriesName: string): SeriesRegion | null {
+  const name = seriesName.toLowerCase();
+
+  // Pro Tour is global - no region
+  if (name.includes('pro tour') || name.includes('fwt pro')) {
+    return null;
+  }
+
+  // Match "region 1" or "region 2" explicitly
+  if (name.includes('region 1')) {
+    return '1';
+  }
+  if (name.includes('region 2')) {
+    return '2';
+  }
+
+  // No region found
+  return null;
+}
+
+// Helper function to check if series is main ranking for a specific region
+export function isMainSeasonRankingForRegion(seriesName: string, region: SeriesRegion): boolean {
+  // First check if it's a main season ranking at all
+  if (!isMainSeasonRanking(seriesName)) {
+    return false;
+  }
+
+  const seriesRegion = extractSeriesRegion(seriesName);
+
+  // Pro Tour is global - always include
+  if (seriesRegion === null) {
+    return true;
+  }
+
+  // Check if series region matches requested region
+  return seriesRegion === region;
+}
+
 // Helper function to extract year from series name
 export function extractSeriesYear(seriesName: string): number {
   const yearMatch = seriesName.match(/\b(20[0-9]{2})\b/);

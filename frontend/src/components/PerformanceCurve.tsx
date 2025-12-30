@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { TrendingUp, Medal, Star, Trophy, Target, Zap, ChevronDown, Eye, EyeOff, Award, Crown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { SeriesData, isMainSeasonRanking, categorizeSeriesType, getAllEventsChronologically } from '@/hooks/useSeriesRankings';
+import { SeriesData, isMainSeasonRankingForRegion, isMainSeasonRanking, categorizeSeriesType, getAllEventsChronologically, SeriesRegion } from '@/hooks/useSeriesRankings';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface PerformanceCurveProps {
@@ -11,6 +11,7 @@ interface PerformanceCurveProps {
   athleteName: string;
   seriesData: SeriesData[];
   className?: string;
+  selectedRegion?: SeriesRegion;
 }
 
 interface ChartDataPoint {
@@ -29,11 +30,12 @@ interface SeriesVisibility {
   junior: boolean;
 }
 
-export function PerformanceCurve({ 
-  athleteId, 
-  athleteName: _athleteName, 
-  seriesData, 
-  className = "" 
+export function PerformanceCurve({
+  athleteId,
+  athleteName: _athleteName,
+  seriesData,
+  className = "",
+  selectedRegion = '1'
 }: PerformanceCurveProps) {
   const { t } = useTranslation();
   const [seriesVisibility, setSeriesVisibility] = useState<SeriesVisibility>({
@@ -50,8 +52,8 @@ export function PerformanceCurve({
     const yearlyData = new Map<number, ChartDataPoint>();
 
     for (const series of seriesData) {
-      // Only include MAIN series
-      if (!isMainSeasonRanking(series.series_name)) continue;
+      // Only include MAIN series for the selected region
+      if (!isMainSeasonRankingForRegion(series.series_name, selectedRegion)) continue;
 
       const year = extractSeriesYear(series.series_name);
       const category = categorizeSeriesType(series.series_name);
@@ -64,7 +66,7 @@ export function PerformanceCurve({
           }
 
           const dataPoint = yearlyData.get(year)!;
-          
+
           // For multiple series of same category in same year, keep the best (lowest) place
           if (!dataPoint[category] || ranking.place < dataPoint[category]!) {
             dataPoint[category] = ranking.place;

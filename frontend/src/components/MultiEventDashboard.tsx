@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw } from 'lucide-react';
-import { useOfflineMultiEventSeriesRankings } from '@/hooks/useSeriesRankings';
+import { RefreshCw, Globe } from 'lucide-react';
+import { useOfflineMultiEventSeriesRankings, SeriesRegion } from '@/hooks/useSeriesRankings';
 import { AthleteSeriesRankings } from './AthleteSeriesRankings';
 import { AthleteCard } from './AthleteCard';
 import { AthleteNavigation } from './AthleteNavigation';
@@ -42,6 +42,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
   const [showSearch, setShowSearch] = useState(false);
   const [showBibJump, setShowBibJump] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<SeriesRegion>('1'); // Default: Region 1 (Europe-Asia-Oceania)
 
   // Extract data from multi-event response
   const event1Data = multiEventData?.event1;
@@ -213,6 +214,16 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
         <div className="block lg:hidden space-y-6">
           {/* Toolbar above list (mobile) */}
           <div className="flex items-center justify-end space-x-2">
+            {/* Region Switch */}
+            <button
+              onClick={() => setSelectedRegion(selectedRegion === '1' ? '2' : '1')}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+              title={selectedRegion === '1' ? 'Region 1: Europe-Asia-Oceania' : 'Region 2: Americas'}
+            >
+              <Globe className="h-4 w-4" />
+              <span className="text-sm font-medium">R{selectedRegion}</span>
+            </button>
+
             <button
               onClick={async () => {
                 setIsRefreshing(true);
@@ -257,6 +268,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
               { id: eventId1, name: event1Data.event.name },
               { id: eventId2, name: event2Data.event.name }
             ]}
+            selectedRegion={selectedRegion}
           />
           
           {currentAthlete && (
@@ -300,6 +312,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                     athleteId={currentAthlete.id}
                     athleteName={currentAthlete.name}
                     seriesData={getAthleteSeriesData()!}
+                    selectedRegion={selectedRegion}
                   />
                   <AthleteSeriesRankings
                     athleteId={currentAthlete.id}
@@ -366,6 +379,16 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
            <div className="w-80 space-y-4">
              {/* Toolbar above list (desktop) */}
              <div className="flex items-center justify-end space-x-2">
+               {/* Region Switch */}
+               <button
+                 onClick={() => setSelectedRegion(selectedRegion === '1' ? '2' : '1')}
+                 className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+                 title={selectedRegion === '1' ? 'Region 1: Europe-Asia-Oceania' : 'Region 2: Americas'}
+               >
+                 <Globe className="h-4 w-4" />
+                 <span className="text-sm font-medium">R{selectedRegion}</span>
+               </button>
+
                <button
                  onClick={async () => {
                    setIsRefreshing(true);
@@ -409,14 +432,16 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                  { id: eventId1, name: event1Data.event.name },
                  { id: eventId2, name: event2Data.event.name }
                ]}
+               selectedRegion={selectedRegion}
              />
-             
+
              {/* Performance Curve */}
              {getAthleteSeriesData() && currentAthlete && (
                <PerformanceCurve
                  athleteId={currentAthlete.id}
                  athleteName={currentAthlete.name}
                  seriesData={getAthleteSeriesData()!}
+                 selectedRegion={selectedRegion}
                />
              )}
            </div>

@@ -5,7 +5,8 @@ import { Athlete, MultiEventAthlete } from '@/types/athletes';
 import { useState, useMemo } from 'react';
 import { getCountryFlag, getNationalityDisplay, countUniqueNationalities, matchesNationalitySearch } from '@/utils/nationality';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { SeriesData } from '@/hooks/useSeriesRankings';
+import type { SeriesData, SeriesRegion } from '@/hooks/useSeriesRankings';
+import { isMainSeasonRankingForRegion } from '@/hooks/useSeriesRankings';
 
 // Sort options
 export type SortOption = 'bib' | 'name' | 'division' | 'ranking';
@@ -25,17 +26,26 @@ interface AthleteNavigationProps {
   // Optional: Multi-event support
   isMultiEvent?: boolean;
   eventNames?: { id: string; name: string }[];
+  // Optional: Selected region for filtering rankings (default: Region 1)
+  selectedRegion?: SeriesRegion;
 }
 
 // Helper function to get athlete ranking from series data
+// Only considers Main Series for the selected region
 function getAthleteRanking(
   athleteId: string,
   division: string | undefined,
-  seriesData?: SeriesData[]
+  seriesData?: SeriesData[],
+  selectedRegion: SeriesRegion = '1'
 ): number | undefined {
   if (!seriesData || !division) return undefined;
 
   for (const series of seriesData) {
+    // Only consider Main Series for the selected region
+    if (!isMainSeasonRankingForRegion(series.series_name, selectedRegion)) {
+      continue;
+    }
+
     const divisionRankings = series.divisions[division];
     if (divisionRankings) {
       const ranking = divisionRankings.find(r => r.athlete.id === athleteId);
@@ -53,7 +63,8 @@ export function AthleteNavigation({
   onNavigate,
   seriesData,
   isMultiEvent = false,
-  eventNames = []
+  eventNames = [],
+  selectedRegion = '1'
 }: AthleteNavigationProps) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -156,15 +167,15 @@ export function AthleteNavigation({
           // First sort by division
           if (divA !== divB) return divA - divB;
           // Within division, sort by ranking (athletes without ranking go to the end)
-          const rankA = getAthleteRanking(a.id, a.division, seriesData) || 5000;
-          const rankB = getAthleteRanking(b.id, b.division, seriesData) || 5000;
+          const rankA = getAthleteRanking(a.id, a.division, seriesData, selectedRegion) || 5000;
+          const rankB = getAthleteRanking(b.id, b.division, seriesData, selectedRegion) || 5000;
           return rankA - rankB;
         });
         break;
     }
 
     return result;
-  }, [relevantAthletes, searchQuery, divisionFilter, eventFilter, sortOption, seriesData, isMultiEvent]);
+  }, [relevantAthletes, searchQuery, divisionFilter, eventFilter, sortOption, seriesData, isMultiEvent, selectedRegion]);
 
   // For display - use processedAthletes instead of filteredAthletes
   const filteredAthletes = processedAthletes;
@@ -383,7 +394,7 @@ export function AthleteNavigation({
                       ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
                     );
                     const isActive = actualIndex === currentIndex;
-                    const ranking = getAthleteRanking(athlete.id, athlete.division, seriesData);
+                    const ranking = getAthleteRanking(athlete.id, athlete.division, seriesData, selectedRegion);
 
                     return (
                       <button
@@ -453,7 +464,7 @@ export function AthleteNavigation({
                 ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
               );
               const isActive = actualIndex === currentIndex;
-              const ranking = getAthleteRanking(athlete.id, athlete.division, seriesData);
+              const ranking = getAthleteRanking(athlete.id, athlete.division, seriesData, selectedRegion);
 
               return (
                 <button
