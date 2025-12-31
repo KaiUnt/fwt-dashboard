@@ -36,13 +36,6 @@ interface ParsedXmlData {
   riders: ParsedRider[]
 }
 
-interface MatchResult {
-  riderName: string
-  athleteId: string | null
-  athleteName: string | null
-  confidence: 'exact' | 'normalized' | 'fuzzy' | 'none'
-}
-
 interface ProcessedRider extends ParsedRider {
   athleteId: string | null
   athleteName: string | null
@@ -65,6 +58,8 @@ export default function VideoManagementPage() {
   const [success, setSuccess] = useState('')
   const [step, setStep] = useState<'input' | 'preview' | 'done'>('input')
 
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
   const parseXml = useCallback(async () => {
     if (!xmlUrl.trim()) {
       setError('Please enter a URL')
@@ -81,10 +76,10 @@ export default function VideoManagementPage() {
         success: boolean
         data: ParsedXmlData
         error?: string
-      }>('/api/admin/video/parse-xml', {
+      }>(`${API_BASE_URL}/api/video/parse-xml`, {
         getAccessToken,
         method: 'POST',
-        body: JSON.stringify({ xmlUrl })
+        body: { xmlUrl }
       })
 
       if (!parseResult.success || !parseResult.data) {
@@ -96,25 +91,32 @@ export default function VideoManagementPage() {
       // Match athletes
       const matchResult = await apiFetch<{
         success: boolean
-        results: MatchResult[]
-        summary: { total: number; matched: number; unmatched: number }
-      }>('/api/admin/video/match-athletes', {
+        matches: Array<{
+          rider_name: string
+          athlete_id: string | null
+          athlete_name: string | null
+          match_type: string
+        }>
+        matchedCount: number
+        totalCount: number
+      }>(`${API_BASE_URL}/api/video/match-athletes`, {
         getAccessToken,
         method: 'POST',
-        body: JSON.stringify({
-          riders: parseResult.data.riders.map(r => ({ name: r.name, bib: r.bib }))
-        })
+        body: {
+          riders: parseResult.data.riders.map(r => ({ name: r.name, bib: r.bib })),
+          eventId: selectedEventId || 'unknown'
+        }
       })
 
       // Merge parsed riders with match results
       const processed: ProcessedRider[] = parseResult.data.riders.map((rider, idx) => {
-        const match = matchResult.results[idx]
+        const match = matchResult.matches[idx]
         return {
           ...rider,
-          athleteId: match?.athleteId || null,
-          athleteName: match?.athleteName || null,
-          matchConfidence: match?.confidence || 'none',
-          selected: match?.athleteId !== null
+          athleteId: match?.athlete_id || null,
+          athleteName: match?.athlete_name || null,
+          matchConfidence: (match?.match_type as ProcessedRider['matchConfidence']) || 'none',
+          selected: match?.athlete_id !== null
         }
       })
 
@@ -125,7 +127,7 @@ export default function VideoManagementPage() {
     } finally {
       setLoading(false)
     }
-  }, [xmlUrl, getAccessToken])
+  }, [xmlUrl, getAccessToken, selectedEventId, API_BASE_URL])
 
   const toggleRider = (index: number) => {
     setProcessedRiders(prev =>
@@ -162,7 +164,7 @@ export default function VideoManagementPage() {
       const runs = selectedRiders.map(rider => ({
         athlete_id: rider.athleteId!,
         event_id: selectedEventId,
-        event_name: parsedData?.eventName || null,
+        event_name: parsedData?.eventName || '',
         year: parsedData?.year || new Date().getFullYear(),
         youtube_url: rider.youtubeUrl,
         youtube_timestamp: rider.youtubeTimestamp
@@ -170,12 +172,12 @@ export default function VideoManagementPage() {
 
       const result = await apiFetch<{
         success: boolean
-        saved: number
+        savedCount: number
         message: string
-      }>('/api/admin/video/runs', {
+      }>(`${API_BASE_URL}/api/video/runs`, {
         getAccessToken,
         method: 'POST',
-        body: JSON.stringify({ runs })
+        body: { runs }
       })
 
       setSuccess(result.message)
@@ -185,7 +187,7 @@ export default function VideoManagementPage() {
     } finally {
       setSaving(false)
     }
-  }, [selectedEventId, processedRiders, parsedData, getAccessToken])
+  }, [selectedEventId, processedRiders, parsedData, getAccessToken, API_BASE_URL])
 
   const reset = () => {
     setXmlUrl('')

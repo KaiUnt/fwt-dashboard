@@ -5,10 +5,11 @@ import { useAccessToken } from '@/providers/AuthProvider'
 import { apiFetch } from '@/utils/api'
 import { AthleteRun } from '@/types/supabase'
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
 interface AthleteRunsResponse {
   success: boolean
-  runs: AthleteRun[]
-  byAthlete: Record<string, AthleteRun[]>
+  data: AthleteRun[]
 }
 
 export function useAthleteRuns(athleteId?: string, eventId?: string) {
@@ -21,12 +22,12 @@ export function useAthleteRuns(athleteId?: string, eventId?: string) {
       if (athleteId) params.set('athlete_id', athleteId)
       if (eventId) params.set('event_id', eventId)
 
-      const data = await apiFetch<AthleteRunsResponse>(
-        `/api/athlete-runs?${params.toString()}`,
+      const response = await apiFetch<AthleteRunsResponse>(
+        `${API_BASE_URL}/api/video/athlete-runs?${params.toString()}`,
         { getAccessToken }
       )
 
-      return data.runs || []
+      return response.data || []
     },
     enabled: !!athleteId,
     staleTime: 5 * 60 * 1000,
@@ -43,16 +44,33 @@ export function useBatchAthleteRuns(athleteIds: string[], eventId?: string) {
     queryFn: async (): Promise<Record<string, AthleteRun[]>> => {
       if (athleteIds.length === 0) return {}
 
+      // Fetch runs for all athletes at once (no filter = get all runs for this event)
       const params = new URLSearchParams()
-      params.set('athlete_ids', athleteIds.join(','))
       if (eventId) params.set('event_id', eventId)
 
-      const data = await apiFetch<AthleteRunsResponse>(
-        `/api/athlete-runs?${params.toString()}`,
+      const response = await apiFetch<AthleteRunsResponse>(
+        `${API_BASE_URL}/api/video/athlete-runs?${params.toString()}`,
         { getAccessToken }
       )
 
-      return data.byAthlete || {}
+      // Group runs by athlete_id
+      const byAthlete: Record<string, AthleteRun[]> = {}
+      for (const run of response.data || []) {
+        if (!byAthlete[run.athlete_id]) {
+          byAthlete[run.athlete_id] = []
+        }
+        byAthlete[run.athlete_id].push(run)
+      }
+
+      // Filter to only include requested athlete IDs
+      const filtered: Record<string, AthleteRun[]> = {}
+      for (const id of athleteIds) {
+        if (byAthlete[id]) {
+          filtered[id] = byAthlete[id]
+        }
+      }
+
+      return filtered
     },
     enabled: athleteIds.length > 0,
     staleTime: 5 * 60 * 1000,

@@ -36,6 +36,7 @@ from backend.routers import results as results_router
 from backend.routers import users as users_router
 from backend.routers import events as events_router
 from backend.routers import event_access as event_access_router
+from backend.routers import video as video_router
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -384,6 +385,7 @@ if os.getenv("ENABLE_DEBUG_ROUTER") == "true" and os.getenv("ENVIRONMENT") == "d
     app.include_router(debug_router.router)
     logger.warning("Debug router enabled - disable in production!")
 app.include_router(event_access_router.router)
+app.include_router(video_router.router)
 
 # Register events router limiter
 app.state.limiter = events_router.limiter
