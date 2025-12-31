@@ -333,12 +333,11 @@ async def match_athletes(
     await require_admin(request, user_token)
 
     try:
-        admin_client = await get_admin_client(request) or supabase_client
+        # Get all athletes from database using user token for RLS
+        athletes = await supabase_client.select("athletes", "id, name", {}, user_token)
 
-        # Get all athletes from database
-        # Use admin_client WITHOUT user_token to bypass RLS (service role key)
-        athletes = await admin_client.select("athletes", "id, name", {}, None)
         if athletes is None:
+            logger.warning("Athletes query returned None")
             athletes = []
 
         logger.info(f"Loaded {len(athletes)} athletes from database")
