@@ -1245,6 +1245,10 @@ export function getAthleteRankingForEventType(
 ): AthleteMainRanking | null {
   if (!seriesData || !division) return null;
 
+  // Extract base division (e.g., "Ski Men" from "Ski Men U-18")
+  // This allows matching across age categories (U-16, U-18, U-21)
+  const baseDivision = division.replace(/\s+U-\d+$/, '');
+
   // Find the series that matches the event type and region
   // We look for the most recent year's ranking for this event type
   let bestMatch: AthleteMainRanking | null = null;
@@ -1260,8 +1264,26 @@ export function getAthleteRankingForEventType(
 
     const year = extractSeriesYear(series.series_name);
 
-    // Find the athlete in this series
-    const divisionRankings = series.divisions[division];
+    // Find the athlete in this series - first try exact division match
+    let divisionRankings = series.divisions[division];
+    let matchedDivision = division;
+
+    // If exact division not found, search all divisions that match the base
+    // (e.g., if athlete is in "Ski Men U-18" event but ranked in "Ski Men U-16" series)
+    if (!divisionRankings) {
+      for (const [divName, rankings] of Object.entries(series.divisions)) {
+        const divBaseName = divName.replace(/\s+U-\d+$/, '');
+        if (divBaseName === baseDivision) {
+          const athleteInDiv = rankings.find(r => r.athlete.id === athleteId);
+          if (athleteInDiv) {
+            divisionRankings = rankings;
+            matchedDivision = divName;
+            break;
+          }
+        }
+      }
+    }
+
     if (!divisionRankings) continue;
 
     const athleteRanking = divisionRankings.find(r => r.athlete.id === athleteId);
@@ -1275,7 +1297,7 @@ export function getAthleteRankingForEventType(
         category,
         place: athleteRanking.place,
         points: athleteRanking.points,
-        division,
+        division: matchedDivision,
         year,
         region: extractSeriesRegion(series.series_name)
       };
