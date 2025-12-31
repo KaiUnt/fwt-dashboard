@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { TrendingUp, Medal, Star, Trophy, Target, Zap, ChevronDown, Eye, EyeOff, Award, Crown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { SeriesData, isMainSeasonRanking, categorizeSeriesType, getAllEventsChronologically } from '@/hooks/useSeriesRankings';
+import { SeriesData, isMainSeasonRankingForRegion, isMainSeasonRanking, categorizeSeriesType, getAllEventsChronologically, SeriesRegion } from '@/hooks/useSeriesRankings';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface PerformanceCurveProps {
@@ -11,6 +11,7 @@ interface PerformanceCurveProps {
   athleteName: string;
   seriesData: SeriesData[];
   className?: string;
+  selectedRegion?: SeriesRegion;
 }
 
 interface ChartDataPoint {
@@ -19,6 +20,7 @@ interface ChartDataPoint {
   challenger?: number;
   qualifier?: number;
   junior?: number;
+  junior_wc?: number;
   [key: string]: number | undefined;
 }
 
@@ -27,20 +29,23 @@ interface SeriesVisibility {
   challenger: boolean;
   qualifier: boolean;
   junior: boolean;
+  junior_wc: boolean;
 }
 
-export function PerformanceCurve({ 
-  athleteId, 
-  athleteName: _athleteName, 
-  seriesData, 
-  className = "" 
+export function PerformanceCurve({
+  athleteId,
+  athleteName: _athleteName,
+  seriesData,
+  className = "",
+  selectedRegion = '1'
 }: PerformanceCurveProps) {
   const { t } = useTranslation();
   const [seriesVisibility, setSeriesVisibility] = useState<SeriesVisibility>({
     pro: true,
     challenger: true,
     qualifier: true,
-    junior: true
+    junior: true,
+    junior_wc: true
   });
   const [showControls, setShowControls] = useState(false);
   const [showEventsByPoints, setShowEventsByPoints] = useState(false);
@@ -50,8 +55,8 @@ export function PerformanceCurve({
     const yearlyData = new Map<number, ChartDataPoint>();
 
     for (const series of seriesData) {
-      // Only include MAIN series
-      if (!isMainSeasonRanking(series.series_name)) continue;
+      // Only include MAIN series for the selected region
+      if (!isMainSeasonRankingForRegion(series.series_name, selectedRegion)) continue;
 
       const year = extractSeriesYear(series.series_name);
       const category = categorizeSeriesType(series.series_name);
@@ -64,7 +69,7 @@ export function PerformanceCurve({
           }
 
           const dataPoint = yearlyData.get(year)!;
-          
+
           // For multiple series of same category in same year, keep the best (lowest) place
           if (!dataPoint[category] || ranking.place < dataPoint[category]!) {
             dataPoint[category] = ranking.place;
@@ -89,9 +94,10 @@ export function PerformanceCurve({
   const getSeriesColor = (category: string): string => {
     switch (category) {
       case 'pro': return '#9333ea'; // Purple
-      case 'challenger': return '#eab308'; // Yellow
+      case 'challenger': return '#d97706'; // Amber/Gold
       case 'qualifier': return '#16a34a'; // Green
       case 'junior': return '#2563eb'; // Blue
+      case 'junior_wc': return '#4f46e5'; // Indigo (dark blue)
       default: return '#6b7280'; // Gray
     }
   };
@@ -100,9 +106,10 @@ export function PerformanceCurve({
   const getCategoryColorClasses = (category: string): string => {
     switch (category) {
       case 'pro': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'challenger': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'challenger': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'qualifier': return 'bg-green-100 text-green-800 border-green-200';
-      case 'junior': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'junior': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'junior_wc': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -114,6 +121,7 @@ export function PerformanceCurve({
       case 'challenger': return <Trophy className="h-4 w-4" />;
       case 'qualifier': return <Target className="h-4 w-4" />;
       case 'junior': return <Zap className="h-4 w-4" />;
+      case 'junior_wc': return <Crown className="h-4 w-4" />;
       default: return <Medal className="h-4 w-4" />;
     }
   };
@@ -155,7 +163,7 @@ export function PerformanceCurve({
   };
 
   const chartData = getChartData();
-  const availableSeries = ['pro', 'challenger', 'qualifier', 'junior'].filter(series => 
+  const availableSeries = ['pro', 'challenger', 'junior_wc', 'qualifier', 'junior'].filter(series =>
     chartData.some(point => point[series] !== undefined)
   );
 

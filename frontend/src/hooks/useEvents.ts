@@ -16,7 +16,8 @@ export async function fetchEvents(includePast: boolean = false, forceRefresh: bo
     url.searchParams.set('force_refresh', 'true');
   }
 
-  const DEBUG_WINDOW = typeof window !== 'undefined' && (window as unknown as { __FWT_DEBUG_LOAD__?: boolean }).__FWT_DEBUG_LOAD__ === true;
+  // Debug mode only in development
+  const DEBUG_WINDOW = process.env.NODE_ENV === 'development' && typeof window !== 'undefined' && (window as unknown as { __FWT_DEBUG_LOAD__?: boolean }).__FWT_DEBUG_LOAD__ === true;
   if (DEBUG_WINDOW) {
     console.time(`[events] fetch includePast=${includePast} forceRefresh=${forceRefresh}`)
   }

@@ -9,8 +9,13 @@ from fastapi import APIRouter, HTTPException, Request
 from typing import Optional
 import re
 import logging
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
+
+# Rate limiter - this endpoint is PUBLIC (no auth) so must be protected
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -21,6 +26,7 @@ def get_supabase_client(request: Request):
 
 
 @router.get("/check-username/{username}")
+@limiter.limit("30/minute")
 async def check_username_availability(username: str, request: Request):
     """Check if a username/full name is available.
     Allows letters (incl. Unicode), numbers, spaces, dots, underscores and hyphens, 2-30 chars.

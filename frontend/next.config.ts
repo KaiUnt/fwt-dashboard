@@ -35,7 +35,24 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://liveheats.com https://liveheats.es https://www.liveheats.com https://res.cloudinary.com; connect-src 'self' https://liveheats.com https://liveheats.es http://localhost:8000 https://fwt-dashboard.onrender.com https://*.supabase.co;",
+            // Note: 'unsafe-inline' needed for Next.js inline styles
+            // 'unsafe-eval' REMOVED - not needed and dangerous
+            // Consider implementing nonce-based CSP for stricter security
+            value: [
+              "default-src 'self'",
+              // Note: Next.js requires 'unsafe-inline' for scripts (hydration, etc.)
+              // For stricter CSP, implement nonce-based approach with next/script
+              "script-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https://liveheats.com https://liveheats.es https://www.liveheats.com https://res.cloudinary.com",
+              "connect-src 'self' https://liveheats.com https://liveheats.es https://fwt-dashboard.onrender.com https://*.supabase.co",
+              "font-src 'self'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "frame-ancestors 'none'",
+              "upgrade-insecure-requests",
+            ].join("; "),
           },
         ],
       },

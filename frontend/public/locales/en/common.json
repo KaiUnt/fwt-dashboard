@@ -163,7 +163,20 @@
     "liveEvent": "Live Event",
     "athletesFiltered": "{filtered} of {total} athletes from {filteredNationalities} of {totalNationalities} nations",
     "athletesTotal": "{count} athletes from {nationalities} nations",
-    "waitlistHidden": "Waitlist hidden (BIB numbers assigned)"
+    "waitlistHidden": "Waitlist hidden (BIB numbers assigned)",
+    "sort": {
+      "bib": "Start Number",
+      "name": "Name (A-Z)",
+      "division": "Division",
+      "ranking": "Overall Ranking"
+    },
+    "filter": {
+      "all": "All",
+      "division": "Division",
+      "allDivisions": "All Divisions",
+      "event": "Event",
+      "allEvents": "All Events"
+    }
   },
   "events": {
     "title": "FWT Events",

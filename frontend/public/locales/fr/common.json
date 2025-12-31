@@ -163,7 +163,20 @@
     "liveEvent": "Événement en direct",
     "athletesFiltered": "{filtered} sur {total} athlètes de {filteredNationalities} sur {totalNationalities} nations",
     "athletesTotal": "{count} athlètes de {nationalities} nations",
-    "waitlistHidden": "Liste d'attente masquée (numéros BIB attribués)"
+    "waitlistHidden": "Liste d'attente masquée (numéros BIB attribués)",
+    "sort": {
+      "bib": "Numéro de départ",
+      "name": "Nom (A-Z)",
+      "division": "Division",
+      "ranking": "Classement général"
+    },
+    "filter": {
+      "all": "Tous",
+      "division": "Division",
+      "allDivisions": "Toutes les divisions",
+      "event": "Événement",
+      "allEvents": "Tous les événements"
+    }
   },
   "events": {
     "title": "Événements FWT",

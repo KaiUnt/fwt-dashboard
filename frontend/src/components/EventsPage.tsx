@@ -244,7 +244,8 @@ export function EventsPage() {
     setShowPurchaseModal(true);
   };
 
-  const DEBUG = typeof window !== 'undefined' && (window as unknown as { __FWT_DEBUG_LOAD__?: boolean }).__FWT_DEBUG_LOAD__ === true;
+  // Debug mode only in development
+  const DEBUG = process.env.NODE_ENV === 'development' && typeof window !== 'undefined' && (window as unknown as { __FWT_DEBUG_LOAD__?: boolean }).__FWT_DEBUG_LOAD__ === true;
   if (DEBUG) {
     console.log('[events-page] render', { isLoading, hasData: !!eventsData, error: !!error })
   }

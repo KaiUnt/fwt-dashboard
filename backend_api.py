@@ -34,7 +34,6 @@ from backend.routers import commentator as commentator_router
 from backend.routers import admin as admin_router
 from backend.routers import results as results_router
 from backend.routers import users as users_router
-from backend.routers import debug as debug_router
 from backend.routers import events as events_router
 from backend.routers import event_access as event_access_router
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -305,10 +304,10 @@ async def log_request(request: Request):
             logger.warning(f"Suspicious request pattern detected: {pattern} - IP: {client_ip}")
 
 app = FastAPI(
-    title="FWT Events API", 
+    title="FWT Events API",
     version="1.0.0",
-    docs_url="/docs" if os.getenv("ENVIRONMENT") != "production" else None,
-    redoc_url="/redoc" if os.getenv("ENVIRONMENT") != "production" else None
+    docs_url="/docs" if os.getenv("ENVIRONMENT") == "development" else None,
+    redoc_url="/redoc" if os.getenv("ENVIRONMENT") == "development" else None
 )
 
 # Add rate limiting
@@ -331,7 +330,13 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+    ],
     expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining"]
 )
 
@@ -370,8 +375,14 @@ app.include_router(commentator_router.router)
 app.include_router(admin_router.router)
 app.include_router(results_router.router)
 app.include_router(users_router.router)
-app.include_router(debug_router.router)
 app.include_router(events_router.router)
+
+# Debug router disabled for security - only enable explicitly in local development
+# To enable: set ENABLE_DEBUG_ROUTER=true AND ENVIRONMENT=development
+if os.getenv("ENABLE_DEBUG_ROUTER") == "true" and os.getenv("ENVIRONMENT") == "development":
+    from backend.routers import debug as debug_router
+    app.include_router(debug_router.router)
+    logger.warning("Debug router enabled - disable in production!")
 app.include_router(event_access_router.router)
 
 # Register events router limiter

@@ -46,7 +46,11 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
 
   const finalHeaders: Record<string, string> = { ...headers };
 
-  const DEBUG = (typeof window !== 'undefined' && (window as unknown as { __FWT_DEBUG_LOAD__?: boolean }).__FWT_DEBUG_LOAD__ === true) || (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_LOAD === '1');
+  // Debug mode only in development - cannot be enabled in production via console
+  const DEBUG = process.env.NODE_ENV === 'development' && (
+    (typeof window !== 'undefined' && (window as unknown as { __FWT_DEBUG_LOAD__?: boolean }).__FWT_DEBUG_LOAD__ === true) ||
+    process.env.NEXT_PUBLIC_DEBUG_LOAD === '1'
+  );
 
   // Attach Authorization header if not present and token provider is given
   if (!finalHeaders['Authorization'] && getAccessToken) {
