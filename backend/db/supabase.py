@@ -57,6 +57,14 @@ class SupabaseClient:
         if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', key):
             raise ValueError(f"Invalid filter key: {key}")
 
+    def _validate_on_conflict(self, on_conflict: str) -> None:
+        """Validate on_conflict parameter (can be comma-separated column names)."""
+        # Split by comma and validate each column name
+        columns = [col.strip() for col in on_conflict.split(',')]
+        for col in columns:
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', col):
+                raise ValueError(f"Invalid column name in on_conflict: {col}")
+
     def _build_filter_params(self, filters: Optional[Dict[str, Any]]) -> Dict[str, str]:
         """Build PostgREST filter parameters."""
         params = {}
@@ -336,7 +344,7 @@ class SupabaseClient:
             Upserted record(s)
         """
         self._validate_table_name(table)
-        self._validate_filter_key(on_conflict)
+        self._validate_on_conflict(on_conflict)
 
         sanitized_data = self._sanitize_data(data)
         url = f"{self.url}/rest/v1/{table}"
