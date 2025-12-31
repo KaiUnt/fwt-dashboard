@@ -1236,12 +1236,14 @@ export function getCurrentYearAthleteMainRankings(
 // Helper function to get a SINGLE ranking for a specific event type
 // Used in AthleteNavigation for simplified badge display bound to event type
 // Example: Challenger Event -> only show Challenger ranking
+// IMPORTANT: Only returns ranking for the CURRENT SEASON - no old rankings!
 export function getAthleteRankingForEventType(
   seriesData: SeriesData[],
   athleteId: string,
   division: string | undefined,
   eventSeriesType: SeriesCategoryType,
-  selectedRegion: SeriesRegion = '1'
+  selectedRegion: SeriesRegion = '1',
+  eventYear?: number // Optional: the year of the event (extracted from event name)
 ): AthleteMainRanking | null {
   if (!seriesData || !division) return null;
 
@@ -1249,10 +1251,10 @@ export function getAthleteRankingForEventType(
   // We completely ignore age categories - athletes move between U-14, U-16, U-18 etc.
   const baseDivision = division.replace(/\s+U-\d+$/, '');
 
-  // Find the series that matches the event type and region
-  // We look for the most recent year's ranking for this event type
-  let bestMatch: AthleteMainRanking | null = null;
-  let bestYear = 0;
+  // Determine the target year for the ranking
+  // If eventYear is provided, use that; otherwise use current year
+  // This ensures we only show rankings for the current season, not old ones
+  const targetYear = eventYear || new Date().getFullYear();
 
   for (const series of seriesData) {
     // Must be a main season ranking for the selected region
@@ -1264,6 +1266,10 @@ export function getAthleteRankingForEventType(
 
     const year = extractSeriesYear(series.series_name);
 
+    // ONLY show ranking for the target year (current season)
+    // Don't show old rankings from previous years (e.g., Challenger ranking for a Pro Tour rider)
+    if (year !== targetYear) continue;
+
     // Search ALL divisions that match the base division (ignore age categories)
     // Athletes can be in U-14, U-16, U-18, U-21 or even without age suffix
     for (const [divName, rankings] of Object.entries(series.divisions)) {
@@ -1273,21 +1279,18 @@ export function getAthleteRankingForEventType(
       const athleteRanking = rankings.find(r => r.athlete.id === athleteId);
       if (!athleteRanking || !athleteRanking.place) continue;
 
-      // Keep the most recent year's ranking
-      if (year > bestYear) {
-        bestYear = year;
-        bestMatch = {
-          seriesName: series.series_name,
-          category,
-          place: athleteRanking.place,
-          points: athleteRanking.points,
-          division: divName,
-          year,
-          region: extractSeriesRegion(series.series_name)
-        };
-      }
+      // Found a ranking for this year - return it
+      return {
+        seriesName: series.series_name,
+        category,
+        place: athleteRanking.place,
+        points: athleteRanking.points,
+        division: divName,
+        year,
+        region: extractSeriesRegion(series.series_name)
+      };
     }
   }
 
-  return bestMatch;
+  return null;
 }

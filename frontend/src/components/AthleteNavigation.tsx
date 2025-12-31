@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import { getCountryFlag, getNationalityDisplay, countUniqueNationalities, matchesNationalitySearch } from '@/utils/nationality';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { SeriesData, SeriesRegion, AthleteMainRanking, SeriesCategoryType } from '@/hooks/useSeriesRankings';
-import { getAthleteRankingForEventType, categorizeSeriesType, SERIES_CATEGORY_COLORS } from '@/hooks/useSeriesRankings';
+import { getAthleteRankingForEventType, categorizeSeriesType, extractSeriesYear, SERIES_CATEGORY_COLORS } from '@/hooks/useSeriesRankings';
 
 // Sort options
 export type SortOption = 'bib' | 'name' | 'division' | 'ranking';
@@ -66,9 +66,10 @@ function getAthleteRankingPlace(
   division: string | undefined,
   seriesData: SeriesData[] | undefined,
   eventSeriesType: SeriesCategoryType,
-  selectedRegion: SeriesRegion = '1'
+  selectedRegion: SeriesRegion = '1',
+  eventYear?: number
 ): number | undefined {
-  const ranking = getAthleteRankingForEventType(seriesData || [], athleteId, division, eventSeriesType, selectedRegion);
+  const ranking = getAthleteRankingForEventType(seriesData || [], athleteId, division, eventSeriesType, selectedRegion, eventYear);
   return ranking?.place;
 }
 
@@ -86,6 +87,13 @@ export function AthleteNavigation({
   const eventSeriesType: SeriesCategoryType = useMemo(() => {
     if (!eventName) return 'other';
     return categorizeSeriesType(eventName);
+  }, [eventName]);
+
+  // Extract the year from the event name (e.g., "FWT Challenger Fieberbrunn 2025" -> 2025)
+  // This ensures we only show rankings from the same year as the event
+  const eventYear: number = useMemo(() => {
+    if (!eventName) return new Date().getFullYear();
+    return extractSeriesYear(eventName);
   }, [eventName]);
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
@@ -190,18 +198,20 @@ export function AthleteNavigation({
           // First sort by division
           if (divA !== divB) return divA - divB;
           // Within division, sort by ranking for the event's series type (athletes without ranking go to the end)
-          // In multi-event mode, use each athlete's own event type
+          // In multi-event mode, use each athlete's own event type and year
           const seriesTypeA = isMultiEvent && 'eventName' in a ? categorizeSeriesType(a.eventName) : eventSeriesType;
           const seriesTypeB = isMultiEvent && 'eventName' in b ? categorizeSeriesType(b.eventName) : eventSeriesType;
-          const rankA = getAthleteRankingPlace(a.id, a.division, seriesData, seriesTypeA, selectedRegion) ?? 5000;
-          const rankB = getAthleteRankingPlace(b.id, b.division, seriesData, seriesTypeB, selectedRegion) ?? 5000;
+          const yearA = isMultiEvent && 'eventName' in a ? extractSeriesYear(a.eventName) : eventYear;
+          const yearB = isMultiEvent && 'eventName' in b ? extractSeriesYear(b.eventName) : eventYear;
+          const rankA = getAthleteRankingPlace(a.id, a.division, seriesData, seriesTypeA, selectedRegion, yearA) ?? 5000;
+          const rankB = getAthleteRankingPlace(b.id, b.division, seriesData, seriesTypeB, selectedRegion, yearB) ?? 5000;
           return rankA - rankB;
         });
         break;
     }
 
     return result;
-  }, [relevantAthletes, searchQuery, divisionFilter, eventFilter, sortOption, seriesData, isMultiEvent, selectedRegion, eventSeriesType]);
+  }, [relevantAthletes, searchQuery, divisionFilter, eventFilter, sortOption, seriesData, isMultiEvent, selectedRegion, eventSeriesType, eventYear]);
 
   // For display - use processedAthletes instead of filteredAthletes
   const filteredAthletes = processedAthletes;
@@ -420,11 +430,14 @@ export function AthleteNavigation({
                       ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
                     );
                     const isActive = actualIndex === currentIndex;
-                    // In multi-event mode, use the athlete's own event name to determine series type
+                    // In multi-event mode, use the athlete's own event name to determine series type and year
                     const athleteSeriesType = isMultiEvent && 'eventName' in athlete
                       ? categorizeSeriesType(athlete.eventName)
                       : eventSeriesType;
-                    const ranking = getAthleteRankingForEventType(seriesData || [], athlete.id, athlete.division, athleteSeriesType, selectedRegion);
+                    const athleteEventYear = isMultiEvent && 'eventName' in athlete
+                      ? extractSeriesYear(athlete.eventName)
+                      : eventYear;
+                    const ranking = getAthleteRankingForEventType(seriesData || [], athlete.id, athlete.division, athleteSeriesType, selectedRegion, athleteEventYear);
 
                     return (
                       <button
@@ -487,11 +500,14 @@ export function AthleteNavigation({
                 ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
               );
               const isActive = actualIndex === currentIndex;
-              // In multi-event mode, use the athlete's own event name to determine series type
+              // In multi-event mode, use the athlete's own event name to determine series type and year
               const athleteSeriesType = isMultiEvent && 'eventName' in athlete
                 ? categorizeSeriesType(athlete.eventName)
                 : eventSeriesType;
-              const ranking = getAthleteRankingForEventType(seriesData || [], athlete.id, athlete.division, athleteSeriesType, selectedRegion);
+              const athleteEventYear = isMultiEvent && 'eventName' in athlete
+                ? extractSeriesYear(athlete.eventName)
+                : eventYear;
+              const ranking = getAthleteRankingForEventType(seriesData || [], athlete.id, athlete.division, athleteSeriesType, selectedRegion, athleteEventYear);
 
               return (
                 <button
