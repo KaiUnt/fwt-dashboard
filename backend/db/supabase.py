@@ -137,8 +137,10 @@ class SupabaseClient:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            logger.error(f"Supabase {operation} error: {e.response.status_code} - {e.response.text}")
-            raise HTTPException(status_code=500, detail="Database error")
+            error_text = e.response.text
+            logger.error(f"Supabase {operation} error: {e.response.status_code} - {error_text}")
+            # Include more details in the error for debugging
+            raise HTTPException(status_code=500, detail=f"Database error: {error_text[:200]}")
 
     async def select(
         self,

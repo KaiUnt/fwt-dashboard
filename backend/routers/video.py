@@ -554,10 +554,14 @@ async def save_runs(
             "data": result
         }
 
-    except HTTPException:
+    except HTTPException as he:
+        # Log more details about the HTTP exception
+        logger.error(f"HTTPException saving runs: {he.status_code} - {he.detail}")
+        logger.error(f"Runs data that failed: {runs_data[:3] if runs_data else 'empty'}...")  # Log first 3 for debugging
         raise
     except Exception as e:
         logger.error(f"Error saving runs: {e}")
+        logger.error(f"Runs data that failed: {runs_data[:3] if 'runs_data' in dir() else 'not created'}...")
         raise HTTPException(status_code=500, detail=f"Failed to save runs: {str(e)}")
 
 
