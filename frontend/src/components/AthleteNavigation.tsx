@@ -14,8 +14,14 @@ export type SortOption = 'bib' | 'name' | 'division' | 'ranking';
 // Division filter options
 export type DivisionFilter = 'all' | 'Ski Men' | 'Ski Women' | 'Snowboard Men' | 'Snowboard Women';
 
-// Division order for sorting
+// Division order for sorting (base divisions without age categories)
 const DIVISION_ORDER = ['Ski Men', 'Ski Women', 'Snowboard Men', 'Snowboard Women'];
+
+// Helper function to extract base division (removes age category like U-14, U-16, U-18, U-21)
+function getBaseDivision(division: string | undefined): string {
+  if (!division) return '';
+  return division.replace(/\s+U-\d+$/, '');
+}
 
 // Component to render a single ranking badge for the event type
 function RankingBadge({
@@ -97,15 +103,15 @@ export function AthleteNavigation({
     ? athletes.filter(athlete => athlete.status === 'confirmed')
     : athletes;
 
-  // Get available divisions from athletes
+  // Get available divisions from athletes (using base divisions without age categories)
   const availableDivisions = useMemo(() => {
-    const divisions = new Set<string>();
+    const baseDivisions = new Set<string>();
     relevantAthletes.forEach(athlete => {
       if (athlete.division) {
-        divisions.add(athlete.division);
+        baseDivisions.add(getBaseDivision(athlete.division));
       }
     });
-    return DIVISION_ORDER.filter(d => divisions.has(d));
+    return DIVISION_ORDER.filter(d => baseDivisions.has(d));
   }, [relevantAthletes]);
 
   // Get available events for multi-event mode
@@ -133,9 +139,9 @@ export function AthleteNavigation({
       );
     }
 
-    // Apply division filter
+    // Apply division filter (match base division, ignoring age categories)
     if (divisionFilter !== 'all') {
-      result = result.filter(athlete => athlete.division === divisionFilter);
+      result = result.filter(athlete => getBaseDivision(athlete.division) === divisionFilter);
     }
 
     // Apply event filter (multi-event mode)
@@ -161,8 +167,9 @@ export function AthleteNavigation({
 
       case 'division':
         result.sort((a, b) => {
-          const divIndexA = DIVISION_ORDER.indexOf(a.division || '');
-          const divIndexB = DIVISION_ORDER.indexOf(b.division || '');
+          // Use base division for sorting (ignore age categories)
+          const divIndexA = DIVISION_ORDER.indexOf(getBaseDivision(a.division));
+          const divIndexB = DIVISION_ORDER.indexOf(getBaseDivision(b.division));
           const divA = divIndexA === -1 ? 999 : divIndexA;
           const divB = divIndexB === -1 ? 999 : divIndexB;
           if (divA !== divB) return divA - divB;
@@ -175,8 +182,9 @@ export function AthleteNavigation({
 
       case 'ranking':
         result.sort((a, b) => {
-          const divIndexA = DIVISION_ORDER.indexOf(a.division || '');
-          const divIndexB = DIVISION_ORDER.indexOf(b.division || '');
+          // Use base division for sorting (ignore age categories)
+          const divIndexA = DIVISION_ORDER.indexOf(getBaseDivision(a.division));
+          const divIndexB = DIVISION_ORDER.indexOf(getBaseDivision(b.division));
           const divA = divIndexA === -1 ? 999 : divIndexA;
           const divB = divIndexB === -1 ? 999 : divIndexB;
           // First sort by division
@@ -205,13 +213,13 @@ export function AthleteNavigation({
   // Check if we should show division headers (for division/ranking sort without filter)
   const showDivisionHeaders = (sortOption === 'division' || sortOption === 'ranking') && divisionFilter === 'all';
 
-  // Group athletes by division for rendering with headers
+  // Group athletes by base division for rendering with headers (ignore age categories)
   const athletesByDivision = useMemo(() => {
     if (!showDivisionHeaders) return null;
 
     const grouped: Record<string, typeof filteredAthletes> = {};
     filteredAthletes.forEach(athlete => {
-      const div = athlete.division || 'Other';
+      const div = getBaseDivision(athlete.division) || 'Other';
       if (!grouped[div]) grouped[div] = [];
       grouped[div].push(athlete);
     });
