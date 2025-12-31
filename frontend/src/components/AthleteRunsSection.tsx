@@ -127,7 +127,9 @@ export function AthleteRunsSection({ athleteId, athleteName, eventId }: AthleteR
               src={embedUrl}
               title={`${athleteName} Run ${activeYear}`}
               className="absolute inset-0 w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
               allowFullScreen
             />
           </div>
