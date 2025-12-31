@@ -269,6 +269,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
               { id: eventId2, name: event2Data.event.name }
             ]}
             selectedRegion={selectedRegion}
+            eventName={event1Data.event.name}
           />
           
           {currentAthlete && (
@@ -433,6 +434,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                  { id: eventId2, name: event2Data.event.name }
                ]}
                selectedRegion={selectedRegion}
+               eventName={event1Data?.event.name}
              />
 
              {/* Performance Curve */}

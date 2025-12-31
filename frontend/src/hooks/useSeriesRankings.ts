@@ -1221,3 +1221,53 @@ export function getCurrentYearAthleteMainRankings(
   // Filter to only current year
   return allRankings.filter(r => r.year === currentYear);
 }
+
+// Helper function to get a SINGLE ranking for a specific event type
+// Used in AthleteNavigation for simplified badge display bound to event type
+// Example: Challenger Event -> only show Challenger ranking
+export function getAthleteRankingForEventType(
+  seriesData: SeriesData[],
+  athleteId: string,
+  division: string | undefined,
+  eventSeriesType: SeriesCategoryType,
+  selectedRegion: SeriesRegion = '1'
+): AthleteMainRanking | null {
+  if (!seriesData || !division) return null;
+
+  const currentYear = new Date().getFullYear();
+
+  // Find the series that matches the event type, region, and current year
+  for (const series of seriesData) {
+    // Must be a main season ranking for the selected region
+    if (!isMainSeasonRankingForRegion(series.series_name, selectedRegion)) continue;
+
+    // Must match the event's series type
+    const category = categorizeSeriesType(series.series_name);
+    if (category !== eventSeriesType) continue;
+
+    // Must be current year
+    const year = extractSeriesYear(series.series_name);
+    if (year !== currentYear) continue;
+
+    // Find the athlete in this series
+    const divisionRankings = series.divisions[division];
+    if (!divisionRankings) continue;
+
+    const athleteRanking = divisionRankings.find(r => r.athlete.id === athleteId);
+    if (!athleteRanking || !athleteRanking.place) continue;
+
+    // Found a matching ranking
+    return {
+      seriesName: series.series_name,
+      category,
+      place: athleteRanking.place,
+      points: athleteRanking.points,
+      division,
+      year,
+      region: extractSeriesRegion(series.series_name)
+    };
+  }
+
+  // No ranking found for this event type
+  return null;
+}

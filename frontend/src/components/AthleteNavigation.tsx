@@ -5,8 +5,8 @@ import { Athlete, MultiEventAthlete } from '@/types/athletes';
 import { useState, useMemo } from 'react';
 import { getCountryFlag, getNationalityDisplay, countUniqueNationalities, matchesNationalitySearch } from '@/utils/nationality';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { SeriesData, SeriesRegion, AthleteMainRanking } from '@/hooks/useSeriesRankings';
-import { getAllAthleteMainRankings, getCurrentYearAthleteMainRankings, SERIES_CATEGORY_COLORS } from '@/hooks/useSeriesRankings';
+import type { SeriesData, SeriesRegion, AthleteMainRanking, SeriesCategoryType } from '@/hooks/useSeriesRankings';
+import { getAthleteRankingForEventType, categorizeSeriesType, SERIES_CATEGORY_COLORS } from '@/hooks/useSeriesRankings';
 
 // Sort options
 export type SortOption = 'bib' | 'name' | 'division' | 'ranking';
@@ -17,37 +17,25 @@ export type DivisionFilter = 'all' | 'Ski Men' | 'Ski Women' | 'Snowboard Men' |
 // Division order for sorting
 const DIVISION_ORDER = ['Ski Men', 'Ski Women', 'Snowboard Men', 'Snowboard Women'];
 
-// Component to render multiple ranking badges
-function RankingBadges({
-  rankings,
-  isActive
+// Component to render a single ranking badge for the event type
+function RankingBadge({
+  ranking
 }: {
-  rankings: AthleteMainRanking[];
-  isActive: boolean;
+  ranking: AthleteMainRanking | null;
 }) {
-  if (!rankings || rankings.length === 0) return null;
+  if (!ranking) return null;
 
+  const colors = SERIES_CATEGORY_COLORS[ranking.category];
   return (
-    <div className="flex flex-wrap gap-1">
-      {rankings.map((ranking, idx) => {
-        const colors = SERIES_CATEGORY_COLORS[ranking.category];
-        return (
-          <span
-            key={`${ranking.category}-${idx}`}
-            className={`
-              inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold border
-              ${isActive
-                ? `${colors.bg} ${colors.text} ${colors.border}`
-                : `${colors.bg} ${colors.text} ${colors.border}`
-              }
-            `}
-            title={`${colors.name}: #${ranking.place}`}
-          >
-            #{ranking.place}
-          </span>
-        );
-      })}
-    </div>
+    <span
+      className={`
+        inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold border
+        ${colors.bg} ${colors.text} ${colors.border}
+      `}
+      title={`${colors.name}: #${ranking.place}`}
+    >
+      #{ranking.place}
+    </span>
   );
 }
 
@@ -62,19 +50,20 @@ interface AthleteNavigationProps {
   eventNames?: { id: string; name: string }[];
   // Optional: Selected region for filtering rankings (default: Region 1)
   selectedRegion?: SeriesRegion;
+  // Optional: Event name to determine the series type (e.g., "FWT Challenger Fieberbrunn 2025" -> challenger)
+  eventName?: string;
 }
 
-// Helper function to get primary athlete ranking (for sorting purposes)
-// Only considers Main Series for the selected region
-function getPrimaryAthleteRanking(
+// Helper function to get athlete ranking for the event's series type (for sorting purposes)
+function getAthleteRankingPlace(
   athleteId: string,
   division: string | undefined,
-  seriesData?: SeriesData[],
+  seriesData: SeriesData[] | undefined,
+  eventSeriesType: SeriesCategoryType,
   selectedRegion: SeriesRegion = '1'
 ): number | undefined {
-  const rankings = getAllAthleteMainRankings(seriesData || [], athleteId, division, selectedRegion);
-  // Return the first (highest priority) ranking's place
-  return rankings.length > 0 ? rankings[0].place : undefined;
+  const ranking = getAthleteRankingForEventType(seriesData || [], athleteId, division, eventSeriesType, selectedRegion);
+  return ranking?.place;
 }
 
 export function AthleteNavigation({
@@ -84,8 +73,14 @@ export function AthleteNavigation({
   seriesData,
   isMultiEvent = false,
   eventNames = [],
-  selectedRegion = '1'
+  selectedRegion = '1',
+  eventName
 }: AthleteNavigationProps) {
+  // Determine the series type from the event name (e.g., "FWT Challenger Fieberbrunn 2025" -> 'challenger')
+  const eventSeriesType: SeriesCategoryType = useMemo(() => {
+    if (!eventName) return 'other';
+    return categorizeSeriesType(eventName);
+  }, [eventName]);
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('bib');
@@ -186,16 +181,19 @@ export function AthleteNavigation({
           const divB = divIndexB === -1 ? 999 : divIndexB;
           // First sort by division
           if (divA !== divB) return divA - divB;
-          // Within division, sort by ranking (athletes without ranking go to the end)
-          const rankA = getPrimaryAthleteRanking(a.id, a.division, seriesData, selectedRegion) || 5000;
-          const rankB = getPrimaryAthleteRanking(b.id, b.division, seriesData, selectedRegion) || 5000;
+          // Within division, sort by ranking for the event's series type (athletes without ranking go to the end)
+          // In multi-event mode, use each athlete's own event type
+          const seriesTypeA = isMultiEvent && 'eventName' in a ? categorizeSeriesType(a.eventName) : eventSeriesType;
+          const seriesTypeB = isMultiEvent && 'eventName' in b ? categorizeSeriesType(b.eventName) : eventSeriesType;
+          const rankA = getAthleteRankingPlace(a.id, a.division, seriesData, seriesTypeA, selectedRegion) ?? 5000;
+          const rankB = getAthleteRankingPlace(b.id, b.division, seriesData, seriesTypeB, selectedRegion) ?? 5000;
           return rankA - rankB;
         });
         break;
     }
 
     return result;
-  }, [relevantAthletes, searchQuery, divisionFilter, eventFilter, sortOption, seriesData, isMultiEvent, selectedRegion]);
+  }, [relevantAthletes, searchQuery, divisionFilter, eventFilter, sortOption, seriesData, isMultiEvent, selectedRegion, eventSeriesType]);
 
   // For display - use processedAthletes instead of filteredAthletes
   const filteredAthletes = processedAthletes;
@@ -414,7 +412,11 @@ export function AthleteNavigation({
                       ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
                     );
                     const isActive = actualIndex === currentIndex;
-                    const rankings = getCurrentYearAthleteMainRankings(seriesData || [], athlete.id, athlete.division, selectedRegion);
+                    // In multi-event mode, use the athlete's own event name to determine series type
+                    const athleteSeriesType = isMultiEvent && 'eventName' in athlete
+                      ? categorizeSeriesType(athlete.eventName)
+                      : eventSeriesType;
+                    const ranking = getAthleteRankingForEventType(seriesData || [], athlete.id, athlete.division, athleteSeriesType, selectedRegion);
 
                     return (
                       <button
@@ -455,8 +457,8 @@ export function AthleteNavigation({
                               `}>
                                 {getNationalityDisplay(athlete.nationality)}
                               </span>
-                              {/* Show all ranking badges with category colors */}
-                              <RankingBadges rankings={rankings} isActive={isActive} />
+                              {/* Show single ranking badge for this event's series type */}
+                              <RankingBadge ranking={ranking} />
                             </div>
                           </div>
                         </div>
@@ -477,7 +479,11 @@ export function AthleteNavigation({
                 ('eventSource' in a ? a.eventSource : undefined) === ('eventSource' in athlete ? athlete.eventSource : undefined)
               );
               const isActive = actualIndex === currentIndex;
-              const rankings = getCurrentYearAthleteMainRankings(seriesData || [], athlete.id, athlete.division, selectedRegion);
+              // In multi-event mode, use the athlete's own event name to determine series type
+              const athleteSeriesType = isMultiEvent && 'eventName' in athlete
+                ? categorizeSeriesType(athlete.eventName)
+                : eventSeriesType;
+              const ranking = getAthleteRankingForEventType(seriesData || [], athlete.id, athlete.division, athleteSeriesType, selectedRegion);
 
               return (
                 <button
@@ -519,8 +525,8 @@ export function AthleteNavigation({
                           {getNationalityDisplay(athlete.nationality)}
                         </span>
 
-                        {/* Show all ranking badges with category colors */}
-                        <RankingBadges rankings={rankings} isActive={isActive} />
+                        {/* Show single ranking badge for this event's series type */}
+                        <RankingBadge ranking={ranking} />
 
                         {athlete.status === 'waitlisted' && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
