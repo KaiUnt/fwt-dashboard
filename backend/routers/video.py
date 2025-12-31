@@ -153,11 +153,31 @@ def parse_youtube_timestamp(url: str) -> Dict[str, Any]:
 
 
 def parse_xml_content(xml_content: str) -> Dict[str, Any]:
-    """Parse XML content from tv.open-faces.com format."""
-    # Extract event info
-    event_match = re.search(r'<event[^>]*name="([^"]*)"[^>]*date="([^"]*)"', xml_content)
-    event_name = event_match.group(1) if event_match else 'Unknown Event'
-    event_date_str = event_match.group(2) if event_match else ''
+    """Parse XML content from tv.open-faces.com format.
+
+    Supports two XML formats:
+    1. Nested elements: <rider><bib>1</bib><name>John</name>...</rider>
+    2. Attributes: <rider bib="1" name="John" ... />
+    """
+    # Extract event info from eventdata section
+    venue_match = re.search(r'<venue>([^<]*)</venue>', xml_content)
+    from_match = re.search(r'<from>([^<]*)</from>', xml_content)
+    series_match = re.search(r'<series>([^<]*)</series>', xml_content)
+    category_match = re.search(r'<category>([^<]*)</category>', xml_content)
+
+    # Build event name from series, category and venue
+    series = series_match.group(1) if series_match else ''
+    category = category_match.group(1) if category_match else ''
+    venue = venue_match.group(1) if venue_match else 'Unknown Event'
+
+    if series and category:
+        event_name = f"{series} {category} - {venue}"
+    elif series:
+        event_name = f"{series} - {venue}"
+    else:
+        event_name = venue
+
+    event_date_str = from_match.group(1) if from_match else ''
 
     # Parse date (format: DD.MM.YYYY)
     year = datetime.now().year
@@ -169,31 +189,58 @@ def parse_xml_content(xml_content: str) -> Dict[str, Any]:
             except ValueError:
                 pass
 
-    # Extract riders
+    # Extract riders - try nested element format first (tv.open-faces.com)
     riders = []
-    rider_pattern = re.compile(r'<rider\s+([^>]*)/?>')
 
-    for match in rider_pattern.finditer(xml_content):
-        attrs = match.group(1)
+    # Pattern for nested XML elements: <rider>...</rider>
+    rider_blocks = re.findall(r'<rider>(.*?)</rider>', xml_content, re.DOTALL)
 
-        def get_attr(name: str) -> str:
-            attr_match = re.search(rf'{name}="([^"]*)"', attrs)
-            return attr_match.group(1) if attr_match else ''
+    if rider_blocks:
+        # Nested element format
+        for block in rider_blocks:
+            def get_element(name: str) -> str:
+                match = re.search(rf'<{name}>([^<]*)</{name}>', block)
+                return match.group(1) if match else ''
 
-        riderrun_url = get_attr('riderrun')
-        parsed_url = parse_youtube_timestamp(riderrun_url)
+            riderrun_url = get_element('riderrun')
+            parsed_url = parse_youtube_timestamp(riderrun_url)
 
-        riders.append({
-            "bib": get_attr('bib'),
-            "name": get_attr('name'),
-            "rider_class": get_attr('class'),
-            "sex": get_attr('sex'),
-            "nation": get_attr('nation'),
-            "points": get_attr('points'),
-            "state": get_attr('state'),
-            "youtubeUrl": parsed_url["url"],
-            "youtubeTimestamp": parsed_url["timestamp"]
-        })
+            riders.append({
+                "bib": get_element('bib'),
+                "name": get_element('name'),
+                "rider_class": get_element('class'),
+                "sex": get_element('sex'),
+                "nation": get_element('nation'),
+                "points": get_element('points'),
+                "state": get_element('state'),
+                "youtubeUrl": parsed_url["url"],
+                "youtubeTimestamp": parsed_url["timestamp"]
+            })
+    else:
+        # Fallback to attribute format: <rider bib="1" name="John" ... />
+        rider_pattern = re.compile(r'<rider\s+([^>]*)/?>')
+
+        for match in rider_pattern.finditer(xml_content):
+            attrs = match.group(1)
+
+            def get_attr(name: str) -> str:
+                attr_match = re.search(rf'{name}="([^"]*)"', attrs)
+                return attr_match.group(1) if attr_match else ''
+
+            riderrun_url = get_attr('riderrun')
+            parsed_url = parse_youtube_timestamp(riderrun_url)
+
+            riders.append({
+                "bib": get_attr('bib'),
+                "name": get_attr('name'),
+                "rider_class": get_attr('class'),
+                "sex": get_attr('sex'),
+                "nation": get_attr('nation'),
+                "points": get_attr('points'),
+                "state": get_attr('state'),
+                "youtubeUrl": parsed_url["url"],
+                "youtubeTimestamp": parsed_url["timestamp"]
+            })
 
     return {
         "eventName": event_name,

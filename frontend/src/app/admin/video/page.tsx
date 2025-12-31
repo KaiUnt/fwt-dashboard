@@ -20,7 +20,7 @@ import {
 interface ParsedRider {
   bib: string
   name: string
-  class: string
+  rider_class: string
   sex: string
   nation: string
   points: string
@@ -411,7 +411,7 @@ export default function VideoManagementPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">{getConfidenceBadge(rider.matchConfidence)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{rider.class}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{rider.rider_class}</td>
                         <td className="px-4 py-3 text-sm">
                           {rider.youtubeUrl ? (
                             <a
