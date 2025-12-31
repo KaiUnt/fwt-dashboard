@@ -12,7 +12,7 @@ interface AthleteRunsSectionProps {
 
 export function AthleteRunsSection({ athleteId, athleteName, eventId }: AthleteRunsSectionProps) {
   const { data: runs, isLoading, error } = useAthleteRuns(athleteId, eventId)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(true)
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
 
   if (isLoading) {
