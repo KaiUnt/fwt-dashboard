@@ -5,6 +5,7 @@ Video Router - Admin endpoints for managing athlete run videos from XML sources.
 import re
 import logging
 import unicodedata
+import html
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
@@ -114,7 +115,27 @@ async def require_admin(request: Request, user_token: str) -> str:
 
 
 def normalize_string(s: str) -> str:
-    """Normalize string for matching: remove accents, lowercase, trim."""
+    """Normalize string for matching: remove accents, lowercase, trim.
+
+    Uses NFD normalization to remove diacritics, plus manual mappings
+    for special characters that NFD doesn't handle (e.g., Ø, ß, Æ).
+    """
+    # Special character mappings for characters not handled by NFD
+    special_chars = {
+        'ø': 'o', 'Ø': 'o',
+        'æ': 'ae', 'Æ': 'ae',
+        'œ': 'oe', 'Œ': 'oe',
+        'ß': 'ss',
+        'ð': 'd', 'Ð': 'd',
+        'þ': 'th', 'Þ': 'th',
+        'ł': 'l', 'Ł': 'l',
+        'đ': 'd', 'Đ': 'd',
+    }
+
+    # Apply special character mappings first
+    for char, replacement in special_chars.items():
+        s = s.replace(char, replacement)
+
     # NFD decomposition separates characters from their diacritics
     normalized = unicodedata.normalize('NFD', s)
     # Remove diacritical marks (combining characters)
@@ -200,7 +221,10 @@ def parse_xml_content(xml_content: str) -> Dict[str, Any]:
         for block in rider_blocks:
             def get_element(name: str) -> str:
                 match = re.search(rf'<{name}>([^<]*)</{name}>', block)
-                return match.group(1) if match else ''
+                if match:
+                    # Decode HTML entities (e.g., &#xE9; -> é)
+                    return html.unescape(match.group(1))
+                return ''
 
             riderrun_url = get_element('riderrun')
             parsed_url = parse_youtube_timestamp(riderrun_url)
@@ -312,9 +336,12 @@ async def match_athletes(
         admin_client = await get_admin_client(request) or supabase_client
 
         # Get all athletes from database
-        athletes = await admin_client.select("athletes", "id, name", {}, user_token)
+        # Use admin_client WITHOUT user_token to bypass RLS (service role key)
+        athletes = await admin_client.select("athletes", "id, name", {}, None)
         if athletes is None:
             athletes = []
+
+        logger.info(f"Loaded {len(athletes)} athletes from database")
 
         # Build lookup maps
         exact_lookup = {a["name"]: a for a in athletes}
@@ -347,7 +374,8 @@ async def match_athletes(
                 })
                 continue
 
-            # No match found
+            # No match found - log for debugging
+            logger.debug(f"No match for rider: '{rider_name}' (normalized: '{normalized_name}')")
             matches.append({
                 "rider_name": rider_name,
                 "athlete_id": None,
@@ -357,11 +385,16 @@ async def match_athletes(
 
         matched_count = sum(1 for m in matches if m["match_type"] != "none")
 
+        # Debug: sample some athlete names from DB for comparison
+        sample_athletes = [a["name"] for a in athletes[:10]] if athletes else []
+
         return {
             "success": True,
             "matches": matches,
             "matchedCount": matched_count,
-            "totalCount": len(matches)
+            "totalCount": len(matches),
+            "athletesInDb": len(athletes),
+            "sampleAthleteNames": sample_athletes
         }
 
     except HTTPException:
