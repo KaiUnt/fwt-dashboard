@@ -1245,9 +1245,11 @@ export function getAthleteRankingForEventType(
 ): AthleteMainRanking | null {
   if (!seriesData || !division) return null;
 
-  const currentYear = new Date().getFullYear();
+  // Find the series that matches the event type and region
+  // We look for the most recent year's ranking for this event type
+  let bestMatch: AthleteMainRanking | null = null;
+  let bestYear = 0;
 
-  // Find the series that matches the event type, region, and current year
   for (const series of seriesData) {
     // Must be a main season ranking for the selected region
     if (!isMainSeasonRankingForRegion(series.series_name, selectedRegion)) continue;
@@ -1256,9 +1258,7 @@ export function getAthleteRankingForEventType(
     const category = categorizeSeriesType(series.series_name);
     if (category !== eventSeriesType) continue;
 
-    // Must be current year
     const year = extractSeriesYear(series.series_name);
-    if (year !== currentYear) continue;
 
     // Find the athlete in this series
     const divisionRankings = series.divisions[division];
@@ -1267,18 +1267,20 @@ export function getAthleteRankingForEventType(
     const athleteRanking = divisionRankings.find(r => r.athlete.id === athleteId);
     if (!athleteRanking || !athleteRanking.place) continue;
 
-    // Found a matching ranking
-    return {
-      seriesName: series.series_name,
-      category,
-      place: athleteRanking.place,
-      points: athleteRanking.points,
-      division,
-      year,
-      region: extractSeriesRegion(series.series_name)
-    };
+    // Keep the most recent year's ranking
+    if (year > bestYear) {
+      bestYear = year;
+      bestMatch = {
+        seriesName: series.series_name,
+        category,
+        place: athleteRanking.place,
+        points: athleteRanking.points,
+        division,
+        year,
+        region: extractSeriesRegion(series.series_name)
+      };
+    }
   }
 
-  // No ranking found for this event type
-  return null;
+  return bestMatch;
 }
