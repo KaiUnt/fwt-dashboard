@@ -92,12 +92,13 @@ export function getYoutubeEmbedUrl(youtubeUrl: string, timestamp?: number): stri
 
     if (!videoId) return ''
 
-    let embedUrl = `https://www.youtube.com/embed/${videoId}`
+    const params = new URLSearchParams()
+    params.set('mute', '1') // Start muted by default
     if (timestamp && timestamp > 0) {
-      embedUrl += `?start=${timestamp}`
+      params.set('start', String(timestamp))
     }
 
-    return embedUrl
+    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`
   } catch {
     return ''
   }

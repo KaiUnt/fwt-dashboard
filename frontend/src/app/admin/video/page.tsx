@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useAuth, useAccessToken } from '@/providers/AuthProvider'
 import { useEvents } from '@/hooks/useEvents'
 import { apiFetch } from '@/utils/api'
@@ -14,7 +14,8 @@ import {
   AlertTriangle,
   Loader2,
   ChevronDown,
-  Trash2
+  Trash2,
+  Search
 } from 'lucide-react'
 
 interface ParsedRider {
@@ -57,8 +58,30 @@ export default function VideoManagementPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [step, setStep] = useState<'input' | 'preview' | 'done'>('input')
+  const [eventSearch, setEventSearch] = useState('')
 
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+  // Fuzzy search for events
+  const filteredEvents = useMemo(() => {
+    if (!eventsData?.events) return []
+    if (!eventSearch.trim()) return eventsData.events
+
+    const searchLower = eventSearch.toLowerCase()
+    return eventsData.events.filter(event => {
+      const eventText = `${event.name} ${event.year}`.toLowerCase()
+      // Simple fuzzy: check if all search characters appear in order
+      let searchIdx = 0
+      for (const char of eventText) {
+        if (char === searchLower[searchIdx]) {
+          searchIdx++
+          if (searchIdx === searchLower.length) return true
+        }
+      }
+      // Also match if search is contained anywhere
+      return eventText.includes(searchLower)
+    })
+  }, [eventsData?.events, eventSearch])
 
   const parseXml = useCallback(async () => {
     if (!xmlUrl.trim()) {
@@ -194,6 +217,7 @@ export default function VideoManagementPage() {
     setParsedData(null)
     setProcessedRiders([])
     setSelectedEventId('')
+    setEventSearch('')
     setError('')
     setSuccess('')
     setStep('input')
@@ -277,7 +301,7 @@ export default function VideoManagementPage() {
                       value={xmlUrl}
                       onChange={e => setXmlUrl(e.target.value)}
                       placeholder="https://tv.open-faces.com/contests/.../xmlapi"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-400"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-500"
                     />
                   </div>
                   <button
@@ -329,20 +353,39 @@ export default function VideoManagementPage() {
             {/* Event Selection */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Target Event</h2>
-              <div className="relative">
-                <select
-                  value={selectedEventId}
-                  onChange={e => setSelectedEventId(e.target.value)}
-                  className="w-full appearance-none px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10"
-                >
-                  <option value="">Select an event...</option>
-                  {eventsData?.events?.map(event => (
-                    <option key={event.id} value={event.id}>
-                      {event.name} ({event.year})
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+              <div className="space-y-3">
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
+                  <input
+                    type="text"
+                    value={eventSearch}
+                    onChange={e => setEventSearch(e.target.value)}
+                    placeholder="Search events..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+                {/* Event Dropdown */}
+                <div className="relative">
+                  <select
+                    value={selectedEventId}
+                    onChange={e => setSelectedEventId(e.target.value)}
+                    className="w-full appearance-none px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10 text-gray-900"
+                  >
+                    <option value="" className="text-gray-500">Select an event...</option>
+                    {filteredEvents.map(event => (
+                      <option key={event.id} value={event.id} className="text-gray-900">
+                        {event.name} ({event.year})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500 pointer-events-none" />
+                </div>
+                {eventSearch && (
+                  <p className="text-sm text-gray-600">
+                    {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} found
+                  </p>
+                )}
               </div>
             </div>
 
