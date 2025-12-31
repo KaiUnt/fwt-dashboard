@@ -12,6 +12,7 @@ import { PerformanceCurve } from './PerformanceCurve';
 import { useOfflineEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
 import { AthleteEventHistory } from './AthleteEventHistory';
+import { AthleteRunsSection } from './AthleteRunsSection';
 import { AppHeader } from './AppHeader';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAccessToken } from '@/providers/AuthProvider';
@@ -234,11 +235,18 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
               />
               
               {/* 3. Event History */}
-              <AthleteEventHistory 
-                athleteId={currentAthlete.id} 
+              <AthleteEventHistory
+                athleteId={currentAthlete.id}
                 eventId={eventId}
               />
-              
+
+              {/* 3b. Previous Runs (Videos) */}
+              <AthleteRunsSection
+                athleteId={currentAthlete.id}
+                athleteName={currentAthlete.name}
+                eventId={eventId}
+              />
+
               {/* 4. Performance Curve, Best Series, Best Events */}
               {seriesData?.series_rankings && (
                 <div className="space-y-4">
@@ -275,12 +283,21 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 
                 {/* Event History Section */}
                 <div className="mt-6">
-                  <AthleteEventHistory 
-                    athleteId={currentAthlete.id} 
+                  <AthleteEventHistory
+                    athleteId={currentAthlete.id}
                     eventId={eventId}
                   />
                 </div>
-                
+
+                {/* Previous Runs (Videos) Section */}
+                <div className="mt-4">
+                  <AthleteRunsSection
+                    athleteId={currentAthlete.id}
+                    athleteName={currentAthlete.name}
+                    eventId={eventId}
+                  />
+                </div>
+
                 {/* Enhanced Multi-Series Rankings */}
                 {seriesData?.series_rankings && currentAthlete && (
                   <AthleteSeriesRankings

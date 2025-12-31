@@ -164,6 +164,58 @@ export interface Database {
           user_agent?: string | null
         }
       }
+      athlete_runs: {
+        Row: {
+          id: string
+          athlete_id: string
+          event_id: string
+          event_name: string | null
+          year: number
+          youtube_url: string
+          youtube_timestamp: number | null
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          athlete_id: string
+          event_id: string
+          event_name?: string | null
+          year: number
+          youtube_url: string
+          youtube_timestamp?: number | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          athlete_id?: string
+          event_id?: string
+          event_name?: string | null
+          year?: number
+          youtube_url?: string
+          youtube_timestamp?: number | null
+          created_at?: string
+          created_by?: string | null
+        }
+      }
+      athletes: {
+        Row: {
+          id: string
+          name: string
+          last_seen: string
+        }
+        Insert: {
+          id: string
+          name: string
+          last_seen?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          last_seen?: string
+        }
+      }
     }
     Views: {
       active_sessions: {
@@ -195,3 +247,6 @@ export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
 export type UserAction = Database['public']['Tables']['user_actions']['Row']
 export type LoginActivity = Database['public']['Tables']['user_login_activity']['Row']
 export type ActiveSession = Database['public']['Views']['active_sessions']['Row']
+export type AthleteRun = Database['public']['Tables']['athlete_runs']['Row']
+export type AthleteRunInsert = Database['public']['Tables']['athlete_runs']['Insert']
+export type DbAthlete = Database['public']['Tables']['athletes']['Row']
