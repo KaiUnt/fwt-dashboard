@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/providers/AuthProvider'
-import { User, LogOut, Settings, Shield, ChevronDown, Users, Coins, BookOpen, Search } from 'lucide-react'
+import { User, LogOut, Settings, Shield, ChevronDown, Users, Coins, BookOpen, Search, Video } from 'lucide-react'
 import Link from 'next/link'
 import { useTranslation } from '@/hooks/useTranslation'
 import CreditsBalance from './CreditsBalance'
@@ -245,6 +245,14 @@ export function UserNav() {
                   >
                     <Search className="h-4 w-4" />
                     Admin Search
+                  </Link>
+                  <Link
+                    href="/admin/video"
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Video className="h-4 w-4" />
+                    Video Management
                   </Link>
                 </>
               )}
