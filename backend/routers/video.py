@@ -520,9 +520,16 @@ async def save_runs(
     try:
         admin_client = await get_admin_client(request) or supabase_client
 
-        # Prepare data for upsert
+        # Prepare data for upsert - deduplicate by (athlete_id, event_id, year)
+        # Keep only the first occurrence of each unique combination
+        seen_keys = set()
         runs_data = []
         for run in body.runs:
+            key = (str(run.athlete_id), str(run.event_id), run.year)
+            if key in seen_keys:
+                logger.info(f"Skipping duplicate run: athlete_id={run.athlete_id}, event_id={run.event_id}, year={run.year}")
+                continue
+            seen_keys.add(key)
             runs_data.append({
                 "athlete_id": str(run.athlete_id),  # Ensure string type
                 "event_id": str(run.event_id),
