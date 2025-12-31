@@ -387,8 +387,8 @@ async def match_athletes(
     await require_admin(request, user_token)
 
     try:
-        # Get all athletes from database using user token for RLS
-        athletes = await supabase_client.select("athletes", "id, name", {}, user_token)
+        # Get ALL athletes from database using pagination (bypasses 1000 row limit)
+        athletes = await supabase_client.select_all("athletes", "id, name", {}, user_token)
 
         if athletes is None:
             logger.warning("Athletes query returned None")

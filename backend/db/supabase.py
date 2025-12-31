@@ -137,7 +137,9 @@ class SupabaseClient:
         table: str,
         columns: str = "*",
         filters: Optional[Dict[str, Any]] = None,
-        user_token: Optional[str] = None
+        user_token: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None
     ) -> List[Dict]:
         """
         Select data from table.
@@ -147,6 +149,8 @@ class SupabaseClient:
             columns: Columns to select (default: "*")
             filters: Filter conditions as dict
             user_token: User JWT for RLS
+            limit: Maximum number of rows to return
+            offset: Number of rows to skip
 
         Returns:
             List of matching records
@@ -156,6 +160,10 @@ class SupabaseClient:
         url = f"{self.url}/rest/v1/{table}"
         params = {"select": columns}
         params.update(self._build_filter_params(filters))
+        if limit is not None:
+            params["limit"] = str(limit)
+        if offset is not None:
+            params["offset"] = str(offset)
         headers = self._get_headers(user_token)
 
         try:
@@ -165,6 +173,52 @@ class SupabaseClient:
         except httpx.TimeoutException:
             logger.error("Supabase request timeout")
             raise HTTPException(status_code=504, detail="Database request timeout")
+
+    async def select_all(
+        self,
+        table: str,
+        columns: str = "*",
+        filters: Optional[Dict[str, Any]] = None,
+        user_token: Optional[str] = None,
+        batch_size: int = 1000
+    ) -> List[Dict]:
+        """
+        Select ALL data from table using pagination to bypass the 1000 row limit.
+
+        Args:
+            table: Table name
+            columns: Columns to select (default: "*")
+            filters: Filter conditions as dict
+            user_token: User JWT for RLS
+            batch_size: Number of rows per request (default: 1000)
+
+        Returns:
+            List of ALL matching records
+        """
+        all_results = []
+        offset = 0
+
+        while True:
+            batch = await self.select(
+                table=table,
+                columns=columns,
+                filters=filters,
+                user_token=user_token,
+                limit=batch_size,
+                offset=offset
+            )
+
+            if not batch:
+                break
+
+            all_results.extend(batch)
+            offset += batch_size
+
+            # If we got fewer rows than batch_size, we're done
+            if len(batch) < batch_size:
+                break
+
+        return all_results
 
     async def insert(
         self,
