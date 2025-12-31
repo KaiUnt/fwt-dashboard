@@ -143,6 +143,60 @@ def normalize_string(s: str) -> str:
     return without_accents.lower().strip()
 
 
+def levenshtein_distance(s1: str, s2: str) -> int:
+    """Calculate Levenshtein distance between two strings."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
+
+
+def fuzzy_match(name: str, candidates: Dict[str, Any], threshold: float = 0.8) -> Optional[tuple]:
+    """Find best fuzzy match for a name among candidates.
+
+    Args:
+        name: The name to match
+        candidates: Dict mapping normalized names to athlete records
+        threshold: Minimum similarity ratio (0-1) to consider a match
+
+    Returns:
+        Tuple of (athlete_record, similarity_score) or None if no match above threshold
+    """
+    normalized_name = normalize_string(name)
+    best_match = None
+    best_score = 0.0
+
+    for candidate_norm, athlete in candidates.items():
+        # Calculate similarity using Levenshtein distance
+        max_len = max(len(normalized_name), len(candidate_norm))
+        if max_len == 0:
+            continue
+
+        distance = levenshtein_distance(normalized_name, candidate_norm)
+        similarity = 1 - (distance / max_len)
+
+        if similarity > best_score and similarity >= threshold:
+            best_score = similarity
+            best_match = athlete
+
+    if best_match:
+        return (best_match, best_score)
+    return None
+
+
 def parse_youtube_timestamp(url: str) -> Dict[str, Any]:
     """Extract timestamp from YouTube URL and return clean URL + timestamp."""
     try:
@@ -370,6 +424,20 @@ async def match_athletes(
                     "athlete_id": athlete["id"],
                     "athlete_name": athlete["name"],
                     "match_type": "normalized"
+                })
+                continue
+
+            # Try fuzzy match (80% similarity threshold)
+            fuzzy_result = fuzzy_match(rider_name, normalized_lookup, threshold=0.8)
+            if fuzzy_result:
+                athlete, score = fuzzy_result
+                logger.info(f"Fuzzy match for '{rider_name}': '{athlete['name']}' (score: {score:.2f})")
+                matches.append({
+                    "rider_name": rider_name,
+                    "athlete_id": athlete["id"],
+                    "athlete_name": athlete["name"],
+                    "match_type": "fuzzy",
+                    "fuzzy_score": round(score, 2)
                 })
                 continue
 
