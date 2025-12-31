@@ -399,6 +399,17 @@ export function categorizeSeriesType(seriesName: string): SeriesCategoryType {
     return 'junior_wc';
   }
 
+  // Junior / Youth Events - MUST be checked BEFORE qualifier!
+  // Junior events can have star ratings like "Junior 2*" or "Junior 3*"
+  // e.g., "2026 FAI Kühtai Freeride Open by Innsbruck Tourism Junior 3*"
+  if (name.includes('junior') ||
+      name.includes('youth') ||
+      name.includes('u18') ||
+      name.includes('u21') ||
+      name.includes('kids')) {
+    return 'junior';
+  }
+
   // FWT Pro Tour / Pro Level Events
   if (name.includes('fwt pro') ||
       name.includes('pro tour') ||
@@ -416,21 +427,13 @@ export function categorizeSeriesType(seriesName: string): SeriesCategoryType {
   }
 
   // Qualifier Events (including star ratings and FWQ)
+  // Note: Junior events with star ratings are already handled above
   if (name.includes('qualifier') ||
       name.includes('fwq') ||
       name.includes('ifsa qualifier') ||
       name.match(/\b[1-4]\*/) || // Matches 1*, 2*, 3*, 4*
       name.includes('final')) { // FWQ Final
     return 'qualifier';
-  }
-
-  // Junior / Youth Events (regular junior tour)
-  if (name.includes('junior') ||
-      name.includes('youth') ||
-      name.includes('u18') ||
-      name.includes('u21') ||
-      name.includes('kids')) {
-    return 'junior';
   }
 
   // Regional/National/Other Events
@@ -462,6 +465,14 @@ export function isMainSeasonRanking(seriesName: string): boolean {
     return true;
   }
   if (name.match(/fwt junior region \d+.*\d{4}/)) {
+    return true;
+  }
+  // IFSA Junior rankings (e.g., "IFSA Junior Region 1 2025")
+  if (name.match(/ifsa junior region \d+.*\d{4}/)) {
+    return true;
+  }
+  // Generic Junior region rankings (e.g., "Junior Region 1 2025")
+  if (name.match(/junior region \d+.*\d{4}/)) {
     return true;
   }
   // Junior World Championship rankings
