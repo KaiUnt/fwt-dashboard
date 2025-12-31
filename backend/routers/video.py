@@ -520,20 +520,16 @@ async def save_runs(
     try:
         admin_client = await get_admin_client(request) or supabase_client
 
-        now = datetime.now(timezone.utc).isoformat()
-
         # Prepare data for upsert
         runs_data = []
         for run in body.runs:
             runs_data.append({
-                "athlete_id": run.athlete_id,
-                "event_id": run.event_id,
+                "athlete_id": str(run.athlete_id),  # Ensure string type
+                "event_id": str(run.event_id),
                 "year": run.year,
                 "event_name": run.event_name,
                 "youtube_url": run.youtube_url,
-                "youtube_timestamp": run.youtube_timestamp or 0,
-                "created_at": now,
-                "updated_at": now
+                "youtube_timestamp": run.youtube_timestamp or 0
             })
 
         if not runs_data:
