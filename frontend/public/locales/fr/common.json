@@ -172,10 +172,34 @@
     },
     "filter": {
       "all": "Tous",
+      "filtered": "Filtre",
       "division": "Division",
       "allDivisions": "Toutes les divisions",
       "event": "Événement",
-      "allEvents": "Tous les événements"
+      "allEvents": "Tous les événements",
+      "results": "Resultats",
+      "series": "Series",
+      "scope": "Portee",
+      "scopeEvent": "Cet event",
+      "scopeSeries": "Tous les events de la serie",
+      "category": "Categorie",
+      "timeWindow": "Periode",
+      "lastYear": "Derniere annee",
+      "last3Years": "Dernieres 3 annees",
+      "last5Years": "Dernieres 5 annees",
+      "top": "Top",
+      "top1": "Top 1",
+      "top3": "Top 3",
+      "top5": "Top 5",
+      "top10": "Top 10",
+      "any": "Tout",
+      "seriesCategory": {
+        "pro": "Pro",
+        "challenger": "Challenger",
+        "qualifier": "Qualifier",
+        "junior": "Junior",
+        "junior_wc": "Junior WC"
+      }
     }
   },
   "events": {

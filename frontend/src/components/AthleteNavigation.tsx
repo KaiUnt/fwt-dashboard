@@ -6,13 +6,18 @@ import { useState, useMemo } from 'react';
 import { getCountryFlag, getNationalityDisplay, countUniqueNationalities, matchesNationalitySearch } from '@/utils/nationality';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { SeriesData, SeriesRegion, AthleteMainRanking, SeriesCategoryType } from '@/hooks/useSeriesRankings';
-import { getAthleteRankingForEventType, categorizeSeriesType, extractSeriesYear, SERIES_CATEGORY_COLORS } from '@/hooks/useSeriesRankings';
+import { getAthleteRankingForEventType, categorizeSeriesType, extractSeriesYear, isMainSeasonRanking, isMainSeasonRankingForRegion, SERIES_CATEGORY_COLORS } from '@/hooks/useSeriesRankings';
+import { normalizeEventNameForMatch, extractYearFromEventName } from '@/utils/eventMatching';
 
 // Sort options
 export type SortOption = 'bib' | 'name' | 'division' | 'ranking';
 
 // Division filter options
 export type DivisionFilter = 'all' | 'Ski Men' | 'Ski Women' | 'Snowboard Men' | 'Snowboard Women';
+
+type ResultsScope = 'all' | 'event' | 'series';
+type TimeWindow = 'lastYear' | 'last3Years' | 'last5Years';
+type TopThreshold = 1 | 3 | 5 | 10;
 
 // Division order for sorting (base divisions without age categories)
 const DIVISION_ORDER = ['Ski Men', 'Ski Women', 'Snowboard Men', 'Snowboard Women'];
@@ -21,6 +26,36 @@ const DIVISION_ORDER = ['Ski Men', 'Ski Women', 'Snowboard Men', 'Snowboard Wome
 function getBaseDivision(division: string | undefined): string {
   if (!division) return '';
   return division.replace(/\s+U-\d+$/, '');
+}
+
+function getYearFromDate(dateString?: string): number | null {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getFullYear();
+}
+
+function getEventYear(eventName?: string, eventDate?: string, fallbackYear?: number): number {
+  const dateYear = getYearFromDate(eventDate);
+  if (dateYear) return dateYear;
+  if (eventName) {
+    const nameYear = extractYearFromEventName(eventName);
+    if (nameYear) return nameYear;
+  }
+  return fallbackYear || new Date().getFullYear();
+}
+
+function getTimeWindowRange(eventYear: number, timeWindow: TimeWindow): { start: number; end: number } {
+  switch (timeWindow) {
+    case 'lastYear':
+      return { start: eventYear - 1, end: eventYear - 1 };
+    case 'last3Years':
+      return { start: eventYear - 2, end: eventYear };
+    case 'last5Years':
+      return { start: eventYear - 4, end: eventYear };
+    default:
+      return { start: eventYear, end: eventYear };
+  }
 }
 
 // Component to render a single ranking badge for the event type
@@ -58,6 +93,10 @@ interface AthleteNavigationProps {
   selectedRegion?: SeriesRegion;
   // Optional: Event name to determine the series type (e.g., "FWT Challenger Fieberbrunn 2025" -> challenger)
   eventName?: string;
+  // Optional: Event date to derive event year when name lacks a year
+  eventDate?: string;
+  // Optional: Multi-event dates lookup
+  eventDates?: { id: string; date?: string }[];
 }
 
 // Helper function to get athlete ranking for the event's series type (for sorting purposes)
@@ -81,7 +120,9 @@ export function AthleteNavigation({
   isMultiEvent = false,
   eventNames = [],
   selectedRegion = '1',
-  eventName
+  eventName,
+  eventDate,
+  eventDates = []
 }: AthleteNavigationProps) {
   // Determine the series type from the event name (e.g., "FWT Challenger Fieberbrunn 2025" -> 'challenger')
   const eventSeriesType: SeriesCategoryType = useMemo(() => {
@@ -92,16 +133,30 @@ export function AthleteNavigation({
   // Extract the year from the event name (e.g., "FWT Challenger Fieberbrunn 2025" -> 2025)
   // This ensures we only show rankings from the same year as the event
   const eventYear: number = useMemo(() => {
-    if (!eventName) return new Date().getFullYear();
-    return extractSeriesYear(eventName);
-  }, [eventName]);
+    return getEventYear(eventName, eventDate);
+  }, [eventName, eventDate]);
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('bib');
   const [divisionFilter, setDivisionFilter] = useState<DivisionFilter>('all');
   const [eventFilter, setEventFilter] = useState<string>('all');
+  const [resultsScope, setResultsScope] = useState<ResultsScope>('all');
+  const [resultsSeriesCategory, setResultsSeriesCategory] = useState<SeriesCategoryType>('pro');
+  const [resultsTimeWindow, setResultsTimeWindow] = useState<TimeWindow>('last3Years');
+  const [resultsTopThreshold, setResultsTopThreshold] = useState<TopThreshold>(10);
+  const [seriesCategoryFilter, setSeriesCategoryFilter] = useState<SeriesCategoryType | 'all'>('all');
+  const [seriesTimeWindow, setSeriesTimeWindow] = useState<TimeWindow>('last3Years');
+  const [seriesTopThreshold, setSeriesTopThreshold] = useState<TopThreshold | 'any'>('any');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+
+  const eventDateById = useMemo(() => {
+    const map = new Map<string, string | undefined>();
+    eventDates.forEach(entry => {
+      map.set(entry.id, entry.date);
+    });
+    return map;
+  }, [eventDates]);
 
   // Check if any athlete has a BIB number - if yes, hide waitlisted athletes
   const hasBibNumbers = athletes.some(athlete => athlete.bib);
@@ -134,9 +189,172 @@ export function AthleteNavigation({
     return Array.from(events);
   }, [relevantAthletes, isMultiEvent]);
 
+  const athleteFilterIndex = useMemo(() => {
+    if (!seriesData) return null;
+
+    type AthleteFilterIndex = {
+      seriesByYearCategory: Map<number, Map<SeriesCategoryType, number>>;
+      eventByYearCategory: Map<number, Map<SeriesCategoryType, number>>;
+      eventByYearKey: Map<number, Map<string, number>>;
+    };
+
+    const index = new Map<string, Map<string, AthleteFilterIndex>>();
+
+    const ensureIndex = (athleteId: string, baseDivision: string) => {
+      let athleteMap = index.get(athleteId);
+      if (!athleteMap) {
+        athleteMap = new Map<string, AthleteFilterIndex>();
+        index.set(athleteId, athleteMap);
+      }
+
+      let divisionIndex = athleteMap.get(baseDivision);
+      if (!divisionIndex) {
+        divisionIndex = {
+          seriesByYearCategory: new Map(),
+          eventByYearCategory: new Map(),
+          eventByYearKey: new Map()
+        };
+        athleteMap.set(baseDivision, divisionIndex);
+      }
+
+      return divisionIndex;
+    };
+
+    const updateBestPlace = (
+      target: Map<number, Map<string, number>>,
+      year: number,
+      key: string,
+      place?: number
+    ) => {
+      if (!place || place <= 0 || !key) return;
+      let yearMap = target.get(year);
+      if (!yearMap) {
+        yearMap = new Map<string, number>();
+        target.set(year, yearMap);
+      }
+      const existing = yearMap.get(key);
+      if (!existing || place < existing) {
+        yearMap.set(key, place);
+      }
+    };
+
+    const updateBestCategoryPlace = (
+      target: Map<number, Map<SeriesCategoryType, number>>,
+      year: number,
+      category: SeriesCategoryType,
+      place?: number
+    ) => {
+      if (!place || place <= 0) return;
+      let yearMap = target.get(year);
+      if (!yearMap) {
+        yearMap = new Map<SeriesCategoryType, number>();
+        target.set(year, yearMap);
+      }
+      const existing = yearMap.get(category);
+      if (!existing || place < existing) {
+        yearMap.set(category, place);
+      }
+    };
+
+    for (const series of seriesData) {
+      if (!isMainSeasonRanking(series.series_name)) {
+        continue;
+      }
+
+      const seriesCategory = categorizeSeriesType(series.series_name);
+      const seriesYear = extractSeriesYear(series.series_name);
+      const isRegionMatch = isMainSeasonRankingForRegion(series.series_name, selectedRegion);
+
+      for (const [divisionName, rankings] of Object.entries(series.divisions)) {
+        const baseDivision = getBaseDivision(divisionName) || '';
+        for (const ranking of rankings) {
+          const athleteId = ranking.athlete.id;
+          const divisionIndex = ensureIndex(athleteId, baseDivision);
+          const aggregateIndex = ensureIndex(athleteId, '*');
+
+          if (isRegionMatch) {
+            updateBestCategoryPlace(divisionIndex.seriesByYearCategory, seriesYear, seriesCategory, ranking.place);
+            updateBestCategoryPlace(aggregateIndex.seriesByYearCategory, seriesYear, seriesCategory, ranking.place);
+          }
+
+          if (ranking.results) {
+            for (const result of ranking.results) {
+              const eventInfo = result.eventDivision?.event || result.event;
+              const eventName = eventInfo?.name || '';
+              const eventDate = eventInfo?.date;
+              const eventYear = getEventYear(eventName, eventDate, seriesYear);
+              const eventKey = normalizeEventNameForMatch(eventName);
+
+              if (isRegionMatch) {
+                updateBestCategoryPlace(divisionIndex.eventByYearCategory, eventYear, seriesCategory, result.place);
+                updateBestCategoryPlace(aggregateIndex.eventByYearCategory, eventYear, seriesCategory, result.place);
+              }
+              updateBestPlace(divisionIndex.eventByYearKey, eventYear, eventKey, result.place);
+              updateBestPlace(aggregateIndex.eventByYearKey, eventYear, eventKey, result.place);
+            }
+          }
+        }
+      }
+    }
+
+    return index;
+  }, [seriesData, selectedRegion]);
+
   // Apply filters and sorting
   const processedAthletes = useMemo(() => {
     let result = [...relevantAthletes];
+
+    const getAthleteIndex = (athlete: Athlete | MultiEventAthlete) => {
+      const baseDivision = getBaseDivision(athlete.division) || '*';
+      const athleteMap = athleteFilterIndex?.get(athlete.id);
+      return athleteMap?.get(baseDivision) || athleteMap?.get('*') || null;
+    };
+
+    const getAthleteEventInfo = (athlete: Athlete | MultiEventAthlete) => {
+      const athleteEventName = isMultiEvent && 'eventName' in athlete ? athlete.eventName : eventName || '';
+      const athleteEventDate = isMultiEvent && 'eventSource' in athlete
+        ? eventDateById.get(athlete.eventSource)
+        : eventDate;
+      const athleteEventYear = getEventYear(athleteEventName, athleteEventDate);
+      const athleteEventKey = normalizeEventNameForMatch(athleteEventName);
+      return { athleteEventName, athleteEventDate, athleteEventYear, athleteEventKey };
+    };
+
+    const hasCategoryMatchInRange = (
+      byYear: Map<number, Map<SeriesCategoryType, number>>,
+      category: SeriesCategoryType,
+      start: number,
+      end: number,
+      topThreshold?: TopThreshold
+    ) => {
+      for (let year = start; year <= end; year += 1) {
+        const yearMap = byYear.get(year);
+        const place = yearMap?.get(category);
+        if (!place) continue;
+        if (!topThreshold || place <= topThreshold) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const hasEventMatchInRange = (
+      byYear: Map<number, Map<string, number>>,
+      eventKey: string,
+      start: number,
+      end: number,
+      topThreshold: TopThreshold
+    ) => {
+      if (!eventKey) return false;
+      for (let year = start; year <= end; year += 1) {
+        const yearMap = byYear.get(year);
+        const place = yearMap?.get(eventKey);
+        if (place && place <= topThreshold) {
+          return true;
+        }
+      }
+      return false;
+    };
 
     // Apply search filter
     if (searchQuery) {
@@ -157,6 +375,58 @@ export function AthleteNavigation({
       result = result.filter(athlete =>
         'eventSource' in athlete && athlete.eventSource === eventFilter
       );
+    }
+
+    // Apply results filter
+    if (resultsScope !== 'all') {
+      result = result.filter(athlete => {
+        const athleteIndex = getAthleteIndex(athlete);
+        if (!athleteIndex) return false;
+
+        const { athleteEventYear, athleteEventKey } = getAthleteEventInfo(athlete);
+        const range = getTimeWindowRange(athleteEventYear, resultsTimeWindow);
+
+        if (resultsScope === 'event') {
+          return hasEventMatchInRange(
+            athleteIndex.eventByYearKey,
+            athleteEventKey,
+            range.start,
+            range.end,
+            resultsTopThreshold
+          );
+        }
+
+        if (resultsScope === 'series') {
+          return hasCategoryMatchInRange(
+            athleteIndex.eventByYearCategory,
+            resultsSeriesCategory,
+            range.start,
+            range.end,
+            resultsTopThreshold
+          );
+        }
+
+        return true;
+      });
+    }
+
+    // Apply series filter
+    if (seriesCategoryFilter !== 'all') {
+      result = result.filter(athlete => {
+        const athleteIndex = getAthleteIndex(athlete);
+        if (!athleteIndex) return false;
+
+        const { athleteEventYear } = getAthleteEventInfo(athlete);
+        const range = getTimeWindowRange(athleteEventYear, seriesTimeWindow);
+
+        return hasCategoryMatchInRange(
+          athleteIndex.seriesByYearCategory,
+          seriesCategoryFilter,
+          range.start,
+          range.end,
+          seriesTopThreshold === 'any' ? undefined : seriesTopThreshold
+        );
+      });
     }
 
     // Apply sorting
@@ -201,8 +471,12 @@ export function AthleteNavigation({
           // In multi-event mode, use each athlete's own event type and year
           const seriesTypeA = isMultiEvent && 'eventName' in a ? categorizeSeriesType(a.eventName) : eventSeriesType;
           const seriesTypeB = isMultiEvent && 'eventName' in b ? categorizeSeriesType(b.eventName) : eventSeriesType;
-          const yearA = isMultiEvent && 'eventName' in a ? extractSeriesYear(a.eventName) : eventYear;
-          const yearB = isMultiEvent && 'eventName' in b ? extractSeriesYear(b.eventName) : eventYear;
+          const yearA = isMultiEvent && 'eventName' in a
+            ? getEventYear(a.eventName, 'eventSource' in a ? eventDateById.get(a.eventSource) : undefined, eventYear)
+            : eventYear;
+          const yearB = isMultiEvent && 'eventName' in b
+            ? getEventYear(b.eventName, 'eventSource' in b ? eventDateById.get(b.eventSource) : undefined, eventYear)
+            : eventYear;
           const rankA = getAthleteRankingPlace(a.id, a.division, seriesData, seriesTypeA, selectedRegion, yearA) ?? 5000;
           const rankB = getAthleteRankingPlace(b.id, b.division, seriesData, seriesTypeB, selectedRegion, yearB) ?? 5000;
           return rankA - rankB;
@@ -211,7 +485,29 @@ export function AthleteNavigation({
     }
 
     return result;
-  }, [relevantAthletes, searchQuery, divisionFilter, eventFilter, sortOption, seriesData, isMultiEvent, selectedRegion, eventSeriesType, eventYear]);
+  }, [
+    relevantAthletes,
+    searchQuery,
+    divisionFilter,
+    eventFilter,
+    resultsScope,
+    resultsSeriesCategory,
+    resultsTimeWindow,
+    resultsTopThreshold,
+    seriesCategoryFilter,
+    seriesTimeWindow,
+    seriesTopThreshold,
+    sortOption,
+    seriesData,
+    athleteFilterIndex,
+    isMultiEvent,
+    selectedRegion,
+    eventSeriesType,
+    eventYear,
+    eventName,
+    eventDate,
+    eventDateById
+  ]);
 
   // For display - use processedAthletes instead of filteredAthletes
   const filteredAthletes = processedAthletes;
@@ -311,7 +607,7 @@ export function AthleteNavigation({
                 setShowSortDropdown(false);
               }}
               className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-colors ${
-                divisionFilter !== 'all' || eventFilter !== 'all'
+                divisionFilter !== 'all' || eventFilter !== 'all' || resultsScope !== 'all' || seriesCategoryFilter !== 'all'
                   ? 'border-blue-300 bg-blue-50 text-blue-700'
                   : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
               }`}
@@ -322,6 +618,8 @@ export function AthleteNavigation({
                   ? divisionFilter
                   : eventFilter !== 'all'
                   ? eventNames.find(e => e.id === eventFilter)?.name || 'Event'
+                  : resultsScope !== 'all' || seriesCategoryFilter !== 'all'
+                  ? t('navigation.filter.filtered')
                   : t('navigation.filter.all')}
               </span>
               <ChevronDown className={`h-4 w-4 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
@@ -395,6 +693,186 @@ export function AthleteNavigation({
                     })}
                   </>
                 )}
+
+                {/* Results filters */}
+                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t border-b border-gray-100 mt-1">
+                  {t('navigation.filter.results')}
+                </div>
+                <div className="px-3 py-2 text-xs font-medium text-gray-500">
+                  {t('navigation.filter.scope')}
+                </div>
+                {([
+                  { value: 'all', label: t('navigation.filter.all') },
+                  { value: 'event', label: t('navigation.filter.scopeEvent') },
+                  { value: 'series', label: t('navigation.filter.scopeSeries') }
+                ] as Array<{ value: ResultsScope; label: string }>).map(option => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      setResultsScope(option.value);
+                      setShowFilterDropdown(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                      resultsScope === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+
+                {resultsScope === 'series' && (
+                  <>
+                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
+                      {t('navigation.filter.category')}
+                    </div>
+                    {(['pro', 'challenger', 'qualifier', 'junior', 'junior_wc'] as SeriesCategoryType[]).map(category => (
+                      <button
+                        key={category}
+                        onClick={() => {
+                          setResultsSeriesCategory(category);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                          resultsSeriesCategory === category ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        {t(`navigation.filter.seriesCategory.${category}`)}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {resultsScope !== 'all' && (
+                  <>
+                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
+                      {t('navigation.filter.timeWindow')}
+                    </div>
+                    {([
+                      { value: 'lastYear', label: t('navigation.filter.lastYear') },
+                      { value: 'last3Years', label: t('navigation.filter.last3Years') },
+                      { value: 'last5Years', label: t('navigation.filter.last5Years') }
+                    ] as Array<{ value: TimeWindow; label: string }>).map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setResultsTimeWindow(option.value);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                          resultsTimeWindow === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+
+                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
+                      {t('navigation.filter.top')}
+                    </div>
+                    {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
+                      <button
+                        key={threshold}
+                        onClick={() => {
+                          setResultsTopThreshold(threshold);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                          resultsTopThreshold === threshold ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        {t(`navigation.filter.top${threshold}`)}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {/* Series filters */}
+                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t border-b border-gray-100 mt-1">
+                  {t('navigation.filter.series')}
+                </div>
+                <div className="px-3 py-2 text-xs font-medium text-gray-500">
+                  {t('navigation.filter.category')}
+                </div>
+                <button
+                  onClick={() => {
+                    setSeriesCategoryFilter('all');
+                    setShowFilterDropdown(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                    seriesCategoryFilter === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  {t('navigation.filter.all')}
+                </button>
+                {(['pro', 'challenger', 'qualifier', 'junior', 'junior_wc'] as SeriesCategoryType[]).map(category => (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      setSeriesCategoryFilter(category);
+                      setShowFilterDropdown(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                      seriesCategoryFilter === category ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                    }`}
+                  >
+                    {t(`navigation.filter.seriesCategory.${category}`)}
+                  </button>
+                ))}
+
+                {seriesCategoryFilter !== 'all' && (
+                  <>
+                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
+                      {t('navigation.filter.timeWindow')}
+                    </div>
+                    {([
+                      { value: 'lastYear', label: t('navigation.filter.lastYear') },
+                      { value: 'last3Years', label: t('navigation.filter.last3Years') },
+                      { value: 'last5Years', label: t('navigation.filter.last5Years') }
+                    ] as Array<{ value: TimeWindow; label: string }>).map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSeriesTimeWindow(option.value);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                          seriesTimeWindow === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+
+                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
+                      {t('navigation.filter.top')}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSeriesTopThreshold('any');
+                        setShowFilterDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                        seriesTopThreshold === 'any' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                      }`}
+                    >
+                      {t('navigation.filter.any')}
+                    </button>
+                    {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
+                      <button
+                        key={threshold}
+                        onClick={() => {
+                          setSeriesTopThreshold(threshold);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                          seriesTopThreshold === threshold ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        {t(`navigation.filter.top${threshold}`)}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -435,7 +913,7 @@ export function AthleteNavigation({
                       ? categorizeSeriesType(athlete.eventName)
                       : eventSeriesType;
                     const athleteEventYear = isMultiEvent && 'eventName' in athlete
-                      ? extractSeriesYear(athlete.eventName)
+                      ? getEventYear(athlete.eventName, 'eventSource' in athlete ? eventDateById.get(athlete.eventSource) : undefined, eventYear)
                       : eventYear;
                     const ranking = getAthleteRankingForEventType(seriesData || [], athlete.id, athlete.division, athleteSeriesType, selectedRegion, athleteEventYear);
 
@@ -505,7 +983,7 @@ export function AthleteNavigation({
                 ? categorizeSeriesType(athlete.eventName)
                 : eventSeriesType;
               const athleteEventYear = isMultiEvent && 'eventName' in athlete
-                ? extractSeriesYear(athlete.eventName)
+                ? getEventYear(athlete.eventName, 'eventSource' in athlete ? eventDateById.get(athlete.eventSource) : undefined, eventYear)
                 : eventYear;
               const ranking = getAthleteRankingForEventType(seriesData || [], athlete.id, athlete.division, athleteSeriesType, selectedRegion, athleteEventYear);
 

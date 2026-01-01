@@ -223,6 +223,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 seriesData={seriesData?.series_rankings}
                 selectedRegion={selectedRegion}
                 eventName={athletesData.event.name}
+                eventDate={athletesData.event.date}
               />
               
               {/* 2. Athlete Info (Name, Birth, Commentator Field) */}
@@ -364,6 +365,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
               seriesData={seriesData?.series_rankings}
               selectedRegion={selectedRegion}
               eventName={athletesData?.event.name}
+              eventDate={athletesData?.event.date}
             />
 
             {/* Performance Curve */}

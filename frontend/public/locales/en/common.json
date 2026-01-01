@@ -172,10 +172,34 @@
     },
     "filter": {
       "all": "All",
+      "filtered": "Filtered",
       "division": "Division",
       "allDivisions": "All Divisions",
       "event": "Event",
-      "allEvents": "All Events"
+      "allEvents": "All Events",
+      "results": "Results",
+      "series": "Series",
+      "scope": "Scope",
+      "scopeEvent": "This event",
+      "scopeSeries": "All events in series",
+      "category": "Category",
+      "timeWindow": "Time window",
+      "lastYear": "Last year",
+      "last3Years": "Last 3 years",
+      "last5Years": "Last 5 years",
+      "top": "Top",
+      "top1": "Top 1",
+      "top3": "Top 3",
+      "top5": "Top 5",
+      "top10": "Top 10",
+      "any": "Any",
+      "seriesCategory": {
+        "pro": "Pro",
+        "challenger": "Challenger",
+        "qualifier": "Qualifier",
+        "junior": "Junior",
+        "junior_wc": "Junior WC"
+      }
     }
   },
   "events": {
