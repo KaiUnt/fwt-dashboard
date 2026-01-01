@@ -186,6 +186,7 @@
       "scopeSeries": "Tous les events de la serie",
       "category": "Categorie",
       "timeWindow": "Periode",
+      "allTime": "Tout le temps",
       "lastYear": "Derniere annee",
       "last3Years": "Dernieres 3 annees",
       "last5Years": "Dernieres 5 annees",

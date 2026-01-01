@@ -16,8 +16,10 @@ export type SortOption = 'bib' | 'name' | 'division' | 'ranking';
 export type DivisionFilter = 'all' | 'Ski Men' | 'Ski Women' | 'Snowboard Men' | 'Snowboard Women';
 
 type ResultsScope = 'all' | 'event' | 'series';
-type TimeWindow = 'lastYear' | 'last3Years' | 'last5Years';
+type TimeWindow = 'allTime' | 'lastYear' | 'last3Years' | 'last5Years';
 type TopThreshold = 1 | 3 | 5 | 10;
+type ResultsTopThreshold = TopThreshold | 'any';
+type SeriesTopThreshold = TopThreshold | 'any';
 
 // Division order for sorting (base divisions without age categories)
 const DIVISION_ORDER = ['Ski Men', 'Ski Women', 'Snowboard Men', 'Snowboard Women'];
@@ -47,6 +49,8 @@ function getEventYear(eventName?: string, eventDate?: string, fallbackYear?: num
 
 function getTimeWindowRange(eventYear: number, timeWindow: TimeWindow): { start: number; end: number } {
   switch (timeWindow) {
+    case 'allTime':
+      return { start: 1900, end: eventYear };
     case 'lastYear':
       return { start: eventYear - 1, end: eventYear - 1 };
     case 'last3Years':
@@ -142,11 +146,11 @@ export function AthleteNavigation({
   const [eventFilter, setEventFilter] = useState<string>('all');
   const [resultsScope, setResultsScope] = useState<ResultsScope>('all');
   const [resultsSeriesCategory, setResultsSeriesCategory] = useState<SeriesCategoryType>('pro');
-  const [resultsTimeWindow, setResultsTimeWindow] = useState<TimeWindow>('last3Years');
-  const [resultsTopThreshold, setResultsTopThreshold] = useState<TopThreshold>(10);
+  const [resultsTimeWindow, setResultsTimeWindow] = useState<TimeWindow>('allTime');
+  const [resultsTopThreshold, setResultsTopThreshold] = useState<ResultsTopThreshold>('any');
   const [seriesCategoryFilter, setSeriesCategoryFilter] = useState<SeriesCategoryType | 'all'>('all');
-  const [seriesTimeWindow, setSeriesTimeWindow] = useState<TimeWindow>('last3Years');
-  const [seriesTopThreshold, setSeriesTopThreshold] = useState<TopThreshold | 'any'>('any');
+  const [seriesTimeWindow, setSeriesTimeWindow] = useState<TimeWindow>('allTime');
+  const [seriesTopThreshold, setSeriesTopThreshold] = useState<SeriesTopThreshold>('any');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
@@ -163,10 +167,10 @@ export function AthleteNavigation({
     setEventFilter('all');
     setResultsScope('all');
     setResultsSeriesCategory('pro');
-    setResultsTimeWindow('last3Years');
-    setResultsTopThreshold(10);
+    setResultsTimeWindow('allTime');
+    setResultsTopThreshold('any');
     setSeriesCategoryFilter('all');
-    setSeriesTimeWindow('last3Years');
+    setSeriesTimeWindow('allTime');
     setSeriesTopThreshold('any');
   };
 
@@ -350,23 +354,69 @@ export function AthleteNavigation({
       return false;
     };
 
+    const hasAnyCategoryMatchInRange = (
+      byYear: Map<number, Map<SeriesCategoryType, number>>,
+      start: number,
+      end: number,
+      topThreshold?: TopThreshold
+    ) => {
+      for (let year = start; year <= end; year += 1) {
+        const yearMap = byYear.get(year);
+        if (!yearMap) continue;
+        for (const place of yearMap.values()) {
+          if (!place) continue;
+          if (!topThreshold || place <= topThreshold) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
     const hasEventMatchInRange = (
       byYear: Map<number, Map<string, number>>,
       eventKey: string,
       start: number,
       end: number,
-      topThreshold: TopThreshold
+      topThreshold?: TopThreshold
     ) => {
       if (!eventKey) return false;
       for (let year = start; year <= end; year += 1) {
         const yearMap = byYear.get(year);
         const place = yearMap?.get(eventKey);
-        if (place && place <= topThreshold) {
+        if (place && (!topThreshold || place <= topThreshold)) {
           return true;
         }
       }
       return false;
     };
+
+    const hasAnyEventResultInRange = (
+      byYear: Map<number, Map<string, number>>,
+      start: number,
+      end: number,
+      topThreshold?: TopThreshold
+    ) => {
+      for (let year = start; year <= end; year += 1) {
+        const yearMap = byYear.get(year);
+        if (!yearMap) continue;
+        for (const place of yearMap.values()) {
+          if (!place) continue;
+          if (!topThreshold || place <= topThreshold) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    const normalizeTopThreshold = (threshold: ResultsTopThreshold | SeriesTopThreshold): TopThreshold | undefined => {
+      if (threshold === 'any') return undefined;
+      return threshold;
+    };
+
+    const normalizedResultsTop = normalizeTopThreshold(resultsTopThreshold);
+    const normalizedSeriesTop = normalizeTopThreshold(seriesTopThreshold);
 
     // Apply search filter
     if (searchQuery) {
@@ -404,7 +454,7 @@ export function AthleteNavigation({
             athleteEventKey,
             range.start,
             range.end,
-            resultsTopThreshold
+            normalizedResultsTop
           );
         }
 
@@ -414,11 +464,26 @@ export function AthleteNavigation({
             resultsSeriesCategory,
             range.start,
             range.end,
-            resultsTopThreshold
+            normalizedResultsTop
           );
         }
 
         return true;
+      });
+    } else if (resultsTimeWindow !== 'allTime' || resultsTopThreshold !== 'any') {
+      result = result.filter(athlete => {
+        const athleteIndex = getAthleteIndex(athlete);
+        if (!athleteIndex) return false;
+
+        const { athleteEventYear } = getAthleteEventInfo(athlete);
+        const range = getTimeWindowRange(athleteEventYear, resultsTimeWindow);
+
+        return hasAnyEventResultInRange(
+          athleteIndex.eventByYearKey,
+          range.start,
+          range.end,
+          normalizedResultsTop
+        );
       });
     }
 
@@ -436,7 +501,22 @@ export function AthleteNavigation({
           seriesCategoryFilter,
           range.start,
           range.end,
-          seriesTopThreshold === 'any' ? undefined : seriesTopThreshold
+          normalizedSeriesTop
+        );
+      });
+    } else if (seriesTimeWindow !== 'allTime' || seriesTopThreshold !== 'any') {
+      result = result.filter(athlete => {
+        const athleteIndex = getAthleteIndex(athlete);
+        if (!athleteIndex) return false;
+
+        const { athleteEventYear } = getAthleteEventInfo(athlete);
+        const range = getTimeWindowRange(athleteEventYear, seriesTimeWindow);
+
+        return hasAnyCategoryMatchInRange(
+          athleteIndex.seriesByYearCategory,
+          range.start,
+          range.end,
+          normalizedSeriesTop
         );
       });
     }
@@ -776,47 +856,52 @@ export function AthleteNavigation({
                   </>
                 )}
 
-                {resultsScope !== 'all' && (
-                  <>
-                    <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
-                      {t('navigation.filter.timeWindow')}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([
-                        { value: 'lastYear', label: t('navigation.filter.lastYear') },
-                        { value: 'last3Years', label: t('navigation.filter.last3Years') },
-                        { value: 'last5Years', label: t('navigation.filter.last5Years') }
-                      ] as Array<{ value: TimeWindow; label: string }>).map(option => (
-                        <button
-                          key={option.value}
-                          onClick={() => setResultsTimeWindow(option.value)}
-                          className={`px-2 py-2 text-xs rounded-lg border ${
-                            resultsTimeWindow === option.value ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
+                <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
+                  {t('navigation.filter.timeWindow')}
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { value: 'allTime', label: t('navigation.filter.allTime') },
+                    { value: 'lastYear', label: t('navigation.filter.lastYear') },
+                    { value: 'last3Years', label: t('navigation.filter.last3Years') },
+                    { value: 'last5Years', label: t('navigation.filter.last5Years') }
+                  ] as Array<{ value: TimeWindow; label: string }>).map(option => (
+                    <button
+                      key={option.value}
+                      onClick={() => setResultsTimeWindow(option.value)}
+                      className={`px-2 py-2 text-xs rounded-lg border ${
+                        resultsTimeWindow === option.value ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
 
-                    <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
-                      {t('navigation.filter.top')}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
-                        <button
-                          key={threshold}
-                          onClick={() => setResultsTopThreshold(threshold)}
-                          className={`px-2 py-2 text-xs rounded-lg border ${
-                            resultsTopThreshold === threshold ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {t(`navigation.filter.top${threshold}`)}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
+                  {t('navigation.filter.top')}
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  <button
+                    onClick={() => setResultsTopThreshold('any')}
+                    className={`px-2 py-2 text-xs rounded-lg border ${
+                      resultsTopThreshold === 'any' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {t('navigation.filter.any')}
+                  </button>
+                  {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
+                    <button
+                      key={threshold}
+                      onClick={() => setResultsTopThreshold(threshold)}
+                      className={`px-2 py-2 text-xs rounded-lg border ${
+                        resultsTopThreshold === threshold ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {t(`navigation.filter.top${threshold}`)}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Series filters */}
@@ -849,55 +934,52 @@ export function AthleteNavigation({
                   ))}
                 </div>
 
-                {seriesCategoryFilter !== 'all' && (
-                  <>
-                    <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
-                      {t('navigation.filter.timeWindow')}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([
-                        { value: 'lastYear', label: t('navigation.filter.lastYear') },
-                        { value: 'last3Years', label: t('navigation.filter.last3Years') },
-                        { value: 'last5Years', label: t('navigation.filter.last5Years') }
-                      ] as Array<{ value: TimeWindow; label: string }>).map(option => (
-                        <button
-                          key={option.value}
-                          onClick={() => setSeriesTimeWindow(option.value)}
-                          className={`px-2 py-2 text-xs rounded-lg border ${
-                            seriesTimeWindow === option.value ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
+                <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
+                  {t('navigation.filter.timeWindow')}
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { value: 'allTime', label: t('navigation.filter.allTime') },
+                    { value: 'lastYear', label: t('navigation.filter.lastYear') },
+                    { value: 'last3Years', label: t('navigation.filter.last3Years') },
+                    { value: 'last5Years', label: t('navigation.filter.last5Years') }
+                  ] as Array<{ value: TimeWindow; label: string }>).map(option => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSeriesTimeWindow(option.value)}
+                      className={`px-2 py-2 text-xs rounded-lg border ${
+                        seriesTimeWindow === option.value ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
 
-                    <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
-                      {t('navigation.filter.top')}
-                    </div>
-                    <div className="grid grid-cols-5 gap-2">
-                      <button
-                        onClick={() => setSeriesTopThreshold('any')}
-                        className={`px-2 py-2 text-xs rounded-lg border ${
-                          seriesTopThreshold === 'any' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {t('navigation.filter.any')}
-                      </button>
-                      {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
-                        <button
-                          key={threshold}
-                          onClick={() => setSeriesTopThreshold(threshold)}
-                          className={`px-2 py-2 text-xs rounded-lg border ${
-                            seriesTopThreshold === threshold ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {t(`navigation.filter.top${threshold}`)}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
+                  {t('navigation.filter.top')}
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  <button
+                    onClick={() => setSeriesTopThreshold('any')}
+                    className={`px-2 py-2 text-xs rounded-lg border ${
+                      seriesTopThreshold === 'any' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {t('navigation.filter.any')}
+                  </button>
+                  {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
+                    <button
+                      key={threshold}
+                      onClick={() => setSeriesTopThreshold(threshold)}
+                      className={`px-2 py-2 text-xs rounded-lg border ${
+                        seriesTopThreshold === threshold ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {t(`navigation.filter.top${threshold}`)}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
