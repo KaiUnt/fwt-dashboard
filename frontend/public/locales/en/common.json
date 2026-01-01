@@ -173,6 +173,8 @@
     "filter": {
       "all": "All",
       "filtered": "Filtered",
+      "filtersTitle": "Filters",
+      "reset": "Reset",
       "division": "Division",
       "allDivisions": "All Divisions",
       "event": "Event",

@@ -148,7 +148,7 @@ export function AthleteNavigation({
   const [seriesTimeWindow, setSeriesTimeWindow] = useState<TimeWindow>('last3Years');
   const [seriesTopThreshold, setSeriesTopThreshold] = useState<TopThreshold | 'any'>('any');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   const eventDateById = useMemo(() => {
     const map = new Map<string, string | undefined>();
@@ -157,6 +157,18 @@ export function AthleteNavigation({
     });
     return map;
   }, [eventDates]);
+
+  const resetFilters = () => {
+    setDivisionFilter('all');
+    setEventFilter('all');
+    setResultsScope('all');
+    setResultsSeriesCategory('pro');
+    setResultsTimeWindow('last3Years');
+    setResultsTopThreshold(10);
+    setSeriesCategoryFilter('all');
+    setSeriesTimeWindow('last3Years');
+    setSeriesTopThreshold('any');
+  };
 
   // Check if any athlete has a BIB number - if yes, hide waitlisted athletes
   const hasBibNumbers = athletes.some(athlete => athlete.bib);
@@ -568,7 +580,7 @@ export function AthleteNavigation({
             <button
               onClick={() => {
                 setShowSortDropdown(!showSortDropdown);
-                setShowFilterDropdown(false);
+                setShowFilterPanel(false);
               }}
               className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors"
             >
@@ -599,12 +611,12 @@ export function AthleteNavigation({
             )}
           </div>
 
-          {/* Filter Dropdown */}
+          {/* Filter Panel Trigger */}
           <div className="relative flex-1">
             <button
               onClick={() => {
-                setShowFilterDropdown(!showFilterDropdown);
                 setShowSortDropdown(false);
+                setShowFilterPanel(true);
               }}
               className={`w-full flex items-center justify-between px-3 py-2 text-sm border rounded-lg transition-colors ${
                 divisionFilter !== 'all' || eventFilter !== 'all' || resultsScope !== 'all' || seriesCategoryFilter !== 'all'
@@ -622,54 +634,79 @@ export function AthleteNavigation({
                   ? t('navigation.filter.filtered')
                   : t('navigation.filter.all')}
               </span>
-              <ChevronDown className={`h-4 w-4 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className="h-4 w-4 transition-transform" />
             </button>
+          </div>
+        </div>
+      </div>
 
-            {showFilterDropdown && (
-              <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                {/* Division filters */}
-                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
+      {showFilterPanel && (
+        <div className="fixed inset-0 z-40">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowFilterPanel(false)}
+          />
+          <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] bg-white rounded-t-2xl shadow-xl flex flex-col sm:top-0 sm:bottom-auto sm:left-auto sm:right-0 sm:h-full sm:max-h-none sm:w-96 sm:rounded-none">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <h4 className="text-sm font-semibold text-gray-900">{t('navigation.filter.filtersTitle')}</h4>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={resetFilters}
+                  className="text-xs text-gray-600 hover:text-gray-900"
+                >
+                  {t('navigation.filter.reset')}
+                </button>
+                <button
+                  onClick={() => setShowFilterPanel(false)}
+                  className="text-xs text-gray-600 hover:text-gray-900"
+                >
+                  {t('buttons.close')}
+                </button>
+              </div>
+            </div>
+            <div className="overflow-y-auto px-4 py-3 space-y-4">
+              {/* Division filters */}
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   {t('navigation.filter.division')}
                 </div>
-                <button
-                  onClick={() => {
-                    setDivisionFilter('all');
-                    setShowFilterDropdown(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                    divisionFilter === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                  }`}
-                >
-                  {t('navigation.filter.allDivisions')}
-                </button>
-                {availableDivisions.map((division) => (
+                <div className="grid grid-cols-2 gap-2">
                   <button
-                    key={division}
-                    onClick={() => {
-                      setDivisionFilter(division as DivisionFilter);
-                      setShowFilterDropdown(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                      divisionFilter === division ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                    onClick={() => setDivisionFilter('all')}
+                    className={`px-3 py-2 text-sm rounded-lg border ${
+                      divisionFilter === 'all' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    {division}
+                    {t('navigation.filter.allDivisions')}
                   </button>
-                ))}
-
-                {/* Event filters (only for multi-event) */}
-                {isMultiEvent && availableEvents.length > 0 && (
-                  <>
-                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t border-b border-gray-100 mt-1">
-                      {t('navigation.filter.event')}
-                    </div>
+                  {availableDivisions.map((division) => (
                     <button
-                      onClick={() => {
-                        setEventFilter('all');
-                        setShowFilterDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        eventFilter === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                      key={division}
+                      onClick={() => setDivisionFilter(division as DivisionFilter)}
+                      className={`px-3 py-2 text-sm rounded-lg border ${
+                        divisionFilter === division ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {division}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Event filters (only for multi-event) */}
+              {isMultiEvent && availableEvents.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    {t('navigation.filter.event')}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setEventFilter('all')}
+                      className={`px-3 py-2 text-sm rounded-lg border ${
+                        eventFilter === 'all' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       {t('navigation.filter.allEvents')}
@@ -679,205 +716,193 @@ export function AthleteNavigation({
                       return (
                         <button
                           key={eventId}
-                          onClick={() => {
-                            setEventFilter(eventId);
-                            setShowFilterDropdown(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                            eventFilter === eventId ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                          onClick={() => setEventFilter(eventId)}
+                          className={`px-3 py-2 text-sm rounded-lg border ${
+                            eventFilter === eventId ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                           }`}
                         >
                           {eventName}
                         </button>
                       );
                     })}
-                  </>
-                )}
+                  </div>
+                </div>
+              )}
 
-                {/* Results filters */}
-                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t border-b border-gray-100 mt-1">
+              {/* Results filters */}
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                   {t('navigation.filter.results')}
                 </div>
-                <div className="px-3 py-2 text-xs font-medium text-gray-500">
+                <div className="text-xs font-medium text-gray-500 mb-2">
                   {t('navigation.filter.scope')}
                 </div>
-                {([
-                  { value: 'all', label: t('navigation.filter.all') },
-                  { value: 'event', label: t('navigation.filter.scopeEvent') },
-                  { value: 'series', label: t('navigation.filter.scopeSeries') }
-                ] as Array<{ value: ResultsScope; label: string }>).map(option => (
-                  <button
-                    key={option.value}
-                    onClick={() => {
-                      setResultsScope(option.value);
-                      setShowFilterDropdown(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                      resultsScope === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+                <div className="grid grid-cols-1 gap-2">
+                  {([
+                    { value: 'all', label: t('navigation.filter.all') },
+                    { value: 'event', label: t('navigation.filter.scopeEvent') },
+                    { value: 'series', label: t('navigation.filter.scopeSeries') }
+                  ] as Array<{ value: ResultsScope; label: string }>).map(option => (
+                    <button
+                      key={option.value}
+                      onClick={() => setResultsScope(option.value)}
+                      className={`px-3 py-2 text-sm rounded-lg border text-left ${
+                        resultsScope === option.value ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
 
                 {resultsScope === 'series' && (
                   <>
-                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
+                    <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
                       {t('navigation.filter.category')}
                     </div>
-                    {(['pro', 'challenger', 'qualifier', 'junior', 'junior_wc'] as SeriesCategoryType[]).map(category => (
-                      <button
-                        key={category}
-                        onClick={() => {
-                          setResultsSeriesCategory(category);
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                          resultsSeriesCategory === category ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                        }`}
-                      >
-                        {t(`navigation.filter.seriesCategory.${category}`)}
-                      </button>
-                    ))}
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['pro', 'challenger', 'qualifier', 'junior', 'junior_wc'] as SeriesCategoryType[]).map(category => (
+                        <button
+                          key={category}
+                          onClick={() => setResultsSeriesCategory(category)}
+                          className={`px-3 py-2 text-sm rounded-lg border ${
+                            resultsSeriesCategory === category ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {t(`navigation.filter.seriesCategory.${category}`)}
+                        </button>
+                      ))}
+                    </div>
                   </>
                 )}
 
                 {resultsScope !== 'all' && (
                   <>
-                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
+                    <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
                       {t('navigation.filter.timeWindow')}
                     </div>
-                    {([
-                      { value: 'lastYear', label: t('navigation.filter.lastYear') },
-                      { value: 'last3Years', label: t('navigation.filter.last3Years') },
-                      { value: 'last5Years', label: t('navigation.filter.last5Years') }
-                    ] as Array<{ value: TimeWindow; label: string }>).map(option => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setResultsTimeWindow(option.value);
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                          resultsTimeWindow === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { value: 'lastYear', label: t('navigation.filter.lastYear') },
+                        { value: 'last3Years', label: t('navigation.filter.last3Years') },
+                        { value: 'last5Years', label: t('navigation.filter.last5Years') }
+                      ] as Array<{ value: TimeWindow; label: string }>).map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => setResultsTimeWindow(option.value)}
+                          className={`px-2 py-2 text-xs rounded-lg border ${
+                            resultsTimeWindow === option.value ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
 
-                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
+                    <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
                       {t('navigation.filter.top')}
                     </div>
-                    {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
-                      <button
-                        key={threshold}
-                        onClick={() => {
-                          setResultsTopThreshold(threshold);
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                          resultsTopThreshold === threshold ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                        }`}
-                      >
-                        {t(`navigation.filter.top${threshold}`)}
-                      </button>
-                    ))}
-                  </>
-                )}
-
-                {/* Series filters */}
-                <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t border-b border-gray-100 mt-1">
-                  {t('navigation.filter.series')}
-                </div>
-                <div className="px-3 py-2 text-xs font-medium text-gray-500">
-                  {t('navigation.filter.category')}
-                </div>
-                <button
-                  onClick={() => {
-                    setSeriesCategoryFilter('all');
-                    setShowFilterDropdown(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                    seriesCategoryFilter === 'all' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                  }`}
-                >
-                  {t('navigation.filter.all')}
-                </button>
-                {(['pro', 'challenger', 'qualifier', 'junior', 'junior_wc'] as SeriesCategoryType[]).map(category => (
-                  <button
-                    key={category}
-                    onClick={() => {
-                      setSeriesCategoryFilter(category);
-                      setShowFilterDropdown(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                      seriesCategoryFilter === category ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                    }`}
-                  >
-                    {t(`navigation.filter.seriesCategory.${category}`)}
-                  </button>
-                ))}
-
-                {seriesCategoryFilter !== 'all' && (
-                  <>
-                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
-                      {t('navigation.filter.timeWindow')}
+                    <div className="grid grid-cols-4 gap-2">
+                      {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
+                        <button
+                          key={threshold}
+                          onClick={() => setResultsTopThreshold(threshold)}
+                          className={`px-2 py-2 text-xs rounded-lg border ${
+                            resultsTopThreshold === threshold ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {t(`navigation.filter.top${threshold}`)}
+                        </button>
+                      ))}
                     </div>
-                    {([
-                      { value: 'lastYear', label: t('navigation.filter.lastYear') },
-                      { value: 'last3Years', label: t('navigation.filter.last3Years') },
-                      { value: 'last5Years', label: t('navigation.filter.last5Years') }
-                    ] as Array<{ value: TimeWindow; label: string }>).map(option => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setSeriesTimeWindow(option.value);
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                          seriesTimeWindow === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-
-                    <div className="px-3 py-2 text-xs font-medium text-gray-500 border-t border-gray-100">
-                      {t('navigation.filter.top')}
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSeriesTopThreshold('any');
-                        setShowFilterDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        seriesTopThreshold === 'any' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                      }`}
-                    >
-                      {t('navigation.filter.any')}
-                    </button>
-                    {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
-                      <button
-                        key={threshold}
-                        onClick={() => {
-                          setSeriesTopThreshold(threshold);
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                          seriesTopThreshold === threshold ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                        }`}
-                      >
-                        {t(`navigation.filter.top${threshold}`)}
-                      </button>
-                    ))}
                   </>
                 )}
               </div>
-            )}
+
+              {/* Series filters */}
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  {t('navigation.filter.series')}
+                </div>
+                <div className="text-xs font-medium text-gray-500 mb-2">
+                  {t('navigation.filter.category')}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setSeriesCategoryFilter('all')}
+                    className={`px-3 py-2 text-sm rounded-lg border ${
+                      seriesCategoryFilter === 'all' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {t('navigation.filter.all')}
+                  </button>
+                  {(['pro', 'challenger', 'qualifier', 'junior', 'junior_wc'] as SeriesCategoryType[]).map(category => (
+                    <button
+                      key={category}
+                      onClick={() => setSeriesCategoryFilter(category)}
+                      className={`px-3 py-2 text-sm rounded-lg border ${
+                        seriesCategoryFilter === category ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {t(`navigation.filter.seriesCategory.${category}`)}
+                    </button>
+                  ))}
+                </div>
+
+                {seriesCategoryFilter !== 'all' && (
+                  <>
+                    <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
+                      {t('navigation.filter.timeWindow')}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { value: 'lastYear', label: t('navigation.filter.lastYear') },
+                        { value: 'last3Years', label: t('navigation.filter.last3Years') },
+                        { value: 'last5Years', label: t('navigation.filter.last5Years') }
+                      ] as Array<{ value: TimeWindow; label: string }>).map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => setSeriesTimeWindow(option.value)}
+                          className={`px-2 py-2 text-xs rounded-lg border ${
+                            seriesTimeWindow === option.value ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="text-xs font-medium text-gray-500 mt-3 mb-2">
+                      {t('navigation.filter.top')}
+                    </div>
+                    <div className="grid grid-cols-5 gap-2">
+                      <button
+                        onClick={() => setSeriesTopThreshold('any')}
+                        className={`px-2 py-2 text-xs rounded-lg border ${
+                          seriesTopThreshold === 'any' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {t('navigation.filter.any')}
+                      </button>
+                      {([1, 3, 5, 10] as TopThreshold[]).map(threshold => (
+                        <button
+                          key={threshold}
+                          onClick={() => setSeriesTopThreshold(threshold)}
+                          className={`px-2 py-2 text-xs rounded-lg border ${
+                            seriesTopThreshold === threshold ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {t(`navigation.filter.top${threshold}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Athletes List */}
       <div className="max-h-96 overflow-y-auto overflow-x-hidden rounded-b-xl">
