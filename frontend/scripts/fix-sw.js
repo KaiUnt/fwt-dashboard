@@ -82,6 +82,14 @@ if (fs.existsSync(swPath)) {
     fixes.push('removed fallback importScripts');
   }
 
+  // Harden start-url caching: never cache 4xx/5xx responses.
+  const startUrlMarker = 'cacheName:"start-url",plugins:[';
+  const cacheableSnippet = 'new e.CacheableResponsePlugin({statuses:[0,200]})';
+  if (swContent.includes(startUrlMarker) && !swContent.includes(cacheableSnippet)) {
+    swContent = swContent.replace(startUrlMarker, `${startUrlMarker}${cacheableSnippet},`);
+    fixes.push('hardened start-url cache (no 5xx)');
+  }
+
   if (fixes.length > 0) {
     fs.writeFileSync(swPath, swContent);
     console.log('✓ Fixed service worker: ' + fixes.join(', '));
