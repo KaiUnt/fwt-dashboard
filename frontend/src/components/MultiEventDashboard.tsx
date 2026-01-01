@@ -258,19 +258,23 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
           </div>
 
           {/* 1. Athlete Directory - Always show first */}
-          <AthleteNavigation
-            athletes={combinedAthletes}
-            currentIndex={currentAthleteIndex}
-            onNavigate={jumpToAthlete}
-            seriesData={multiEventRankings?.combined?.series_rankings}
-            isMultiEvent={true}
-            eventNames={[
-              { id: eventId1, name: event1Data.event.name },
-              { id: eventId2, name: event2Data.event.name }
-            ]}
-            selectedRegion={selectedRegion}
-            eventName={event1Data.event.name}
-          />
+            <AthleteNavigation
+              athletes={combinedAthletes}
+              currentIndex={currentAthleteIndex}
+              onNavigate={jumpToAthlete}
+              seriesData={multiEventRankings?.combined?.series_rankings}
+              isMultiEvent={true}
+              eventNames={[
+                { id: eventId1, name: event1Data.event.name },
+                { id: eventId2, name: event2Data.event.name }
+              ]}
+              eventDates={[
+                { id: eventId1, date: event1Data.event.date },
+                { id: eventId2, date: event2Data.event.date }
+              ]}
+              selectedRegion={selectedRegion}
+              eventName={event1Data.event.name}
+            />
           
           {currentAthlete && (
             <>
@@ -432,6 +436,10 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                eventNames={[
                  { id: eventId1, name: event1Data.event.name },
                  { id: eventId2, name: event2Data.event.name }
+               ]}
+               eventDates={[
+                 { id: eventId1, date: event1Data.event.date },
+                 { id: eventId2, date: event2Data.event.date }
                ]}
                selectedRegion={selectedRegion}
                eventName={event1Data?.event.name}

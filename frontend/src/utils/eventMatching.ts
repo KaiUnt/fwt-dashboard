@@ -5,6 +5,38 @@ interface EventLocationInfo {
   normalizedName: string;
 }
 
+export function normalizeEventNameForMatch(eventName: string): string {
+  let normalized = eventName.trim();
+
+  // Remove year (2024, 2025, etc.)
+  normalized = normalized.replace(/\b20\d{2}\b/g, '');
+
+  // Remove organization prefixes
+  normalized = normalized.replace(/^(FWT\s*-?\s*|IFSA\s*-?\s*)/i, '');
+
+  // Remove sponsor parts like "by <Sponsor Name>" before event type
+  normalized = normalized.replace(/\s+by\s+[A-Za-z][A-Za-z\s&]+?(?=\s+(?:Qualifier|Challenger|Open|Championship|$))/gi, '');
+
+  // Remove common leading sponsors (heuristic)
+  const words = normalized.split(' ');
+  if (words.length > 2) {
+    const firstWord = words[0].toLowerCase();
+    const knownSponsors = ['dynastar', 'salomon', 'atomic', 'rossignol', 'volkl', 'k2', 'peak', 'performance', 'orage', 'north', 'face'];
+    if (knownSponsors.some(s => firstWord.includes(s))) {
+      normalized = words.slice(1).join(' ');
+    }
+  }
+
+  // Clean up extra whitespace and lowercase
+  normalized = normalized.replace(/\s+/g, ' ').trim().toLowerCase();
+  return normalized;
+}
+
+export function extractYearFromEventName(eventName: string): number {
+  const match = eventName.match(/\b(20\d{2})\b/);
+  return match ? parseInt(match[1]) : 0;
+}
+
 class FWTEventMatcher {
   private locations: string[] = [];
   private locationsLoaded: boolean = false;
@@ -78,30 +110,7 @@ class FWTEventMatcher {
 
   // Normalize event for historical matching (aligns with backend behavior)
   private normalizeForMatching(eventName: string): string {
-    let normalized = eventName.trim();
-
-    // Remove year (2024, 2025, etc.)
-    normalized = normalized.replace(/\b20\d{2}\b/g, '');
-
-    // Remove organization prefixes
-    normalized = normalized.replace(/^(FWT\s*-?\s*|IFSA\s*-?\s*)/i, '');
-
-    // Remove sponsor parts like "by <Sponsor Name>" before event type
-    normalized = normalized.replace(/\s+by\s+[A-Za-z][A-Za-z\s&]+?(?=\s+(?:Qualifier|Challenger|Open|Championship|$))/gi, '');
-
-    // Remove common leading sponsors (heuristic)
-    const words = normalized.split(' ');
-    if (words.length > 2) {
-      const firstWord = words[0].toLowerCase();
-      const knownSponsors = ['dynastar', 'salomon', 'atomic', 'rossignol', 'volkl', 'k2', 'peak', 'performance', 'orage', 'north', 'face'];
-      if (knownSponsors.some(s => firstWord.includes(s))) {
-        normalized = words.slice(1).join(' ');
-      }
-    }
-
-    // Clean up extra whitespace and lowercase
-    normalized = normalized.replace(/\s+/g, ' ').trim().toLowerCase();
-    return normalized;
+    return normalizeEventNameForMatch(eventName);
   }
 
   private findLocationInEventName(eventName: string): string | null {
@@ -142,8 +151,7 @@ class FWTEventMatcher {
   }
 
   extractYearFromName(eventName: string): number {
-    const match = eventName.match(/\b(20\d{2})\b/);
-    return match ? parseInt(match[1]) : 0;
+    return extractYearFromEventName(eventName);
   }
 }
 

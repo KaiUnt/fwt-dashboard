@@ -172,10 +172,37 @@
     },
     "filter": {
       "all": "Alle",
+      "filtered": "Gefiltert",
+      "filtersTitle": "Filter",
+      "reset": "Zurucksetzen",
       "division": "Division",
       "allDivisions": "Alle Divisionen",
       "event": "Event",
-      "allEvents": "Alle Events"
+      "allEvents": "Alle Events",
+      "results": "Ergebnisse",
+      "series": "Serien",
+      "scope": "Umfang",
+      "scopeEvent": "Dieses Event",
+      "scopeSeries": "Alle Events der Serie",
+      "category": "Kategorie",
+      "timeWindow": "Zeitraum",
+      "allTime": "Alle Zeit",
+      "lastYear": "Letztes Jahr",
+      "last3Years": "Letzte 3 Jahre",
+      "last5Years": "Letzte 5 Jahre",
+      "top": "Top",
+      "top1": "Top 1",
+      "top3": "Top 3",
+      "top5": "Top 5",
+      "top10": "Top 10",
+      "any": "Beliebig",
+      "seriesCategory": {
+        "pro": "Pro",
+        "challenger": "Challenger",
+        "qualifier": "Qualifier",
+        "junior": "Junior",
+        "junior_wc": "Junior WC"
+      }
     }
   },
   "events": {
