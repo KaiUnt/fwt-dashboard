@@ -83,19 +83,21 @@ if (fs.existsSync(swPath)) {
   }
 
   // Harden start-url caching: never cache 4xx/5xx responses.
-  const startUrlMarker = 'cacheName:"start-url",plugins:[';
+  const startUrlMarkerRegex = /cacheName:(["'])start-url\1,plugins:\[/;
+  const startUrlHasCacheableRegex =
+    /cacheName:(["'])start-url\1,plugins:\[(?:(?!cacheName:).)*CacheableResponsePlugin/s;
   const cacheableSnippet = 'new e.CacheableResponsePlugin({statuses:[0,200]})';
-  if (swContent.includes(startUrlMarker) && !swContent.includes(cacheableSnippet)) {
-    swContent = swContent.replace(startUrlMarker, `${startUrlMarker}${cacheableSnippet},`);
-    fixes.push('hardened start-url cache (no 5xx)');
+  if (startUrlMarkerRegex.test(swContent) && !startUrlHasCacheableRegex.test(swContent)) {
+    swContent = swContent.replace(startUrlMarkerRegex, (match) => `${match}${cacheableSnippet},`);
+    fixes.push('hardened start-url cache (no 4xx/5xx)');
   }
 
   if (fixes.length > 0) {
     fs.writeFileSync(swPath, swContent);
-    console.log('✓ Fixed service worker: ' + fixes.join(', '));
+    console.log('Fixed service worker: ' + fixes.join(', '));
   } else {
-    console.log('ℹ Service worker: No fixes needed');
+    console.log('Service worker: No fixes needed');
   }
 } else {
-  console.log('⚠ Service worker file not found');
+  console.log('Service worker file not found');
 }

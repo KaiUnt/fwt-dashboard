@@ -10,7 +10,10 @@ function registerServiceWorkerOnce(): Promise<ServiceWorkerRegistration | null> 
   return navigator.serviceWorker
     .getRegistration()
     .then((existing) => {
-      if (existing) return existing;
+      if (existing) {
+        existing.update().catch(() => null);
+        return existing;
+      }
       return navigator.serviceWorker.register("/sw.js").catch(() => null);
     })
     .catch(() => null);
@@ -51,6 +54,9 @@ export default function ServiceWorkerRegistrar() {
     // Retry when page becomes visible (handles fast redirects/autologin)
     const onVisibility = () => {
       if (!navigator.serviceWorker.controller) void tryRegister();
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration) registration.update().catch(() => null);
+      });
     };
     document.addEventListener("visibilitychange", onVisibility);
 
