@@ -115,6 +115,12 @@ class LiveheatsClient:
                 return None
 
             event_data = result["event"]
+            event_status = (event_data.get("status") or "").lower()
+            current_heat_ids = {
+                heat.get("id")
+                for heat in event_data.get("currentHeats", []) or []
+                if heat and heat.get("id")
+            }
             divisions = []
 
             for event_division in event_data.get("eventDivisions", []):
@@ -148,10 +154,17 @@ class LiveheatsClient:
                     # Sort results by place
                     results.sort(key=lambda x: x.get("place") or 999)
 
+                    if heat.get("id") in current_heat_ids:
+                        heat_status = "live"
+                    elif event_status in ["completed", "finished", "results_published"]:
+                        heat_status = "completed"
+                    else:
+                        heat_status = "pending"
+
                     heats.append({
                         "id": heat.get("id"),
                         "round": heat.get("round"),
-                        "status": heat.get("status"),
+                        "status": heat_status,
                         "results": results
                     })
 

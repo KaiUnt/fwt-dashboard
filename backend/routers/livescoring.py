@@ -91,7 +91,7 @@ async def get_event_live_scoring(
         event_status = live_scoring_data.get("event", {}).get("status", "").lower()
         if event_status == "live" or event_status == "in_progress":
             ttl_seconds = 30  # Short TTL for live events
-        elif event_status == "completed" or event_status == "finished":
+        elif event_status in ["completed", "finished", "results_published"]:
             ttl_seconds = 3600  # 1 hour for completed events
         else:
             ttl_seconds = 300  # 5 minutes for upcoming/other

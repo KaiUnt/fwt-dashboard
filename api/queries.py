@@ -129,6 +129,9 @@ class GraphQLQueries:
             id
             name
             status
+            currentHeats {
+                id
+            }
             eventDivisions {
                 id
                 division { name }
@@ -136,7 +139,6 @@ class GraphQLQueries:
                 heats {
                     id
                     round
-                    status
                     result {
                         athleteId
                         total

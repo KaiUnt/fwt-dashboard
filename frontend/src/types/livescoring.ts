@@ -23,7 +23,7 @@ export interface Division {
 export interface LiveScoringEvent {
   id: string;
   name: string;
-  status: 'upcoming' | 'live' | 'in_progress' | 'completed' | 'finished' | string;
+  status: 'upcoming' | 'live' | 'in_progress' | 'completed' | 'finished' | 'results_published' | string;
 }
 
 export interface LiveScoringResponse {

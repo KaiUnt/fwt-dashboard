@@ -82,5 +82,5 @@ export function isEventLive(status?: string): boolean {
 export function isEventCompleted(status?: string): boolean {
   if (!status) return false;
   const normalizedStatus = status.toLowerCase();
-  return normalizedStatus === 'completed' || normalizedStatus === 'finished';
+  return normalizedStatus === 'completed' || normalizedStatus === 'finished' || normalizedStatus === 'results_published';
 }
