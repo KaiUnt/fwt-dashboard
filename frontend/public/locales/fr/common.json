@@ -404,7 +404,10 @@
     "completed": "Terminé",
     "upcoming": "À venir",
     "lastUpdated": "Dernière mise à jour",
-    "autoRefresh": "Actualisation auto toutes les 30s"
+    "autoRefresh": "Actualisation auto toutes les 30s",
+    "toggleOn": "Actif",
+    "toggleOff": "Inactif",
+    "disabledHelp": "Le scoring en direct est désactivé. Activez pour charger les données de Liveheats."
   },
   "errors": {
     "loadingFailed": "Échec du chargement",

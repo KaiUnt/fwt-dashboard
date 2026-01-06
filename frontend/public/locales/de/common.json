@@ -405,7 +405,10 @@
     "completed": "Abgeschlossen",
     "upcoming": "Bevorstehend",
     "lastUpdated": "Zuletzt aktualisiert",
-    "autoRefresh": "Automatische Aktualisierung alle 30s"
+    "autoRefresh": "Automatische Aktualisierung alle 30s",
+    "toggleOn": "An",
+    "toggleOff": "Aus",
+    "disabledHelp": "Live Scoring ist deaktiviert. Aktivieren, um Daten von Liveheats zu laden."
   },
   "errors": {
     "loadingFailed": "Fehler beim Laden",

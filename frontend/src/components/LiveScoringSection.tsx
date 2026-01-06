@@ -4,23 +4,28 @@ import { useState, useMemo } from 'react';
 import { Trophy, ChevronDown, ChevronUp, RefreshCw, Radio } from 'lucide-react';
 import { useLiveScoring, isEventLive, isEventCompleted } from '@/hooks/useLiveScoring';
 import { useTranslation } from '@/hooks/useTranslation';
-import { getCountryFlag } from '@/utils/nationality';
+import { getCountryFlag, getNationalityDisplay } from '@/utils/nationality';
 import type { Heat, HeatResult } from '@/types/livescoring';
 
 interface LiveScoringSectionProps {
   eventId: string;
   currentAthleteId?: string;
   defaultCollapsed?: boolean;
+  defaultEnabled?: boolean;
 }
 
 export function LiveScoringSection({
   eventId,
   currentAthleteId,
-  defaultCollapsed = false
+  defaultCollapsed = false,
+  defaultEnabled = false
 }: LiveScoringSectionProps) {
   const { t } = useTranslation();
-  const { data, isLoading, error, refetch, isFetching } = useLiveScoring(eventId);
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const [isEnabled, setIsEnabled] = useState(defaultEnabled);
+  const { data, isLoading, error, refetch, isFetching } = useLiveScoring(eventId, {
+    enabled: isEnabled
+  });
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
 
   // Set default division when data loads
@@ -36,6 +41,28 @@ export function LiveScoringSection({
   const isLive = isEventLive(eventStatus);
   const isCompleted = isEventCompleted(eventStatus);
 
+  if (!isEnabled) {
+    return (
+      <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-lg p-4 border border-orange-100 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Radio className="h-4 w-4 text-orange-600" />
+            <span className="text-sm font-medium text-gray-700">{t('liveScoring.title')}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEnabled(true)}
+            className="px-2 py-1 text-xs font-medium text-gray-900 bg-white border border-gray-300 rounded shadow-sm hover:bg-white/70 transition-colors"
+            aria-pressed={false}
+          >
+            {t('liveScoring.toggleOff')}
+          </button>
+        </div>
+        <p className="text-xs text-gray-600 mt-2">{t('liveScoring.disabledHelp')}</p>
+      </div>
+    );
+  }
+
   // Don't render if no data and not loading (e.g., API not available)
   if (!isLoading && !data && !error) {
     return null;
@@ -48,9 +75,19 @@ export function LiveScoringSection({
     }
     return (
       <div className="bg-red-50 rounded-lg p-4 mb-4">
-        <div className="flex items-center space-x-2 text-red-700">
-          <Radio className="h-4 w-4" />
-          <span className="text-sm font-medium">{t('liveScoring.title')}</span>
+        <div className="flex items-center justify-between text-red-700">
+          <div className="flex items-center space-x-2">
+            <Radio className="h-4 w-4" />
+            <span className="text-sm font-medium">{t('liveScoring.title')}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEnabled(false)}
+            className="px-2 py-1 text-xs font-medium text-gray-900 bg-white border border-gray-300 rounded shadow-sm hover:bg-white/70 transition-colors"
+            aria-pressed={true}
+          >
+            {t('liveScoring.toggleOn')}
+          </button>
         </div>
         <p className="text-xs text-red-600 mt-1">{t('liveScoring.error')}</p>
       </div>
@@ -66,6 +103,14 @@ export function LiveScoringSection({
             <Radio className="h-4 w-4 text-orange-600" />
             <span className="text-sm font-medium text-gray-700">{t('liveScoring.title')}</span>
           </div>
+          <button
+            type="button"
+            onClick={() => setIsEnabled(false)}
+            className="px-2 py-1 text-xs font-medium text-gray-900 bg-white border border-gray-300 rounded shadow-sm hover:bg-white/70 transition-colors"
+            aria-pressed={true}
+          >
+            {t('liveScoring.toggleOn')}
+          </button>
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
         </div>
       </div>
@@ -76,9 +121,19 @@ export function LiveScoringSection({
   if (!divisions.length) {
     return (
       <div className="bg-gray-50 rounded-lg p-4 mb-4">
-        <div className="flex items-center space-x-2">
-          <Radio className="h-4 w-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">{t('liveScoring.title')}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Radio className="h-4 w-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">{t('liveScoring.title')}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEnabled(false)}
+            className="px-2 py-1 text-xs font-medium text-gray-900 bg-white border border-gray-300 rounded shadow-sm hover:bg-white/70 transition-colors"
+            aria-pressed={true}
+          >
+            {t('liveScoring.toggleOn')}
+          </button>
         </div>
         <p className="text-xs text-gray-500 mt-1">{t('liveScoring.noData')}</p>
       </div>
@@ -157,11 +212,10 @@ export function LiveScoringSection({
             <select
               value={activeDivision?.id || ''}
               onChange={(e) => {
-                e.stopPropagation();
                 setSelectedDivision(e.target.value);
               }}
               onClick={(e) => e.stopPropagation()}
-              className="text-xs bg-white border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              className="text-xs font-medium text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
             >
               {divisions.map((div) => (
                 <option key={div.id} value={div.id}>
@@ -175,13 +229,30 @@ export function LiveScoringSection({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              refetch();
+              if (!isFetching) {
+                refetch();
+              }
             }}
-            disabled={isFetching}
-            className="p-1 hover:bg-white/50 rounded transition-colors"
+            type="button"
+            aria-disabled={isFetching}
+            className={`p-1 rounded transition-colors ${
+              isFetching ? 'cursor-not-allowed opacity-60' : 'hover:bg-white/50'
+            }`}
             title={t('buttons.reload')}
           >
             <RefreshCw className={`h-4 w-4 text-gray-600 ${isFetching ? 'animate-spin' : ''}`} />
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEnabled(false);
+            }}
+            className="px-2 py-1 text-xs font-medium text-gray-900 bg-white border border-gray-300 rounded shadow-sm hover:bg-white/70 transition-colors"
+            aria-pressed={true}
+          >
+            {t('liveScoring.toggleOn')}
           </button>
 
           {/* Collapse toggle */}
@@ -215,7 +286,7 @@ export function LiveScoringSection({
           {data?.last_updated && (
             <div className="text-xs text-gray-500 text-right pt-2 border-t border-gray-200">
               {t('liveScoring.lastUpdated')}: {new Date(data.last_updated).toLocaleTimeString()}
-              {isLive && ` • ${t('liveScoring.autoRefresh')}`}
+              {isLive && ` - ${t('liveScoring.autoRefresh')}`}
             </div>
           )}
         </div>
@@ -274,6 +345,8 @@ interface ResultRowProps {
 
 function ResultRow({ result, isHighlighted, getBadgeColor }: ResultRowProps) {
   const flag = getCountryFlag(result.nationality);
+  const nationality = result.nationality?.trim();
+  const nationalityLabel = nationality ? getNationalityDisplay(nationality) : null;
 
   return (
     <div
@@ -289,7 +362,10 @@ function ResultRow({ result, isHighlighted, getBadgeColor }: ResultRowProps) {
 
         {/* Athlete info */}
         <div className="flex items-center space-x-2">
-          {flag && <span className="text-sm">{flag}</span>}
+          {flag && <span className="text-base">{flag}</span>}
+          {nationalityLabel && (
+            <span className="text-xs font-medium text-gray-700">{nationalityLabel}</span>
+          )}
           <span className={`text-sm ${isHighlighted ? 'font-semibold text-blue-900' : 'text-gray-900'}`}>
             {result.athleteName}
           </span>
@@ -312,3 +388,4 @@ function ResultRow({ result, isHighlighted, getBadgeColor }: ResultRowProps) {
     </div>
   );
 }
+

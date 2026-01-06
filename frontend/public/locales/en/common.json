@@ -404,7 +404,10 @@
     "completed": "Completed",
     "upcoming": "Upcoming",
     "lastUpdated": "Last updated",
-    "autoRefresh": "Auto-refresh every 30s"
+    "autoRefresh": "Auto-refresh every 30s",
+    "toggleOn": "On",
+    "toggleOff": "Off",
+    "disabledHelp": "Live scoring is disabled. Enable to load data from Liveheats."
   },
   "errors": {
     "loadingFailed": "Loading failed",
