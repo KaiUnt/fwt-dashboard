@@ -397,6 +397,16 @@
     "byAuthor": "Von {author}",
     "you": "Du"
   },
+  "liveScoring": {
+    "title": "Live Scoring",
+    "error": "Fehler beim Laden der Live-Ergebnisse",
+    "noData": "Keine Heats oder Ergebnisse verfügbar",
+    "noResults": "Noch keine Ergebnisse in diesem Heat",
+    "completed": "Abgeschlossen",
+    "upcoming": "Bevorstehend",
+    "lastUpdated": "Zuletzt aktualisiert",
+    "autoRefresh": "Automatische Aktualisierung alle 30s"
+  },
   "errors": {
     "loadingFailed": "Fehler beim Laden",
     "noData": "Keine Daten verfügbar",

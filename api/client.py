@@ -80,7 +80,7 @@ class LiveheatsClient:
                 self.queries.GET_EVENT_ATHLETES,
                 {"id": event_id}
             )
-            
+
             if not result or "event" not in result:
                 logger.error(f"Keine Event-Daten gefunden für ID: {event_id}")
                 return None
@@ -98,9 +98,80 @@ class LiveheatsClient:
                             "status": entry["status"]
                         }
                         logger.debug(f"Cached athlete details: {athlete['name']} (ID: {athlete_id})")
-            
+
             logger.info(f"Cached details for {len(self.athlete_details)} athletes")
             return result
+
+    async def get_event_live_scoring(self, event_id: str) -> Optional[Dict]:
+        """Fetch live scoring data (heats and results) for an event."""
+        async with self.client as client:
+            result = await client.execute(
+                self.queries.GET_EVENT_LIVE_SCORING,
+                {"id": event_id}
+            )
+
+            if not result or "event" not in result:
+                logger.error(f"Keine Live-Scoring-Daten gefunden für Event ID: {event_id}")
+                return None
+
+            event_data = result["event"]
+            divisions = []
+
+            for event_division in event_data.get("eventDivisions", []):
+                division_name = event_division.get("division", {}).get("name", "Unknown")
+                heats = []
+
+                for heat in event_division.get("heats", []):
+                    # Build athlete lookup from competitors
+                    athlete_lookup = {}
+                    for competitor in heat.get("competitors", []):
+                        athlete_id = competitor.get("athleteId")
+                        if athlete_id and competitor.get("athlete"):
+                            athlete_lookup[athlete_id] = {
+                                "name": competitor["athlete"].get("name", "Unknown"),
+                                "nationality": competitor["athlete"].get("nationality")
+                            }
+
+                    # Build results with athlete info
+                    results = []
+                    for res in heat.get("result", []) or []:
+                        athlete_id = res.get("athleteId")
+                        athlete_info = athlete_lookup.get(athlete_id, {})
+                        results.append({
+                            "athleteId": athlete_id,
+                            "athleteName": athlete_info.get("name", "Unknown"),
+                            "nationality": athlete_info.get("nationality"),
+                            "total": res.get("total"),
+                            "place": res.get("place")
+                        })
+
+                    # Sort results by place
+                    results.sort(key=lambda x: x.get("place") or 999)
+
+                    heats.append({
+                        "id": heat.get("id"),
+                        "round": heat.get("round"),
+                        "status": heat.get("status"),
+                        "results": results
+                    })
+
+                divisions.append({
+                    "id": event_division.get("id"),
+                    "name": division_name,
+                    "status": event_division.get("status"),
+                    "heats": heats
+                })
+
+            logger.info(f"Live scoring für Event {event_data.get('name')}: {len(divisions)} Divisions")
+
+            return {
+                "event": {
+                    "id": event_data.get("id"),
+                    "name": event_data.get("name"),
+                    "status": event_data.get("status")
+                },
+                "divisions": divisions
+            }
         
     async def get_fwt_series(self, organisation_short_name: str = "fwtglobal") -> List[str]:
         """Fetch all FWT series IDs from Liveheats."""

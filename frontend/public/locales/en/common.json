@@ -396,6 +396,16 @@
     "byAuthor": "By {author}",
     "you": "You"
   },
+  "liveScoring": {
+    "title": "Live Scoring",
+    "error": "Error loading live results",
+    "noData": "No heats or results available",
+    "noResults": "No results in this heat yet",
+    "completed": "Completed",
+    "upcoming": "Upcoming",
+    "lastUpdated": "Last updated",
+    "autoRefresh": "Auto-refresh every 30s"
+  },
   "errors": {
     "loadingFailed": "Loading failed",
     "noData": "No data available",

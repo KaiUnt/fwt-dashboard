@@ -396,6 +396,16 @@
     "byAuthor": "Par {author}",
     "you": "Vous"
   },
+  "liveScoring": {
+    "title": "Scoring en Direct",
+    "error": "Erreur lors du chargement des résultats en direct",
+    "noData": "Aucune série ou résultat disponible",
+    "noResults": "Pas encore de résultats dans cette série",
+    "completed": "Terminé",
+    "upcoming": "À venir",
+    "lastUpdated": "Dernière mise à jour",
+    "autoRefresh": "Actualisation auto toutes les 30s"
+  },
   "errors": {
     "loadingFailed": "Échec du chargement",
     "noData": "Aucune donnée disponible",

@@ -121,3 +121,36 @@ class GraphQLQueries:
         }
     }
     """
+
+    # Live scoring query - get heat results for an event
+    GET_EVENT_LIVE_SCORING = """
+    query GetEventLiveScoring($id: ID!) {
+        event(id: $id) {
+            id
+            name
+            status
+            eventDivisions {
+                id
+                division { name }
+                status
+                heats {
+                    id
+                    round
+                    status
+                    result {
+                        athleteId
+                        total
+                        place
+                    }
+                    competitors {
+                        athleteId
+                        athlete {
+                            name
+                            nationality
+                        }
+                    }
+                }
+            }
+        }
+    }
+    """

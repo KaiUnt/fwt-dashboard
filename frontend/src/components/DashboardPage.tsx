@@ -13,6 +13,7 @@ import { useOfflineEventAthletes } from '@/hooks/useOfflineEventAthletes';
 import { OfflineSaveButton } from './OfflineSaveButton';
 import { AthleteEventHistory } from './AthleteEventHistory';
 import { AthleteRunsSection } from './AthleteRunsSection';
+import { LiveScoringSection } from './LiveScoringSection';
 import { AppHeader } from './AppHeader';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAccessToken } from '@/providers/AuthProvider';
@@ -213,6 +214,12 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
             />
           </div>
 
+          {/* Live Scoring - Always visible at top */}
+          <LiveScoringSection
+            eventId={eventId}
+            currentAthleteId={currentAthlete?.id}
+          />
+
           {currentAthlete && (
             <>
               {/* 1. Athlete Directory */}
@@ -272,6 +279,12 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
         <div className="hidden lg:flex lg:flex-row gap-8">
           {/* Athlete Card */}
           <div className="flex-1">
+            {/* Live Scoring - Top of main content */}
+            <LiveScoringSection
+              eventId={eventId}
+              currentAthleteId={currentAthlete?.id}
+            />
+
             {currentAthlete && (
               <>
                 <AthleteCard
