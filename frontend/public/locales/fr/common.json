@@ -278,7 +278,23 @@
     "offlineAvailable48h": "Disponible hors ligne pendant 48 heures",
     "worksWithoutInternet": "Fonctionne sans connexion internet",
     "autoDeleteAfterExpiry": "Suppression automatique après expiration",
-    "save": "Sauvegarder"
+    "save": "Sauvegarder",
+    "pdfExport": {
+      "title": "PDF Cheatsheet",
+      "description": "Téléchargez un PDF avec toutes les infos des athlètes pour cet événement",
+      "download": "Télécharger PDF",
+      "downloading": "Création du PDF...",
+      "sortBy": "Trier par",
+      "sortByBib": "Par numéro de dossard",
+      "sortByName": "Par nom",
+      "includesInfo": "Inclut par athlète :",
+      "includesBasics": "Infos de base (Équipe, Sponsors, Base)",
+      "includesRankings": "Rankings actuels et de l'année précédente",
+      "includesHighlights": "Top 3 des meilleurs résultats",
+      "includesPerformance": "Courbe de performance (tableau)",
+      "includesResults": "10 derniers résultats",
+      "includesStorytelling": "Storytelling et notes"
+    }
   },
   "filters": {
     "allYears": "Toutes les années"

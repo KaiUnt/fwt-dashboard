@@ -278,7 +278,23 @@
     "offlineAvailable48h": "Offline available for 48 hours",
     "worksWithoutInternet": "Works without internet connection",
     "autoDeleteAfterExpiry": "Automatic deletion after expiry",
-    "save": "Save"
+    "save": "Save",
+    "pdfExport": {
+      "title": "PDF Cheatsheet",
+      "description": "Download a PDF with all athlete info for this event",
+      "download": "Download PDF",
+      "downloading": "Creating PDF...",
+      "sortBy": "Sort by",
+      "sortByBib": "By BIB number",
+      "sortByName": "By name",
+      "includesInfo": "Includes per athlete:",
+      "includesBasics": "Basics (Team, Sponsors, Homebase)",
+      "includesRankings": "Current & previous year rankings",
+      "includesHighlights": "Top 3 highlight results",
+      "includesPerformance": "Performance curve (table)",
+      "includesResults": "Last 10 results",
+      "includesStorytelling": "Storytelling & notes"
+    }
   },
   "filters": {
     "allYears": "All Years"

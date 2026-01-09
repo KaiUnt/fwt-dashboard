@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Download, Check, AlertCircle, Loader2, Trash2, RefreshCw } from 'lucide-react';
+import { Download, Check, AlertCircle, Loader2, Trash2, RefreshCw, FileText } from 'lucide-react';
 import { useOfflineStorage } from '@/hooks/useOfflineStorage';
 import { Athlete, EventInfo, CommentatorInfoWithAuthor } from '@/types/athletes';
 import { SeriesData } from '@/hooks/useSeriesRankings';
 import { useTranslation } from '@/hooks/useTranslation';
+import { generateEventPDF } from '@/utils/pdfGenerator';
 
 interface OfflineSaveButtonProps {
   eventIds: string[];
@@ -33,6 +34,8 @@ export function OfflineSaveButton({
   const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [pdfSortBy, setPdfSortBy] = useState<'bib' | 'name'>('bib');
   const {
     isSaving,
     isDeleting,
@@ -77,6 +80,23 @@ export function OfflineSaveButton({
     } catch (error) {
       console.error('Failed to update offline data:', error);
       // TODO: Show error toast
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      await generateEventPDF({
+        athletes,
+        eventInfo,
+        seriesRankings,
+        commentatorInfo,
+        sortBy: pdfSortBy
+      });
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -162,7 +182,7 @@ export function OfflineSaveButton({
                     )}
                     <span>{t('offline.update')}</span>
                   </button>
-                  
+
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
                     disabled={isSaving || isDeleting}
@@ -176,8 +196,44 @@ export function OfflineSaveButton({
                     <span>{t('offline.delete')}</span>
                   </button>
                 </div>
+
+                {/* PDF Export Section */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="bg-amber-50 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <FileText className="h-5 w-5 text-amber-600" />
+                      <span className="font-medium text-amber-800">{t('offline.pdfExport.title')}</span>
+                    </div>
+                    <p className="text-sm text-amber-700 mb-3">{t('offline.pdfExport.description')}</p>
+
+                    <div className="flex items-center space-x-2 mb-3">
+                      <span className="text-sm text-gray-600">{t('offline.pdfExport.sortBy')}:</span>
+                      <select
+                        value={pdfSortBy}
+                        onChange={(e) => setPdfSortBy(e.target.value as 'bib' | 'name')}
+                        className="text-sm border border-gray-300 rounded px-2 py-1"
+                      >
+                        <option value="bib">{t('offline.pdfExport.sortByBib')}</option>
+                        <option value="name">{t('offline.pdfExport.sortByName')}</option>
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={handleDownloadPDF}
+                      disabled={isGeneratingPDF || athletes.length === 0}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {isGeneratingPDF ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileText className="h-4 w-4" />
+                      )}
+                      <span>{isGeneratingPDF ? t('offline.pdfExport.downloading') : t('offline.pdfExport.download')}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              
+
               <div className="flex justify-end mt-6">
                 <button
                   onClick={() => setShowModal(false)}
@@ -275,8 +331,42 @@ export function OfflineSaveButton({
                   <li>• {t('offline.autoDeleteAfterExpiry')}</li>
                 </ul>
               </div>
+
+              {/* PDF Export Section */}
+              <div className="bg-amber-50 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-3">
+                  <FileText className="h-5 w-5 text-amber-600" />
+                  <span className="font-medium text-amber-800">{t('offline.pdfExport.title')}</span>
+                </div>
+                <p className="text-sm text-amber-700 mb-3">{t('offline.pdfExport.description')}</p>
+
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className="text-sm text-gray-600">{t('offline.pdfExport.sortBy')}:</span>
+                  <select
+                    value={pdfSortBy}
+                    onChange={(e) => setPdfSortBy(e.target.value as 'bib' | 'name')}
+                    className="text-sm border border-gray-300 rounded px-2 py-1"
+                  >
+                    <option value="bib">{t('offline.pdfExport.sortByBib')}</option>
+                    <option value="name">{t('offline.pdfExport.sortByName')}</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={isGeneratingPDF || athletes.length === 0}
+                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isGeneratingPDF ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4" />
+                  )}
+                  <span>{isGeneratingPDF ? t('offline.pdfExport.downloading') : t('offline.pdfExport.download')}</span>
+                </button>
+              </div>
             </div>
-            
+
             <div className="flex space-x-2 mt-6">
               <button
                 onClick={() => setShowModal(false)}
