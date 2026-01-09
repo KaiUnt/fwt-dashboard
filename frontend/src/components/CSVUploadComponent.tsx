@@ -139,95 +139,117 @@ export function CSVUploadComponent({
     setIsLoading(true);
     setError(null);
 
+    const processResults = (results: Papa.ParseResult<CSVRow>) => {
+      try {
+        if (results.errors.length > 0) {
+          console.warn('CSV parse warnings:', results.errors);
+        }
+
+        const data = results.data as CSVRow[];
+        const headers = results.meta.fields || [];
+
+        if (headers.length < 3) {
+          setError(t('credits.csvUpload.errors.minimumColumns'));
+          setIsLoading(false);
+          return;
+        }
+
+        setCsvHeaders(headers);
+        setCsvData(data);
+        const customKeyMap = buildCustomKeyMap(headers);
+
+        // Process the data
+        const processed: ParsedCSVData[] = data.map(row => {
+          const firstName = (row[headers[0]] || '').trim();
+          const lastName = (row[headers[1]] || '').trim();
+          
+          const { athlete, confidence } = matchAthlete(firstName, lastName);
+          
+          // Separate custom fields (from column C onwards)
+          const customFields: Record<string, string> = {};
+          const standardFields: Record<string, string> = {};
+          
+          for (let i = 2; i < headers.length; i++) {
+            const header = headers[i];
+            const value = (row[header] || '').trim();
+            
+            if (value) {
+              // Map known headers to standard fields
+              const lowerHeader = normalizeHeaderForMatch(header);
+              if (lowerHeader.includes('homebase') || lowerHeader.includes('home')) {
+                standardFields.homebase = value;
+              } else if (lowerHeader.includes('team')) {
+                standardFields.team = value;
+              } else if (lowerHeader.includes('sponsor')) {
+                standardFields.sponsors = value;
+              } else if (lowerHeader.includes('trick') || lowerHeader.includes('favorite')) {
+                standardFields.favorite_trick = value;
+              } else if (lowerHeader.includes('achievement')) {
+                standardFields.achievements = value;
+              } else if (lowerHeader.includes('injur')) {
+                standardFields.injuries = value;
+              } else if (lowerHeader.includes('fun') || lowerHeader.includes('fact')) {
+                standardFields.fun_facts = value;
+              } else if (lowerHeader.includes('note')) {
+                standardFields.notes = value;
+              } else if (lowerHeader.includes('instagram')) {
+                standardFields.instagram = value;
+              } else if (lowerHeader.includes('youtube')) {
+                standardFields.youtube = value;
+              } else if (lowerHeader.includes('website')) {
+                standardFields.website = value;
+              } else {
+                // Custom field
+                const customKey = customKeyMap.get(header) || normalizeHeaderLabel(header);
+                customFields[customKey] = value;
+              }
+            }
+          }
+
+          return {
+            firstName,
+            lastName,
+            matchedAthleteId: athlete?.id,
+            matchedAthleteName: athlete?.name,
+            confidence,
+            customFields,
+            standardFields
+          };
+        });
+
+        setParsedData(processed);
+        onDataParsed(processed);
+        setIsLoading(false);
+      } catch (err) {
+        setError(t('credits.csvUpload.errors.parseError', { error: (err as Error).message }));
+        setIsLoading(false);
+      }
+    };
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       encoding: 'UTF-8',
+      delimiter: ';',
+      transformHeader: normalizeHeaderLabel,
       complete: (results) => {
-        try {
-          if (results.errors.length > 0) {
-            console.warn('CSV parse warnings:', results.errors);
-          }
-
-          const data = results.data as CSVRow[];
-          const headers = results.meta.fields || [];
-
-          if (headers.length < 3) {
-            setError(t('credits.csvUpload.errors.minimumColumns'));
-            setIsLoading(false);
-            return;
-          }
-
-          setCsvHeaders(headers);
-          setCsvData(data);
-          const customKeyMap = buildCustomKeyMap(headers);
-
-          // Process the data
-          const processed: ParsedCSVData[] = data.map(row => {
-            const firstName = (row[headers[0]] || '').trim();
-            const lastName = (row[headers[1]] || '').trim();
-            
-            const { athlete, confidence } = matchAthlete(firstName, lastName);
-            
-            // Separate custom fields (from column C onwards)
-            const customFields: Record<string, string> = {};
-            const standardFields: Record<string, string> = {};
-            
-            for (let i = 2; i < headers.length; i++) {
-              const header = headers[i];
-              const value = (row[header] || '').trim();
-              
-              if (value) {
-                // Map known headers to standard fields
-                const lowerHeader = normalizeHeaderForMatch(header);
-                if (lowerHeader.includes('homebase') || lowerHeader.includes('home')) {
-                  standardFields.homebase = value;
-                } else if (lowerHeader.includes('team')) {
-                  standardFields.team = value;
-                } else if (lowerHeader.includes('sponsor')) {
-                  standardFields.sponsors = value;
-                } else if (lowerHeader.includes('trick') || lowerHeader.includes('favorite')) {
-                  standardFields.favorite_trick = value;
-                } else if (lowerHeader.includes('achievement')) {
-                  standardFields.achievements = value;
-                } else if (lowerHeader.includes('injur')) {
-                  standardFields.injuries = value;
-                } else if (lowerHeader.includes('fun') || lowerHeader.includes('fact')) {
-                  standardFields.fun_facts = value;
-                } else if (lowerHeader.includes('note')) {
-                  standardFields.notes = value;
-                } else if (lowerHeader.includes('instagram')) {
-                  standardFields.instagram = value;
-                } else if (lowerHeader.includes('youtube')) {
-                  standardFields.youtube = value;
-                } else if (lowerHeader.includes('website')) {
-                  standardFields.website = value;
-                } else {
-                  // Custom field
-                  const customKey = customKeyMap.get(header) || normalizeHeaderLabel(header);
-                  customFields[customKey] = value;
-                }
-              }
+        const typedResults = results as Papa.ParseResult<CSVRow>;
+        const headers = typedResults.meta.fields || [];
+        if (headers.length < 3) {
+          Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            encoding: 'UTF-8',
+            transformHeader: normalizeHeaderLabel,
+            complete: (fallbackResults) => processResults(fallbackResults as Papa.ParseResult<CSVRow>),
+            error: (error) => {
+              setError(t('credits.csvUpload.errors.readError', { error: error.message }));
+              setIsLoading(false);
             }
-
-            return {
-              firstName,
-              lastName,
-              matchedAthleteId: athlete?.id,
-              matchedAthleteName: athlete?.name,
-              confidence,
-              customFields,
-              standardFields
-            };
           });
-
-          setParsedData(processed);
-          onDataParsed(processed);
-          setIsLoading(false);
-        } catch (err) {
-          setError(t('credits.csvUpload.errors.parseError', { error: (err as Error).message }));
-          setIsLoading(false);
+          return;
         }
+        processResults(typedResults);
       },
       error: (error) => {
         setError(t('credits.csvUpload.errors.readError', { error: error.message }));
