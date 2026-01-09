@@ -629,6 +629,7 @@
       "athletesMatched": "{count} athl\u00e8tes trouv\u00e9s",
       "notMatched": "{count} non trouv\u00e9s",
       "noMatch": "Aucune correspondance",
+      "selectAthlete": "Sélectionner athlète...",
       "fields": "champs",
       "moreRows": "... et {count} lignes suppl\u00e9mentaires",
       "readyToImport": "Pr\u00eat \u00e0 importer {count} athl\u00e8tes trouv\u00e9s",

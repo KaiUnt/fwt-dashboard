@@ -90,6 +90,30 @@ export function CSVUploadComponent({
   const [_csvData, setCsvData] = useState<CSVRow[]>([]);
   const [parsedData, setParsedData] = useState<ParsedCSVData[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [manualAssignments, setManualAssignments] = useState<Record<number, string>>({});
+
+  // Handle manual athlete assignment
+  const handleManualAssign = (rowIndex: number, athleteId: string) => {
+    const athlete = athletes.find(a => a.id === athleteId);
+
+    setManualAssignments(prev => ({
+      ...prev,
+      [rowIndex]: athleteId
+    }));
+
+    // Update parsedData with the manual assignment
+    setParsedData(prev => prev.map((row, idx) => {
+      if (idx === rowIndex) {
+        return {
+          ...row,
+          matchedAthleteId: athleteId || undefined,
+          matchedAthleteName: athlete?.name || undefined,
+          confidence: athleteId ? 100 : 0
+        };
+      }
+      return row;
+    }));
+  };
 
   // Simple fuzzy matching for athlete names
   const matchAthlete = (firstName: string, lastName: string): { athlete?: Athlete; confidence: number } => {
@@ -355,7 +379,7 @@ export function CSVUploadComponent({
                     {row.firstName} {row.lastName}
                   </td>
                   <td className="px-3 py-2">
-                    {row.matchedAthleteName ? (
+                    {row.matchedAthleteName && !manualAssignments[index] ? (
                       <div className="flex items-center space-x-2">
                         <CheckCircle className="h-4 w-4 text-green-500" />
                         <span className="text-green-700">
@@ -365,10 +389,40 @@ export function CSVUploadComponent({
                           ({row.confidence}%)
                         </span>
                       </div>
+                    ) : manualAssignments[index] ? (
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="h-4 w-4 text-blue-500" />
+                        <span className="text-blue-700">
+                          {row.matchedAthleteName}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          (manuell)
+                        </span>
+                        <button
+                          onClick={() => handleManualAssign(index, '')}
+                          className="text-gray-400 hover:text-red-500"
+                          title="Zuweisung entfernen"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
                     ) : (
                       <div className="flex items-center space-x-2">
-                        <AlertCircle className="h-4 w-4 text-orange-500" />
-                        <span className="text-orange-700">{t('credits.csvUpload.noMatch')}</span>
+                        <AlertCircle className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                        <select
+                          value={manualAssignments[index] || ''}
+                          onChange={(e) => handleManualAssign(index, e.target.value)}
+                          className="text-sm border border-orange-300 rounded px-2 py-1 text-gray-900 bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 max-w-[200px]"
+                        >
+                          <option value="">{t('credits.csvUpload.selectAthlete')}</option>
+                          {athletes
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(athlete => (
+                              <option key={athlete.id} value={athlete.id} className="text-gray-900">
+                                {athlete.name}
+                              </option>
+                            ))}
+                        </select>
                       </div>
                     )}
                   </td>

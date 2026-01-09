@@ -626,6 +626,7 @@
       "athletesMatched": "{count} athletes matched",
       "notMatched": "{count} not matched",
       "noMatch": "No match",
+      "selectAthlete": "Select athlete...",
       "fields": "fields",
       "moreRows": "... and {count} more rows",
       "readyToImport": "Ready to import {count} matched athletes",
