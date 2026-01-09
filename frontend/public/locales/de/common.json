@@ -280,6 +280,10 @@
     "worksWithoutInternet": "Funktioniert ohne Internetverbindung",
     "autoDeleteAfterExpiry": "Automatische Löschung nach Ablauf",
     "save": "Speichern",
+    "tabs": {
+      "offlineApp": "App offline",
+      "pdfDownload": "PDF Download"
+    },
     "pdfExport": {
       "title": "PDF Cheatsheet",
       "description": "Lade ein PDF mit allen Athleten-Infos für dieses Event herunter",

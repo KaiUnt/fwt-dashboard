@@ -279,6 +279,10 @@
     "worksWithoutInternet": "Fonctionne sans connexion internet",
     "autoDeleteAfterExpiry": "Suppression automatique après expiration",
     "save": "Sauvegarder",
+    "tabs": {
+      "offlineApp": "App hors ligne",
+      "pdfDownload": "Télécharger PDF"
+    },
     "pdfExport": {
       "title": "PDF Cheatsheet",
       "description": "Téléchargez un PDF avec toutes les infos des athlètes pour cet événement",

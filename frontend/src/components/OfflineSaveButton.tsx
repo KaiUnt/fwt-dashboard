@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Download, Check, AlertCircle, Loader2, Trash2, RefreshCw, FileText } from 'lucide-react';
+import { Download, Check, AlertCircle, Loader2, Trash2, RefreshCw, FileText, Smartphone } from 'lucide-react';
 import { useOfflineStorage } from '@/hooks/useOfflineStorage';
 import { Athlete, EventInfo, CommentatorInfoWithAuthor } from '@/types/athletes';
 import { SeriesData } from '@/hooks/useSeriesRankings';
@@ -36,6 +36,7 @@ export function OfflineSaveButton({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [pdfSortBy, setPdfSortBy] = useState<'bib' | 'name'>('bib');
+  const [activeTab, setActiveTab] = useState<'offline' | 'pdf'>('offline');
   const {
     isSaving,
     isDeleting,
@@ -148,91 +149,125 @@ export function OfflineSaveButton({
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-md w-full p-6">
               <h3 className="text-lg font-semibold mb-4">{t('offline.manageOfflineData')}</h3>
-              
-              <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Check className="h-5 w-5 text-green-500" />
-                    <span className="font-medium">{t('offline.offlineAvailable')}</span>
-                    {isStale && (
-                      <AlertCircle className="h-4 w-4 text-amber-500" />
+
+              {/* Tabs */}
+              <div className="flex border-b border-gray-200 mb-4">
+                <button
+                  onClick={() => setActiveTab('offline')}
+                  className={`flex items-center space-x-2 px-4 py-2 border-b-2 transition-colors ${
+                    activeTab === 'offline'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Smartphone className="h-4 w-4" />
+                  <span>{t('offline.tabs.offlineApp')}</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('pdf')}
+                  className={`flex items-center space-x-2 px-4 py-2 border-b-2 transition-colors ${
+                    activeTab === 'pdf'
+                      ? 'border-amber-600 text-amber-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>{t('offline.tabs.pdfDownload')}</span>
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              {activeTab === 'offline' ? (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Check className="h-5 w-5 text-green-500" />
+                      <span className="font-medium">{t('offline.offlineAvailable')}</span>
+                      {isStale && (
+                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                      )}
+                    </div>
+
+                    {offlineStatus && (
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <div>{t('offline.athletes')}: {offlineStatus.totalAthletes}</div>
+                        <div>{t('offline.size')}: {formatFileSize(offlineStatus.estimatedSize)}</div>
+                        <div>{t('offline.savedAt')}: {formatTimestamp(offlineStatus.timestamp)}</div>
+                        <div>{t('offline.availableUntil')}: {formatTimestamp(offlineStatus.expiresAt)}</div>
+                      </div>
                     )}
                   </div>
-                  
-                  {offlineStatus && (
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <div>{t('offline.athletes')}: {offlineStatus.totalAthletes}</div>
-                      <div>{t('offline.size')}: {formatFileSize(offlineStatus.estimatedSize)}</div>
-                      <div>{t('offline.savedAt')}: {formatTimestamp(offlineStatus.timestamp)}</div>
-                      <div>{t('offline.availableUntil')}: {formatTimestamp(offlineStatus.expiresAt)}</div>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleUpdate}
-                    disabled={isSaving || isDeleting}
-                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {isSaving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                    <span>{t('offline.update')}</span>
-                  </button>
 
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    disabled={isSaving || isDeleting}
-                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    <span>{t('offline.delete')}</span>
-                  </button>
-                </div>
-
-                {/* PDF Export Section */}
-                <div className="border-t pt-4 mt-4">
-                  <div className="bg-amber-50 rounded-lg p-4">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <FileText className="h-5 w-5 text-amber-600" />
-                      <span className="font-medium text-amber-800">{t('offline.pdfExport.title')}</span>
-                    </div>
-                    <p className="text-sm text-amber-700 mb-3">{t('offline.pdfExport.description')}</p>
-
-                    <div className="flex items-center space-x-2 mb-3">
-                      <span className="text-sm text-gray-600">{t('offline.pdfExport.sortBy')}:</span>
-                      <select
-                        value={pdfSortBy}
-                        onChange={(e) => setPdfSortBy(e.target.value as 'bib' | 'name')}
-                        className="text-sm border border-gray-300 rounded px-2 py-1"
-                      >
-                        <option value="bib">{t('offline.pdfExport.sortByBib')}</option>
-                        <option value="name">{t('offline.pdfExport.sortByName')}</option>
-                      </select>
-                    </div>
-
+                  <div className="flex space-x-2">
                     <button
-                      onClick={handleDownloadPDF}
-                      disabled={isGeneratingPDF || athletes.length === 0}
-                      className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                      onClick={handleUpdate}
+                      disabled={isSaving || isDeleting}
+                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
                     >
-                      {isGeneratingPDF ? (
+                      {isSaving ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <FileText className="h-4 w-4" />
+                        <RefreshCw className="h-4 w-4" />
                       )}
-                      <span>{isGeneratingPDF ? t('offline.pdfExport.downloading') : t('offline.pdfExport.download')}</span>
+                      <span>{t('offline.update')}</span>
+                    </button>
+
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={isSaving || isDeleting}
+                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      <span>{t('offline.delete')}</span>
                     </button>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">{t('offline.pdfExport.description')}</p>
+
+                  <div className="bg-amber-50 rounded-lg p-4">
+                    <h4 className="font-medium text-amber-800 mb-2">{t('offline.pdfExport.includesInfo')}</h4>
+                    <ul className="text-sm text-amber-700 space-y-1">
+                      <li>• {t('offline.pdfExport.includesBasics')}</li>
+                      <li>• {t('offline.pdfExport.includesRankings')}</li>
+                      <li>• {t('offline.pdfExport.includesHighlights')}</li>
+                      <li>• {t('offline.pdfExport.includesPerformance')}</li>
+                      <li>• {t('offline.pdfExport.includesResults')}</li>
+                      <li>• {t('offline.pdfExport.includesStorytelling')}</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">{t('offline.pdfExport.sortBy')}:</span>
+                    <select
+                      value={pdfSortBy}
+                      onChange={(e) => setPdfSortBy(e.target.value as 'bib' | 'name')}
+                      className="text-sm border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="bib">{t('offline.pdfExport.sortByBib')}</option>
+                      <option value="name">{t('offline.pdfExport.sortByName')}</option>
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPDF || athletes.length === 0}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isGeneratingPDF ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4" />
+                    )}
+                    <span>{isGeneratingPDF ? t('offline.pdfExport.downloading') : t('offline.pdfExport.download')}</span>
+                  </button>
+                </div>
+              )}
 
               <div className="flex justify-end mt-6">
                 <button
@@ -308,39 +343,96 @@ export function OfflineSaveButton({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h3 className="text-lg font-semibold mb-4">{t('offline.saveForOffline')}</h3>
-            
-            <div className="space-y-4">
-              <div className="bg-blue-50 rounded-lg p-4">
-                <h4 className="font-medium mb-2">{t('offline.dataToBeSaved')}</h4>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• {t('offline.athletesWithBib', { count: athletes.length })}</li>
-                  <li>• {t('offline.eventInformation')}</li>
-                  {seriesRankings && (
-                    <li>• {t('offline.seriesRankings')}</li>
-                  )}
-                  <li>• {t('offline.commentatorInfo')}</li>
-                  <li>• {t('offline.estimatedSize')}: {formatFileSize(estimatedSize)}</li>
-                </ul>
-              </div>
-              
-              <div className="bg-green-50 rounded-lg p-4">
-                <h4 className="font-medium mb-2">{t('offline.availability')}</h4>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• {t('offline.offlineAvailable48h')}</li>
-                  <li>• {t('offline.worksWithoutInternet')}</li>
-                  <li>• {t('offline.autoDeleteAfterExpiry')}</li>
-                </ul>
-              </div>
 
-              {/* PDF Export Section */}
-              <div className="bg-amber-50 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-3">
-                  <FileText className="h-5 w-5 text-amber-600" />
-                  <span className="font-medium text-amber-800">{t('offline.pdfExport.title')}</span>
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 mb-4">
+              <button
+                onClick={() => setActiveTab('offline')}
+                className={`flex items-center space-x-2 px-4 py-2 border-b-2 transition-colors ${
+                  activeTab === 'offline'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Smartphone className="h-4 w-4" />
+                <span>{t('offline.tabs.offlineApp')}</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('pdf')}
+                className={`flex items-center space-x-2 px-4 py-2 border-b-2 transition-colors ${
+                  activeTab === 'pdf'
+                    ? 'border-amber-600 text-amber-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                <span>{t('offline.tabs.pdfDownload')}</span>
+              </button>
+            </div>
+
+            {/* Tab Content */}
+            {activeTab === 'offline' ? (
+              <div className="space-y-4">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium mb-2">{t('offline.dataToBeSaved')}</h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• {t('offline.athletesWithBib', { count: athletes.length })}</li>
+                    <li>• {t('offline.eventInformation')}</li>
+                    {seriesRankings && (
+                      <li>• {t('offline.seriesRankings')}</li>
+                    )}
+                    <li>• {t('offline.commentatorInfo')}</li>
+                    <li>• {t('offline.estimatedSize')}: {formatFileSize(estimatedSize)}</li>
+                  </ul>
                 </div>
-                <p className="text-sm text-amber-700 mb-3">{t('offline.pdfExport.description')}</p>
 
-                <div className="flex items-center space-x-2 mb-3">
+                <div className="bg-green-50 rounded-lg p-4">
+                  <h4 className="font-medium mb-2">{t('offline.availability')}</h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• {t('offline.offlineAvailable48h')}</li>
+                    <li>• {t('offline.worksWithoutInternet')}</li>
+                    <li>• {t('offline.autoDeleteAfterExpiry')}</li>
+                  </ul>
+                </div>
+
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    {t('offline.cancel')}
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    <span>{t('offline.save')}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">{t('offline.pdfExport.description')}</p>
+
+                <div className="bg-amber-50 rounded-lg p-4">
+                  <h4 className="font-medium text-amber-800 mb-2">{t('offline.pdfExport.includesInfo')}</h4>
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    <li>• {t('offline.pdfExport.includesBasics')}</li>
+                    <li>• {t('offline.pdfExport.includesRankings')}</li>
+                    <li>• {t('offline.pdfExport.includesHighlights')}</li>
+                    <li>• {t('offline.pdfExport.includesPerformance')}</li>
+                    <li>• {t('offline.pdfExport.includesResults')}</li>
+                    <li>• {t('offline.pdfExport.includesStorytelling')}</li>
+                  </ul>
+                </div>
+
+                <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-600">{t('offline.pdfExport.sortBy')}:</span>
                   <select
                     value={pdfSortBy}
@@ -352,41 +444,28 @@ export function OfflineSaveButton({
                   </select>
                 </div>
 
-                <button
-                  onClick={handleDownloadPDF}
-                  disabled={isGeneratingPDF || athletes.length === 0}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {isGeneratingPDF ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileText className="h-4 w-4" />
-                  )}
-                  <span>{isGeneratingPDF ? t('offline.pdfExport.downloading') : t('offline.pdfExport.download')}</span>
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    {t('offline.cancel')}
+                  </button>
+                  <button
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPDF || athletes.length === 0}
+                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isGeneratingPDF ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4" />
+                    )}
+                    <span>{isGeneratingPDF ? t('offline.pdfExport.downloading') : t('offline.pdfExport.download')}</span>
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="flex space-x-2 mt-6">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                {t('offline.cancel')}
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                <span>{t('offline.save')}</span>
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}
