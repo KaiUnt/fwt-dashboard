@@ -351,7 +351,7 @@ export function CSVUploadComponent({
             <tbody className="divide-y divide-gray-200">
               {parsedData.map((row, index) => (
                 <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 text-gray-900 font-medium">
                     {row.firstName} {row.lastName}
                   </td>
                   <td className="px-3 py-2">
@@ -402,14 +402,14 @@ export function CSVUploadComponent({
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 bg-white"
             >
-              <option value="">{t('credits.csvUpload.uploadForCurrentUser')}</option>
+              <option value="" className="text-gray-900">{t('credits.csvUpload.uploadForCurrentUser')}</option>
               {availableUsers.length === 0 ? (
-                <option disabled>Loading users...</option>
+                <option disabled className="text-gray-500">Loading users...</option>
               ) : (
                 availableUsers.map(user => (
-                  <option key={user.id} value={user.id}>
+                  <option key={user.id} value={user.id} className="text-gray-900">
                     {user.full_name || user.email} ({user.email})
                   </option>
                 ))
