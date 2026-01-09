@@ -883,8 +883,12 @@ export function CommentatorInfoModal({
           <div className="bg-gray-50 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Ctrl+Enter</kbd> {t('commentatorInfo.toSave')}
-                <span className="mx-2">•</span>
+                {activeTab !== 'csv' && (
+                  <>
+                    <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Ctrl+Enter</kbd> {t('commentatorInfo.toSave')}
+                    <span className="mx-2">•</span>
+                  </>
+                )}
                 <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Esc</kbd> {t('commentatorInfo.toClose')}
               </div>
               <div className="flex items-center space-x-3">
@@ -894,42 +898,44 @@ export function CommentatorInfoModal({
                 >
                   {t('buttons.cancel')}
                 </button>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                    isSaving
-                      ? 'bg-blue-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md active:bg-blue-800'
-                  } text-white disabled:opacity-50`}
-                >
-                  {isSaving ? (
-                    <div className="flex items-center space-x-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      <span>{t('buttons.saving')}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <Save className="h-4 w-4" />
-                      <span>{t('buttons.save')}</span>
-                    </div>
-                  )}
-                </button>
+                {activeTab !== 'csv' && (
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                      isSaving
+                        ? 'bg-blue-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700 hover:shadow-md active:bg-blue-800'
+                    } text-white disabled:opacity-50`}
+                  >
+                    {isSaving ? (
+                      <div className="flex items-center space-x-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                        <span>{t('buttons.saving')}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <Save className="h-4 w-4" />
+                        <span>{t('buttons.save')}</span>
+                      </div>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>

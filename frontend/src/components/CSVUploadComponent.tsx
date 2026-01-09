@@ -30,6 +30,48 @@ interface CSVUploadComponentProps {
   availableUsers?: Array<{ id: string; full_name: string; email: string }>;
 }
 
+const stripBom = (value: string): string => value.replace(/^\uFEFF/, '');
+
+const normalizeHeaderLabel = (value: string): string =>
+  stripBom(value).replace(/\s+/g, ' ').trim();
+
+const normalizeHeaderForMatch = (value: string): string =>
+  normalizeHeaderLabel(value).toLowerCase();
+
+const buildCustomKeyMap = (headers: string[]): Map<string, string> => {
+  const usedKeys = new Set<string>();
+  const headerToKey = new Map<string, string>();
+
+  headers.forEach((header) => {
+    const baseKey = normalizeHeaderLabel(header);
+    if (!baseKey) {
+      headerToKey.set(header, header);
+      return;
+    }
+
+    let key = baseKey;
+    let suffix = 2;
+    while (usedKeys.has(key)) {
+      const candidate = `${baseKey}__${suffix}`;
+      key = candidate.slice(0, 255);
+      suffix += 1;
+    }
+
+    usedKeys.add(key);
+    headerToKey.set(header, key);
+  });
+
+  return headerToKey;
+};
+
+const normalizeName = (value: string): string =>
+  value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
 export function CSVUploadComponent({ 
   athletes, 
   onDataParsed, 
@@ -51,13 +93,13 @@ export function CSVUploadComponent({
 
   // Simple fuzzy matching for athlete names
   const matchAthlete = (firstName: string, lastName: string): { athlete?: Athlete; confidence: number } => {
-    const fullName = `${firstName} ${lastName}`.toLowerCase().trim();
+    const fullName = normalizeName(`${firstName} ${lastName}`);
     
     let bestMatch: Athlete | undefined;
     let bestScore = 0;
     
     for (const athlete of athletes) {
-      const athleteName = athlete.name.toLowerCase().trim();
+      const athleteName = normalizeName(athlete.name);
       
       // Exact match
       if (athleteName === fullName) {
@@ -118,6 +160,7 @@ export function CSVUploadComponent({
 
           setCsvHeaders(headers);
           setCsvData(data);
+          const customKeyMap = buildCustomKeyMap(headers);
 
           // Process the data
           const processed: ParsedCSVData[] = data.map(row => {
@@ -136,7 +179,7 @@ export function CSVUploadComponent({
               
               if (value) {
                 // Map known headers to standard fields
-                const lowerHeader = header.toLowerCase();
+                const lowerHeader = normalizeHeaderForMatch(header);
                 if (lowerHeader.includes('homebase') || lowerHeader.includes('home')) {
                   standardFields.homebase = value;
                 } else if (lowerHeader.includes('team')) {
@@ -161,7 +204,8 @@ export function CSVUploadComponent({
                   standardFields.website = value;
                 } else {
                   // Custom field
-                  customFields[header] = value;
+                  const customKey = customKeyMap.get(header) || normalizeHeaderLabel(header);
+                  customFields[customKey] = value;
                 }
               }
             }
@@ -283,7 +327,7 @@ export function CSVUploadComponent({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {parsedData.slice(0, 10).map((row, index) => (
+              {parsedData.map((row, index) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-3 py-2">
                     {row.firstName} {row.lastName}
@@ -315,11 +359,6 @@ export function CSVUploadComponent({
               ))}
             </tbody>
           </table>
-          {parsedData.length > 10 && (
-            <div className="p-3 text-center text-sm text-gray-500 bg-gray-50">
-              {t('credits.csvUpload.moreRows', { count: parsedData.length - 10 })}
-            </div>
-          )}
         </div>
 
         {/* Admin User Selection */}
