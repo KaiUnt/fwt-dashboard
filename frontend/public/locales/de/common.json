@@ -637,6 +637,7 @@
       "moreRows": "... und {count} weitere Zeilen",
       "readyToImport": "Bereit zum Importieren von {count} gefundenen Athleten",
       "importAllMatched": "Alle Gefundenen importieren",
+      "importing": "Importiere...",
       "errors": {
         "selectCSV": "Bitte w\u00e4hlen Sie eine CSV-Datei",
         "dropCSV": "Bitte legen Sie eine CSV-Datei ab",

@@ -632,8 +632,9 @@
       "selectAthlete": "Sélectionner athlète...",
       "fields": "champs",
       "moreRows": "... et {count} lignes suppl\u00e9mentaires",
-      "readyToImport": "Pr\u00eat \u00e0 importer {count} athl\u00e8tes trouv\u00e9s",
-      "importAllMatched": "Importer tous les trouv\u00e9s",
+      "readyToImport": "Prêt à importer {count} athlètes trouvés",
+      "importAllMatched": "Importer tous les trouvés",
+      "importing": "Importation...",
       "errors": {
         "selectCSV": "Veuillez s\u00e9lectionner un fichier CSV",
         "dropCSV": "Veuillez d\u00e9poser un fichier CSV",

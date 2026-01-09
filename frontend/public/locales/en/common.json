@@ -631,6 +631,7 @@
       "moreRows": "... and {count} more rows",
       "readyToImport": "Ready to import {count} matched athletes",
       "importAllMatched": "Import All Matched",
+      "importing": "Importing...",
       "errors": {
         "selectCSV": "Please select a CSV file",
         "dropCSV": "Please drop a CSV file",

@@ -28,6 +28,7 @@ interface CSVUploadComponentProps {
   onBulkImport?: (data: ParsedCSVData[], targetUserId?: string) => void;
   isAdmin?: boolean;
   availableUsers?: Array<{ id: string; full_name: string; email: string }>;
+  isImporting?: boolean;
 }
 
 const stripBom = (value: string): string => value.replace(/^\uFEFF/, '');
@@ -72,13 +73,14 @@ const normalizeName = (value: string): string =>
     .trim()
     .toLowerCase();
 
-export function CSVUploadComponent({ 
-  athletes, 
-  onDataParsed, 
+export function CSVUploadComponent({
+  athletes,
+  onDataParsed,
   onClose,
   onBulkImport,
   isAdmin = false,
-  availableUsers = []
+  availableUsers = [],
+  isImporting = false
 }: CSVUploadComponentProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -483,10 +485,27 @@ export function CSVUploadComponent({
             </div>
             <button
               onClick={() => onBulkImport(parsedData.filter(d => d.matchedAthleteId), selectedUserId || undefined)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              disabled={isImporting}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                isImporting
+                  ? 'bg-green-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
+              } text-white`}
             >
-              <Upload className="h-4 w-4" />
-              <span>{t('credits.csvUpload.importAllMatched')}</span>
+              {isImporting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>{t('credits.csvUpload.importing')}</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  <span>{t('credits.csvUpload.importAllMatched')}</span>
+                </>
+              )}
             </button>
           </div>
         )}
