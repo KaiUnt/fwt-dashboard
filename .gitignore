@@ -218,3 +218,4 @@ claude/
 settings.local.json 
 ridercsvFJWC.csv
 query_liveheats.py
+.gitignore
