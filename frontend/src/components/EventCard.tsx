@@ -85,7 +85,9 @@ export function EventCard({
     const lowerName = seriesName.toLowerCase();
     if (lowerName.includes('pro') || lowerName.includes('xtreme verbier')) return 'Pro';
     if (lowerName.includes('challenger') && !lowerName.includes('qualifying')) return 'Challenger';
-    if ((lowerName.includes('qualifier') || lowerName.includes('ifsa')) && !lowerName.includes('national')) return 'Qualifier';
+    if (lowerName.includes('ifsa') && lowerName.includes('junior')) return 'Junior';
+    if (lowerName.includes('ifsa')) return 'Qualifier';
+    if (lowerName.includes('qualifier') && !lowerName.includes('national')) return 'Qualifier';
     if (lowerName.includes('junior') && !lowerName.includes('national')) return 'Junior';
     return 'Event';
   };

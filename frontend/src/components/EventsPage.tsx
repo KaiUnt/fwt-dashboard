@@ -116,6 +116,11 @@ export function EventsPage() {
   // Filter events based on search, year, and past/future status
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
+      const isCoachEvent = event.name.toLowerCase().includes('coach');
+      if (isCoachEvent) {
+        return false;
+      }
+
       const matchesSearch = searchQuery === '' || 
         event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase());
