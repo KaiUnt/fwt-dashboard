@@ -50,6 +50,14 @@ async def extract_user_id_from_token(credentials: HTTPAuthorizationCredentials =
     raise HTTPException(status_code=500, detail="Authentication module not available")
 
 
+def normalize_series_name(series_name: str) -> str:
+    if not series_name:
+        return series_name
+    if "ifsa" not in series_name.lower():
+        return series_name
+    return re.sub(r'\b(20[0-9]{2})-(20[0-9]{2})\b', r'\2', series_name, count=1)
+
+
 @router.get("/api/series/rankings/{event_id}")
 async def get_series_rankings_for_event(
     event_id: str,
@@ -282,13 +290,15 @@ async def get_all_series(
         # Enhance series data with metadata
         enhanced_series = []
         for series in all_series:
+            series_name = normalize_series_name(series.get("name", ""))
+
             # Extract year from series name
-            year_match = re.search(r'\b(20\d{2})\b', series["name"])
+            year_match = re.search(r'\b(20\d{2})\b', series_name)
             year = int(year_match.group(1)) if year_match else None
 
             # Determine category based on name patterns
-            name_lower = series["name"].lower()
-            if "qualifier" in name_lower:
+            name_lower = series_name.lower()
+            if "qualifier" in name_lower or ("ifsa" in name_lower and "junior" not in name_lower):
                 category = "Qualifier"
             elif "challenger" in name_lower:
                 category = "Challenger"
@@ -301,7 +311,7 @@ async def get_all_series(
 
             enhanced_series.append({
                 "id": series["id"],
-                "name": series["name"],
+                "name": series_name,
                 "year": year,
                 "category": category
             })
@@ -375,11 +385,12 @@ async def get_series_rankings(
 
             series_info = divisions_data["series"]
             divisions = series_info.get("rankingsDivisions", [])
+            series_name = normalize_series_name(series_info.get("name", "Unknown Series"))
 
             if not divisions:
                 return {
                     "series_id": series_id,
-                    "series_name": series_info.get("name", "Unknown Series"),
+                    "series_name": series_name,
                     "divisions": {},
                     "total_athletes": 0,
                     "message": "No divisions found for this series"
@@ -402,7 +413,7 @@ async def get_series_rankings(
 
             payload = {
                 "series_id": series_id,
-                "series_name": series_info["name"],
+                "series_name": series_name,
                 "divisions": all_rankings,
                 "total_athletes": total_athletes,
                 "message": f"Found {total_athletes} athletes across {len(all_rankings)} divisions"

@@ -73,6 +73,14 @@ class LiveheatsClient:
         self.queries = GraphQLQueries()
         self.athlete_details = {}  # Cache für Athleten-Details
         
+    @staticmethod
+    def _normalize_series_name(series_name: str) -> str:
+        if not series_name:
+            return series_name
+        if "ifsa" not in series_name.lower():
+            return series_name
+        return re.sub(r'\b(20[0-9]{2})-(20[0-9]{2})\b', r'\2', series_name, count=1)
+
     async def get_event_athletes(self, event_id: str) -> Dict:
         """Fetch athletes for a specific event and cache their details."""
         async with self.client as client:
@@ -304,7 +312,18 @@ class LiveheatsClient:
                 if match and int(match.group(1)) in years:
                     filtered_series.append(s)
             
-            logger.info(f"{len(filtered_series)} Serien in den Jahren {years} gefunden.")
+            if short_name.lower() != "ifsa":
+                ifsa_result = await client.execute(self.queries.GET_ORGANISATION_SERIES, {"shortName": "IFSA"})
+                if ifsa_result and "organisationByShortName" in ifsa_result:
+                    ifsa_series = ifsa_result["organisationByShortName"].get("series", [])
+                    logger.info(f"{len(ifsa_series)} Serien von IFSA gefunden.")
+
+                    for s in ifsa_series:
+                        match = re.search(r'\b(20(?:0[8-9]|1[0-9]|2[0-9]|30))\b', s["name"])
+                        if match and int(match.group(1)) in years:
+                            filtered_series.append(s)
+
+            logger.info(f"{len(filtered_series)} Serien in den Jahren {years} gefunden (inkl. IFSA).")
             return filtered_series
 
     async def get_events_from_series(self, series_ids: list, include_past: bool = False) -> list:
@@ -445,9 +464,10 @@ class LiveheatsClient:
                         )
             
             if series_has_results:
+                series_name = self._normalize_series_name(series_data.get("name", ""))
                 return {
                     "series_id": series_id,
-                    "series_name": series_data["name"],
+                    "series_name": series_name,
                     "divisions": results
                 }
             
