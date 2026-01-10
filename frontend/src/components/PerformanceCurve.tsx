@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { TrendingUp, Medal, Star, Trophy, Target, Zap, ChevronDown, Eye, EyeOff, Award, Crown } from 'lucide-react';
+import { TrendingUp, Medal, Star, Trophy, Target, Zap, ChevronDown, Eye, EyeOff, Award, Crown, Globe } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { SeriesData, isMainSeasonRankingForRegion, isMainSeasonRanking, categorizeSeriesType, getAllEventsChronologically, SeriesRegion } from '@/hooks/useSeriesRankings';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -12,6 +12,7 @@ interface PerformanceCurveProps {
   seriesData: SeriesData[];
   className?: string;
   selectedRegion?: SeriesRegion;
+  onToggleRegion?: () => void;
 }
 
 interface ChartDataPoint {
@@ -37,9 +38,15 @@ export function PerformanceCurve({
   athleteName: _athleteName,
   seriesData,
   className = "",
-  selectedRegion = '1'
+  selectedRegion = '1',
+  onToggleRegion
 }: PerformanceCurveProps) {
   const { t } = useTranslation();
+  const regionContainerClass = selectedRegion === '1' ? 'bg-white' : 'bg-amber-50';
+  const regionHeaderClass = selectedRegion === '1' ? 'bg-gray-50' : 'bg-amber-100';
+  const emptyStateClass = selectedRegion === '1'
+    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+    : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200';
   const [seriesVisibility, setSeriesVisibility] = useState<SeriesVisibility>({
     pro: true,
     challenger: true,
@@ -200,10 +207,22 @@ export function PerformanceCurve({
 
   if (chartData.length === 0) {
     return (
-      <div className={`bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 ${className}`}>
-        <div className="flex items-center space-x-2 mb-2">
-          <TrendingUp className="h-5 w-5 text-blue-600" />
-          <h3 className="font-semibold text-gray-900">Performance Curve</h3>
+      <div className={`border rounded-lg p-4 ${emptyStateClass} ${className}`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <TrendingUp className="h-5 w-5 text-blue-600" />
+            <h3 className="font-semibold text-gray-900">Performance Curve</h3>
+          </div>
+          {onToggleRegion && (
+            <button
+              onClick={onToggleRegion}
+              className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+              title={selectedRegion === '1' ? 'Region 1: Europe-Asia-Oceania' : 'Region 2: Americas'}
+            >
+              <Globe className="h-4 w-4" />
+              <span className="text-sm font-medium">R{selectedRegion}</span>
+            </button>
+          )}
         </div>
         <p className="text-sm text-gray-700">{t('performance.noMainSeriesData')}</p>
       </div>
@@ -211,9 +230,9 @@ export function PerformanceCurve({
   }
 
   return (
-    <div className={`bg-white rounded-xl shadow-lg overflow-hidden ${className}`}>
+    <div className={`${regionContainerClass} rounded-xl shadow-lg overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+      <div className={`${regionHeaderClass} px-4 py-3 border-b border-gray-200`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <TrendingUp className="h-5 w-5 text-gray-600" />
@@ -221,13 +240,26 @@ export function PerformanceCurve({
             <span className="text-sm text-gray-500">({chartData.length} Jahre)</span>
           </div>
           
-          <button
-            onClick={() => setShowControls(!showControls)}
-            className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            <ChevronDown className={`h-4 w-4 transition-transform ${showControls ? 'rotate-180' : ''}`} />
-            <span>{t('performance.series')}</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {onToggleRegion && (
+              <button
+                onClick={onToggleRegion}
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+                title={selectedRegion === '1' ? 'Region 1: Europe-Asia-Oceania' : 'Region 2: Americas'}
+              >
+                <Globe className="h-4 w-4" />
+                <span className="text-sm font-medium">R{selectedRegion}</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowControls(!showControls)}
+              className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <ChevronDown className={`h-4 w-4 transition-transform ${showControls ? 'rotate-180' : ''}`} />
+              <span>{t('performance.series')}</span>
+            </button>
+          </div>
         </div>
       </div>
 

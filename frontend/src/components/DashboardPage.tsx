@@ -263,6 +263,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                     athleteName={currentAthlete.name}
                     seriesData={seriesData.series_rankings}
                     selectedRegion={selectedRegion}
+                    onToggleRegion={() => setSelectedRegion(selectedRegion === '1' ? '2' : '1')}
                   />
                   <AthleteSeriesRankings
                     athleteId={currentAthlete.id}
@@ -388,6 +389,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
                 athleteName={currentAthlete.name}
                 seriesData={seriesData.series_rankings}
                 selectedRegion={selectedRegion}
+                onToggleRegion={() => setSelectedRegion(selectedRegion === '1' ? '2' : '1')}
               />
             )}
           </div>
