@@ -279,7 +279,27 @@
     "offlineAvailable48h": "Offline verfügbar für 48 Stunden",
     "worksWithoutInternet": "Funktioniert ohne Internetverbindung",
     "autoDeleteAfterExpiry": "Automatische Löschung nach Ablauf",
-    "save": "Speichern"
+    "save": "Speichern",
+    "tabs": {
+      "offlineApp": "App offline",
+      "pdfDownload": "PDF Download"
+    },
+    "pdfExport": {
+      "title": "PDF Cheatsheet",
+      "description": "Lade ein PDF mit allen Athleten-Infos für dieses Event herunter",
+      "download": "PDF herunterladen",
+      "downloading": "PDF wird erstellt...",
+      "sortBy": "Sortierung",
+      "sortByBib": "Nach BIB-Nummer",
+      "sortByName": "Nach Name",
+      "includesInfo": "Enthält pro Athlet:",
+      "includesBasics": "Basics (Team, Sponsors, Homebase)",
+      "includesRankings": "Aktuelle & Vorjahres-Rankings",
+      "includesHighlights": "Top 3 Highlight-Ergebnisse",
+      "includesPerformance": "Performance-Kurve (Tabelle)",
+      "includesResults": "Letzte 10 Ergebnisse",
+      "includesStorytelling": "Storytelling & Notizen"
+    }
   },
   "filters": {
     "allYears": "Alle Jahre"
@@ -396,6 +416,19 @@
     },
     "byAuthor": "Von {author}",
     "you": "Du"
+  },
+  "liveScoring": {
+    "title": "Live Scoring",
+    "error": "Fehler beim Laden der Live-Ergebnisse",
+    "noData": "Keine Heats oder Ergebnisse verfügbar",
+    "noResults": "Noch keine Ergebnisse in diesem Heat",
+    "completed": "Abgeschlossen",
+    "upcoming": "Bevorstehend",
+    "lastUpdated": "Zuletzt aktualisiert",
+    "autoRefresh": "Automatische Aktualisierung alle 30s",
+    "toggleOn": "An",
+    "toggleOff": "Aus",
+    "disabledHelp": "Live Scoring ist deaktiviert. Aktivieren, um Daten von Liveheats zu laden."
   },
   "errors": {
     "loadingFailed": "Fehler beim Laden",
@@ -618,11 +651,13 @@
       "selectFile": "Datei ausw\u00e4hlen",
       "athletesMatched": "{count} Athleten gefunden",
       "notMatched": "{count} nicht gefunden",
-      "noMatch": "Keine \u00dcbereinstimmung",
+      "noMatch": "Keine Übereinstimmung",
+      "selectAthlete": "Athlet auswählen...",
       "fields": "Felder",
       "moreRows": "... und {count} weitere Zeilen",
       "readyToImport": "Bereit zum Importieren von {count} gefundenen Athleten",
       "importAllMatched": "Alle Gefundenen importieren",
+      "importing": "Importiere...",
       "errors": {
         "selectCSV": "Bitte w\u00e4hlen Sie eine CSV-Datei",
         "dropCSV": "Bitte legen Sie eine CSV-Datei ab",

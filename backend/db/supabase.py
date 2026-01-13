@@ -95,18 +95,25 @@ class SupabaseClient:
 
         return params
 
-    def _sanitize_data(self, data: Union[Dict, List, Any]) -> Any:
-        """Sanitize input data to prevent XSS and limit sizes."""
+    def _sanitize_data(self, data: Union[Dict, List, Any], validate_keys: bool = True) -> Any:
+        """Sanitize input data to prevent XSS and limit sizes.
+
+        Args:
+            data: The data to sanitize
+            validate_keys: If True, validate that keys are valid DB column names.
+                          Set to False for nested objects like custom_fields where
+                          keys can contain spaces and special characters.
+        """
         if isinstance(data, list):
-            return [self._sanitize_data(item) for item in data]
+            return [self._sanitize_data(item, validate_keys) for item in data]
 
         if not isinstance(data, dict):
             return data
 
         sanitized = {}
         for key, value in data.items():
-            # Validate key names
-            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', key):
+            # Validate key names only for top-level DB columns
+            if validate_keys and not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', key):
                 logger.warning(f"Skipping invalid key: {key}")
                 continue
 
@@ -119,7 +126,8 @@ class SupabaseClient:
                 if len(value) > 10000:
                     value = value[:10000]
             elif isinstance(value, dict):
-                value = self._sanitize_data(value)
+                # For nested dicts (like custom_fields, social_media), don't validate keys
+                value = self._sanitize_data(value, validate_keys=False)
 
             sanitized[key] = value
 

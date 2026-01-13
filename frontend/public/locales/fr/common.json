@@ -278,7 +278,27 @@
     "offlineAvailable48h": "Disponible hors ligne pendant 48 heures",
     "worksWithoutInternet": "Fonctionne sans connexion internet",
     "autoDeleteAfterExpiry": "Suppression automatique après expiration",
-    "save": "Sauvegarder"
+    "save": "Sauvegarder",
+    "tabs": {
+      "offlineApp": "App hors ligne",
+      "pdfDownload": "Télécharger PDF"
+    },
+    "pdfExport": {
+      "title": "PDF Cheatsheet",
+      "description": "Téléchargez un PDF avec toutes les infos des athlètes pour cet événement",
+      "download": "Télécharger PDF",
+      "downloading": "Création du PDF...",
+      "sortBy": "Trier par",
+      "sortByBib": "Par numéro de dossard",
+      "sortByName": "Par nom",
+      "includesInfo": "Inclut par athlète :",
+      "includesBasics": "Infos de base (Équipe, Sponsors, Base)",
+      "includesRankings": "Rankings actuels et de l'année précédente",
+      "includesHighlights": "Top 3 des meilleurs résultats",
+      "includesPerformance": "Courbe de performance (tableau)",
+      "includesResults": "10 derniers résultats",
+      "includesStorytelling": "Storytelling et notes"
+    }
   },
   "filters": {
     "allYears": "Toutes les années"
@@ -395,6 +415,19 @@
     },
     "byAuthor": "Par {author}",
     "you": "Vous"
+  },
+  "liveScoring": {
+    "title": "Scoring en Direct",
+    "error": "Erreur lors du chargement des résultats en direct",
+    "noData": "Aucune série ou résultat disponible",
+    "noResults": "Pas encore de résultats dans cette série",
+    "completed": "Terminé",
+    "upcoming": "À venir",
+    "lastUpdated": "Dernière mise à jour",
+    "autoRefresh": "Actualisation auto toutes les 30s",
+    "toggleOn": "Actif",
+    "toggleOff": "Inactif",
+    "disabledHelp": "Le scoring en direct est désactivé. Activez pour charger les données de Liveheats."
   },
   "errors": {
     "loadingFailed": "Échec du chargement",
@@ -616,10 +649,12 @@
       "athletesMatched": "{count} athl\u00e8tes trouv\u00e9s",
       "notMatched": "{count} non trouv\u00e9s",
       "noMatch": "Aucune correspondance",
+      "selectAthlete": "Sélectionner athlète...",
       "fields": "champs",
       "moreRows": "... et {count} lignes suppl\u00e9mentaires",
-      "readyToImport": "Pr\u00eat \u00e0 importer {count} athl\u00e8tes trouv\u00e9s",
-      "importAllMatched": "Importer tous les trouv\u00e9s",
+      "readyToImport": "Prêt à importer {count} athlètes trouvés",
+      "importAllMatched": "Importer tous les trouvés",
+      "importing": "Importation...",
       "errors": {
         "selectCSV": "Veuillez s\u00e9lectionner un fichier CSV",
         "dropCSV": "Veuillez d\u00e9poser un fichier CSV",

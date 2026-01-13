@@ -183,7 +183,13 @@ export function AthleteSeriesRankings({
     const grouped = {
       pro: filteredSeries.filter(s => s.series_name.toLowerCase().includes('pro tour')),
       challenger: filteredSeries.filter(s => s.series_name.toLowerCase().includes('challenger') && !s.series_name.toLowerCase().includes('qualifying')),
-      qualifier: filteredSeries.filter(s => (s.series_name.toLowerCase().includes('qualifier') || s.series_name.toLowerCase().includes('ifsa')) && !s.series_name.toLowerCase().includes('national')),
+      qualifier: filteredSeries.filter(s => {
+        const name = s.series_name.toLowerCase();
+        const isIfsa = name.includes('ifsa');
+        const isJunior = name.includes('junior');
+        return (name.includes('qualifier') || (isIfsa && !isJunior)) &&
+          !name.includes('national');
+      }),
       junior: filteredSeries.filter(s => s.series_name.toLowerCase().includes('junior') && !s.series_name.toLowerCase().includes('national'))
     };
     return grouped;

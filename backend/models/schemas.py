@@ -121,7 +121,7 @@ def validate_custom_fields(v):
         raise ValueError("Too many custom fields (max 50 allowed)")
 
     for key, value in v.items():
-        if not isinstance(key, str) or len(key) > 100:
+        if not isinstance(key, str) or len(key) > 255:
             raise ValueError(f"Invalid custom field key: {key}")
         if not isinstance(value, (str, int, float, bool)) or (isinstance(value, str) and len(value) > 1000):
             raise ValueError(f"Invalid custom field value for {key}")

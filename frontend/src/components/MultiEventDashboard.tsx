@@ -318,6 +318,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                     athleteName={currentAthlete.name}
                     seriesData={getAthleteSeriesData()!}
                     selectedRegion={selectedRegion}
+                    onToggleRegion={() => setSelectedRegion(selectedRegion === '1' ? '2' : '1')}
                   />
                   <AthleteSeriesRankings
                     athleteId={currentAthlete.id}
@@ -452,6 +453,7 @@ export function MultiEventDashboard({ eventId1, eventId2 }: MultiEventDashboardP
                  athleteName={currentAthlete.name}
                  seriesData={getAthleteSeriesData()!}
                  selectedRegion={selectedRegion}
+                 onToggleRegion={() => setSelectedRegion(selectedRegion === '1' ? '2' : '1')}
                />
              )}
            </div>

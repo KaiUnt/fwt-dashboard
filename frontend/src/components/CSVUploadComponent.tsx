@@ -28,15 +28,59 @@ interface CSVUploadComponentProps {
   onBulkImport?: (data: ParsedCSVData[], targetUserId?: string) => void;
   isAdmin?: boolean;
   availableUsers?: Array<{ id: string; full_name: string; email: string }>;
+  isImporting?: boolean;
 }
 
-export function CSVUploadComponent({ 
-  athletes, 
-  onDataParsed, 
+const stripBom = (value: string): string => value.replace(/^\uFEFF/, '');
+
+const normalizeHeaderLabel = (value: string): string =>
+  stripBom(value).replace(/\s+/g, ' ').trim();
+
+const normalizeHeaderForMatch = (value: string): string =>
+  normalizeHeaderLabel(value).toLowerCase();
+
+const buildCustomKeyMap = (headers: string[]): Map<string, string> => {
+  const usedKeys = new Set<string>();
+  const headerToKey = new Map<string, string>();
+
+  headers.forEach((header) => {
+    const baseKey = normalizeHeaderLabel(header);
+    if (!baseKey) {
+      headerToKey.set(header, header);
+      return;
+    }
+
+    let key = baseKey;
+    let suffix = 2;
+    while (usedKeys.has(key)) {
+      const candidate = `${baseKey}__${suffix}`;
+      key = candidate.slice(0, 255);
+      suffix += 1;
+    }
+
+    usedKeys.add(key);
+    headerToKey.set(header, key);
+  });
+
+  return headerToKey;
+};
+
+const normalizeName = (value: string): string =>
+  value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+export function CSVUploadComponent({
+  athletes,
+  onDataParsed,
   onClose,
   onBulkImport,
   isAdmin = false,
-  availableUsers = []
+  availableUsers = [],
+  isImporting = false
 }: CSVUploadComponentProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,16 +92,40 @@ export function CSVUploadComponent({
   const [_csvData, setCsvData] = useState<CSVRow[]>([]);
   const [parsedData, setParsedData] = useState<ParsedCSVData[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [manualAssignments, setManualAssignments] = useState<Record<number, string>>({});
+
+  // Handle manual athlete assignment
+  const handleManualAssign = (rowIndex: number, athleteId: string) => {
+    const athlete = athletes.find(a => a.id === athleteId);
+
+    setManualAssignments(prev => ({
+      ...prev,
+      [rowIndex]: athleteId
+    }));
+
+    // Update parsedData with the manual assignment
+    setParsedData(prev => prev.map((row, idx) => {
+      if (idx === rowIndex) {
+        return {
+          ...row,
+          matchedAthleteId: athleteId || undefined,
+          matchedAthleteName: athlete?.name || undefined,
+          confidence: athleteId ? 100 : 0
+        };
+      }
+      return row;
+    }));
+  };
 
   // Simple fuzzy matching for athlete names
   const matchAthlete = (firstName: string, lastName: string): { athlete?: Athlete; confidence: number } => {
-    const fullName = `${firstName} ${lastName}`.toLowerCase().trim();
+    const fullName = normalizeName(`${firstName} ${lastName}`);
     
     let bestMatch: Athlete | undefined;
     let bestScore = 0;
     
     for (const athlete of athletes) {
-      const athleteName = athlete.name.toLowerCase().trim();
+      const athleteName = normalizeName(athlete.name);
       
       // Exact match
       if (athleteName === fullName) {
@@ -97,93 +165,117 @@ export function CSVUploadComponent({
     setIsLoading(true);
     setError(null);
 
+    const processResults = (results: Papa.ParseResult<CSVRow>) => {
+      try {
+        if (results.errors.length > 0) {
+          console.warn('CSV parse warnings:', results.errors);
+        }
+
+        const data = results.data as CSVRow[];
+        const headers = results.meta.fields || [];
+
+        if (headers.length < 3) {
+          setError(t('credits.csvUpload.errors.minimumColumns'));
+          setIsLoading(false);
+          return;
+        }
+
+        setCsvHeaders(headers);
+        setCsvData(data);
+        const customKeyMap = buildCustomKeyMap(headers);
+
+        // Process the data
+        const processed: ParsedCSVData[] = data.map(row => {
+          const firstName = (row[headers[0]] || '').trim();
+          const lastName = (row[headers[1]] || '').trim();
+          
+          const { athlete, confidence } = matchAthlete(firstName, lastName);
+          
+          // Separate custom fields (from column C onwards)
+          const customFields: Record<string, string> = {};
+          const standardFields: Record<string, string> = {};
+          
+          for (let i = 2; i < headers.length; i++) {
+            const header = headers[i];
+            const value = (row[header] || '').trim();
+            
+            if (value) {
+              // Map known headers to standard fields
+              const lowerHeader = normalizeHeaderForMatch(header);
+              if (lowerHeader.includes('homebase') || lowerHeader.includes('home')) {
+                standardFields.homebase = value;
+              } else if (lowerHeader.includes('team')) {
+                standardFields.team = value;
+              } else if (lowerHeader.includes('sponsor')) {
+                standardFields.sponsors = value;
+              } else if (lowerHeader.includes('trick') || lowerHeader.includes('favorite')) {
+                standardFields.favorite_trick = value;
+              } else if (lowerHeader.includes('achievement')) {
+                standardFields.achievements = value;
+              } else if (lowerHeader.includes('injur')) {
+                standardFields.injuries = value;
+              } else if (lowerHeader.includes('fun') || lowerHeader.includes('fact')) {
+                standardFields.fun_facts = value;
+              } else if (lowerHeader.includes('note')) {
+                standardFields.notes = value;
+              } else if (lowerHeader.includes('instagram')) {
+                standardFields.instagram = value;
+              } else if (lowerHeader.includes('youtube')) {
+                standardFields.youtube = value;
+              } else if (lowerHeader.includes('website')) {
+                standardFields.website = value;
+              } else {
+                // Custom field
+                const customKey = customKeyMap.get(header) || normalizeHeaderLabel(header);
+                customFields[customKey] = value;
+              }
+            }
+          }
+
+          return {
+            firstName,
+            lastName,
+            matchedAthleteId: athlete?.id,
+            matchedAthleteName: athlete?.name,
+            confidence,
+            customFields,
+            standardFields
+          };
+        });
+
+        setParsedData(processed);
+        onDataParsed(processed);
+        setIsLoading(false);
+      } catch (err) {
+        setError(t('credits.csvUpload.errors.parseError', { error: (err as Error).message }));
+        setIsLoading(false);
+      }
+    };
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       encoding: 'UTF-8',
+      delimiter: ';',
+      transformHeader: normalizeHeaderLabel,
       complete: (results) => {
-        try {
-          if (results.errors.length > 0) {
-            console.warn('CSV parse warnings:', results.errors);
-          }
-
-          const data = results.data as CSVRow[];
-          const headers = results.meta.fields || [];
-
-          if (headers.length < 3) {
-            setError(t('credits.csvUpload.errors.minimumColumns'));
-            setIsLoading(false);
-            return;
-          }
-
-          setCsvHeaders(headers);
-          setCsvData(data);
-
-          // Process the data
-          const processed: ParsedCSVData[] = data.map(row => {
-            const firstName = (row[headers[0]] || '').trim();
-            const lastName = (row[headers[1]] || '').trim();
-            
-            const { athlete, confidence } = matchAthlete(firstName, lastName);
-            
-            // Separate custom fields (from column C onwards)
-            const customFields: Record<string, string> = {};
-            const standardFields: Record<string, string> = {};
-            
-            for (let i = 2; i < headers.length; i++) {
-              const header = headers[i];
-              const value = (row[header] || '').trim();
-              
-              if (value) {
-                // Map known headers to standard fields
-                const lowerHeader = header.toLowerCase();
-                if (lowerHeader.includes('homebase') || lowerHeader.includes('home')) {
-                  standardFields.homebase = value;
-                } else if (lowerHeader.includes('team')) {
-                  standardFields.team = value;
-                } else if (lowerHeader.includes('sponsor')) {
-                  standardFields.sponsors = value;
-                } else if (lowerHeader.includes('trick') || lowerHeader.includes('favorite')) {
-                  standardFields.favorite_trick = value;
-                } else if (lowerHeader.includes('achievement')) {
-                  standardFields.achievements = value;
-                } else if (lowerHeader.includes('injur')) {
-                  standardFields.injuries = value;
-                } else if (lowerHeader.includes('fun') || lowerHeader.includes('fact')) {
-                  standardFields.fun_facts = value;
-                } else if (lowerHeader.includes('note')) {
-                  standardFields.notes = value;
-                } else if (lowerHeader.includes('instagram')) {
-                  standardFields.instagram = value;
-                } else if (lowerHeader.includes('youtube')) {
-                  standardFields.youtube = value;
-                } else if (lowerHeader.includes('website')) {
-                  standardFields.website = value;
-                } else {
-                  // Custom field
-                  customFields[header] = value;
-                }
-              }
+        const typedResults = results as Papa.ParseResult<CSVRow>;
+        const headers = typedResults.meta.fields || [];
+        if (headers.length < 3) {
+          Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            encoding: 'UTF-8',
+            transformHeader: normalizeHeaderLabel,
+            complete: (fallbackResults) => processResults(fallbackResults as Papa.ParseResult<CSVRow>),
+            error: (error) => {
+              setError(t('credits.csvUpload.errors.readError', { error: error.message }));
+              setIsLoading(false);
             }
-
-            return {
-              firstName,
-              lastName,
-              matchedAthleteId: athlete?.id,
-              matchedAthleteName: athlete?.name,
-              confidence,
-              customFields,
-              standardFields
-            };
           });
-
-          setParsedData(processed);
-          onDataParsed(processed);
-          setIsLoading(false);
-        } catch (err) {
-          setError(t('credits.csvUpload.errors.parseError', { error: (err as Error).message }));
-          setIsLoading(false);
+          return;
         }
+        processResults(typedResults);
       },
       error: (error) => {
         setError(t('credits.csvUpload.errors.readError', { error: error.message }));
@@ -283,13 +375,13 @@ export function CSVUploadComponent({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {parsedData.slice(0, 10).map((row, index) => (
+              {parsedData.map((row, index) => (
                 <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-3 py-2">
+                  <td className="px-3 py-2 text-gray-900 font-medium">
                     {row.firstName} {row.lastName}
                   </td>
                   <td className="px-3 py-2">
-                    {row.matchedAthleteName ? (
+                    {row.matchedAthleteName && !manualAssignments[index] ? (
                       <div className="flex items-center space-x-2">
                         <CheckCircle className="h-4 w-4 text-green-500" />
                         <span className="text-green-700">
@@ -299,10 +391,40 @@ export function CSVUploadComponent({
                           ({row.confidence}%)
                         </span>
                       </div>
+                    ) : manualAssignments[index] ? (
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="h-4 w-4 text-blue-500" />
+                        <span className="text-blue-700">
+                          {row.matchedAthleteName}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          (manuell)
+                        </span>
+                        <button
+                          onClick={() => handleManualAssign(index, '')}
+                          className="text-gray-400 hover:text-red-500"
+                          title="Zuweisung entfernen"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
                     ) : (
                       <div className="flex items-center space-x-2">
-                        <AlertCircle className="h-4 w-4 text-orange-500" />
-                        <span className="text-orange-700">{t('credits.csvUpload.noMatch')}</span>
+                        <AlertCircle className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                        <select
+                          value={manualAssignments[index] || ''}
+                          onChange={(e) => handleManualAssign(index, e.target.value)}
+                          className="text-sm border border-orange-300 rounded px-2 py-1 text-gray-900 bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 max-w-[200px]"
+                        >
+                          <option value="">{t('credits.csvUpload.selectAthlete')}</option>
+                          {athletes
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(athlete => (
+                              <option key={athlete.id} value={athlete.id} className="text-gray-900">
+                                {athlete.name}
+                              </option>
+                            ))}
+                        </select>
                       </div>
                     )}
                   </td>
@@ -315,11 +437,6 @@ export function CSVUploadComponent({
               ))}
             </tbody>
           </table>
-          {parsedData.length > 10 && (
-            <div className="p-3 text-center text-sm text-gray-500 bg-gray-50">
-              {t('credits.csvUpload.moreRows', { count: parsedData.length - 10 })}
-            </div>
-          )}
         </div>
 
         {/* Admin User Selection */}
@@ -341,14 +458,14 @@ export function CSVUploadComponent({
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 bg-white"
             >
-              <option value="">{t('credits.csvUpload.uploadForCurrentUser')}</option>
+              <option value="" className="text-gray-900">{t('credits.csvUpload.uploadForCurrentUser')}</option>
               {availableUsers.length === 0 ? (
-                <option disabled>Loading users...</option>
+                <option disabled className="text-gray-500">Loading users...</option>
               ) : (
                 availableUsers.map(user => (
-                  <option key={user.id} value={user.id}>
+                  <option key={user.id} value={user.id} className="text-gray-900">
                     {user.full_name || user.email} ({user.email})
                   </option>
                 ))
@@ -368,10 +485,27 @@ export function CSVUploadComponent({
             </div>
             <button
               onClick={() => onBulkImport(parsedData.filter(d => d.matchedAthleteId), selectedUserId || undefined)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              disabled={isImporting}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                isImporting
+                  ? 'bg-green-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
+              } text-white`}
             >
-              <Upload className="h-4 w-4" />
-              <span>{t('credits.csvUpload.importAllMatched')}</span>
+              {isImporting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>{t('credits.csvUpload.importing')}</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  <span>{t('credits.csvUpload.importAllMatched')}</span>
+                </>
+              )}
             </button>
           </div>
         )}

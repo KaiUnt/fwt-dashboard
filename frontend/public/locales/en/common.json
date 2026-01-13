@@ -278,7 +278,27 @@
     "offlineAvailable48h": "Offline available for 48 hours",
     "worksWithoutInternet": "Works without internet connection",
     "autoDeleteAfterExpiry": "Automatic deletion after expiry",
-    "save": "Save"
+    "save": "Save",
+    "tabs": {
+      "offlineApp": "App offline",
+      "pdfDownload": "PDF Download"
+    },
+    "pdfExport": {
+      "title": "PDF Cheatsheet",
+      "description": "Download a PDF with all athlete info for this event",
+      "download": "Download PDF",
+      "downloading": "Creating PDF...",
+      "sortBy": "Sort by",
+      "sortByBib": "By BIB number",
+      "sortByName": "By name",
+      "includesInfo": "Includes per athlete:",
+      "includesBasics": "Basics (Team, Sponsors, Homebase)",
+      "includesRankings": "Current & previous year rankings",
+      "includesHighlights": "Top 3 highlight results",
+      "includesPerformance": "Performance curve (table)",
+      "includesResults": "Last 10 results",
+      "includesStorytelling": "Storytelling & notes"
+    }
   },
   "filters": {
     "allYears": "All Years"
@@ -395,6 +415,19 @@
     },
     "byAuthor": "By {author}",
     "you": "You"
+  },
+  "liveScoring": {
+    "title": "Live Scoring",
+    "error": "Error loading live results",
+    "noData": "No heats or results available",
+    "noResults": "No results in this heat yet",
+    "completed": "Completed",
+    "upcoming": "Upcoming",
+    "lastUpdated": "Last updated",
+    "autoRefresh": "Auto-refresh every 30s",
+    "toggleOn": "On",
+    "toggleOff": "Off",
+    "disabledHelp": "Live scoring is disabled. Enable to load data from Liveheats."
   },
   "errors": {
     "loadingFailed": "Loading failed",
@@ -613,10 +646,12 @@
       "athletesMatched": "{count} athletes matched",
       "notMatched": "{count} not matched",
       "noMatch": "No match",
+      "selectAthlete": "Select athlete...",
       "fields": "fields",
       "moreRows": "... and {count} more rows",
       "readyToImport": "Ready to import {count} matched athletes",
       "importAllMatched": "Import All Matched",
+      "importing": "Importing...",
       "errors": {
         "selectCSV": "Please select a CSV file",
         "dropCSV": "Please drop a CSV file",

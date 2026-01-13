@@ -410,6 +410,10 @@ export function categorizeSeriesType(seriesName: string): SeriesCategoryType {
     return 'junior';
   }
 
+  if (name.includes('ifsa') && !name.includes('junior')) {
+    return 'qualifier';
+  }
+
   // FWT Pro Tour / Pro Level Events
   if (name.includes('fwt pro') ||
       name.includes('pro tour') ||
@@ -483,6 +487,10 @@ export function isMainSeasonRanking(seriesName: string): boolean {
   if (name.includes('world championship') && name.includes('ranking')) {
     return true; // World Championships are main rankings
   }
+  // IFSA Rankings (e.g., "IFSA Junior Rankings 2025")
+  if (name.includes('ifsa') && name.includes('ranking')) {
+    return true;
+  }
 
   // Default to admin list if pattern doesn't match
   return false;
@@ -505,6 +513,11 @@ export function extractSeriesRegion(seriesName: string): SeriesRegion | null {
     return '1';
   }
   if (name.includes('region 2')) {
+    return '2';
+  }
+
+  // IFSA is always Region 2 (Americas)
+  if (name.includes('ifsa')) {
     return '2';
   }
 

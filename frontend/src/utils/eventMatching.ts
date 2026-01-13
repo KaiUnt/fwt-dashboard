@@ -28,6 +28,7 @@ export function normalizeEventNameForMatch(eventName: string): string {
   }
 
   // Clean up extra whitespace and lowercase
+  normalized = normalized.replace(/[-_/.,:;()]+/g, ' ');
   normalized = normalized.replace(/\s+/g, ' ').trim().toLowerCase();
   return normalized;
 }
@@ -103,6 +104,7 @@ class FWTEventMatcher {
     normalized = normalized.replace(/^(IFSA\s*-?\s*)/i, '');
     
     // Normalize whitespace
+    normalized = normalized.replace(/[-_/.,:;()]+/g, ' ');
     normalized = normalized.replace(/\s+/g, ' ').trim();
     
     return normalized;
@@ -114,11 +116,12 @@ class FWTEventMatcher {
   }
 
   private findLocationInEventName(eventName: string): string | null {
-    const eventLower = eventName.toLowerCase();
-    
+    const eventLower = normalizeEventNameForMatch(eventName);
+
     // Find any location from CSV that appears in the event name
     for (const location of this.locations) {
-      if (eventLower.includes(location.toLowerCase())) {
+      const locationLower = normalizeEventNameForMatch(location);
+      if (eventLower.includes(locationLower)) {
         return location;
       }
     }
