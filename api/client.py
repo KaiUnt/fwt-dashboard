@@ -19,6 +19,15 @@ print(f"Lade Client.py von: {os.path.abspath(__file__)}")
 
 logger = get_logger(__name__)
 
+
+class LiveheatsAPIError(RuntimeError):
+    """An upstream failure, distinct from a successfully queried missing event."""
+
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 class GraphQLClient:
     """Base GraphQL client for Liveheats API interactions."""
     
@@ -34,7 +43,9 @@ class GraphQLClient:
         if self._session:
             await self._session.close()
             
-    async def execute(self, query: str, variables: Dict[str, Any] = None) -> Dict:
+    async def execute(
+        self, query: str, variables: Dict[str, Any] = None, *, raise_on_error: bool = False
+    ) -> Optional[Dict]:
         """Execute a GraphQL query."""
         if not self._session:
             raise RuntimeError("Client not initialized. Use 'async with' context manager.")
@@ -52,17 +63,28 @@ class GraphQLClient:
                     logger.error(f"HTTP Error {response.status} für Variables: {variables}")
                     response_text = await response.text()
                     logger.error(f"Response: {response_text}")
+                    if raise_on_error:
+                        raise LiveheatsAPIError("LiveHeats HTTP request failed", response.status)
                     return None
                     
                 data = await response.json()
-                if "errors" in data:
+                if data.get("errors"):
                     logger.error(f"GraphQL Error: {data['errors']}")
+                    if raise_on_error:
+                        raise LiveheatsAPIError("LiveHeats GraphQL request failed")
                     return None
-                    
-                return data.get("data")
+
+                result = data.get("data")
+                if raise_on_error and not isinstance(result, dict):
+                    raise LiveheatsAPIError("Invalid LiveHeats response")
+                return result
                 
+        except LiveheatsAPIError:
+            raise
         except Exception as e:
             logger.error(f"Request failed: {str(e)}")
+            if raise_on_error:
+                raise LiveheatsAPIError("LiveHeats request failed") from e
             return None
         
 class LiveheatsClient:
@@ -81,17 +103,22 @@ class LiveheatsClient:
             return series_name
         return re.sub(r'\b(20[0-9]{2})-(20[0-9]{2})\b', r'\2', series_name, count=1)
 
-    async def get_event_athletes(self, event_id: str) -> Dict:
+    async def get_event_athletes(self, event_id: str) -> Optional[Dict]:
         """Fetch athletes for a specific event and cache their details."""
         async with self.client as client:
             result = await client.execute(
                 self.queries.GET_EVENT_ATHLETES,
-                {"id": event_id}
+                {"id": event_id},
+                raise_on_error=True,
             )
 
-            if not result or "event" not in result:
+            if result is None or "event" not in result:
+                raise LiveheatsAPIError("Invalid LiveHeats event response")
+            if result["event"] is None:
                 logger.error(f"Keine Event-Daten gefunden für ID: {event_id}")
                 return None
+            if not isinstance(result["event"], dict) or not result["event"]:
+                raise LiveheatsAPIError("Invalid LiveHeats event response")
 
             # Cache athlete details from event
             for division in result["event"]["eventDivisions"]:

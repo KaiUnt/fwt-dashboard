@@ -17,7 +17,7 @@ import { LiveScoringSection } from './LiveScoringSection';
 import { AppHeader } from './AppHeader';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAccessToken } from '@/providers/AuthProvider';
-import { apiFetch } from '@/utils/api';
+import { ApiError, apiFetch } from '@/utils/api';
 import { useBatchCommentatorInfo } from '@/hooks/useCommentatorInfo';
 
 
@@ -29,7 +29,7 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const { getAccessToken } = useAccessToken();
-  const { data: athletesData, isLoading, error, refetch: refetchAthletes } = useOfflineEventAthletes(eventId);
+  const { data: athletesData, isLoading, isFetching, error, refetch: refetchAthletes } = useOfflineEventAthletes(eventId);
   const { data: seriesData, isLoading: seriesLoading, refetch: refetchSeries } = useOfflineSeriesRankings(eventId);
   const { data: commentatorData, isLoading: commentatorLoading, refetch: _refetchCommentatorInfo } = useBatchCommentatorInfo(eventId, athletesData?.athletes);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -138,13 +138,22 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center">
         <div className="text-center bg-white p-8 rounded-xl shadow-lg max-w-md">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('dashboard.eventNotFound')}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {t(error instanceof ApiError && error.status === 404 ? 'dashboard.eventNotFound' : 'dashboard.eventLoadFailed')}
+          </h2>
           <p className="text-gray-600 mb-4">
             {t('dashboard.eventLoadError')}
           </p>
+          <button
+            onClick={() => void refetchAthletes()}
+            disabled={isFetching}
+            className="px-6 py-2 mb-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {t('buttons.reload')}
+          </button>
           <button 
             onClick={() => router.push('/')}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="block mx-auto px-6 py-2 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
           >
             {t('dashboard.backToEventSelection')}
           </button>
@@ -167,6 +176,12 @@ export function DashboardPage({ eventId }: DashboardPageProps) {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {athletes.length === 0 && (
+          <div role="status" className="mb-6 rounded-xl border border-blue-100 bg-white p-6 text-center">
+            <h2 className="font-semibold text-gray-900">{t('dashboard.noAthletesTitle')}</h2>
+            <p className="mt-2 text-gray-600">{t('dashboard.noAthletesDescription')}</p>
+          </div>
+        )}
 
         {/* Mobile Layout with specific order */}
         <div className="block lg:hidden space-y-6">

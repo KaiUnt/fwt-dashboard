@@ -23,6 +23,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from backend.utils import extract_location_from_name
+from api.client import LiveheatsAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -292,6 +293,9 @@ async def get_event_athletes(
 
     except HTTPException:
         raise
+    except LiveheatsAPIError as e:
+        logger.warning(f"LiveHeats unavailable for event {event_id}: {e}")
+        raise HTTPException(status_code=502, detail="Failed to load event data from LiveHeats") from e
     except Exception as e:
         logger.error(f"Error fetching athletes for event {event_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch event athletes: {str(e)}")
@@ -344,17 +348,8 @@ async def get_multi_event_athletes(
             return data
 
         # Fetch both events (from cache or API)
-        try:
-            event1_data = await get_event_data(event_id1)
-        except Exception as e:
-            logger.error(f"Error fetching event {event_id1}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch event {event_id1}")
-
-        try:
-            event2_data = await get_event_data(event_id2)
-        except Exception as e:
-            logger.error(f"Error fetching event {event_id2}: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch event {event_id2}")
+        event1_data = await get_event_data(event_id1)
+        event2_data = await get_event_data(event_id2)
 
         if not event1_data or not event2_data:
             raise HTTPException(status_code=404, detail="One or both events not found")
@@ -407,6 +402,9 @@ async def get_multi_event_athletes(
 
     except HTTPException:
         raise
+    except LiveheatsAPIError as e:
+        logger.warning(f"LiveHeats unavailable for events {event_id1} + {event_id2}: {e}")
+        raise HTTPException(status_code=502, detail="Failed to load event data from LiveHeats") from e
     except Exception as e:
         logger.error(f"Error fetching multi-event athletes for {event_id1} + {event_id2}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch multi-event athletes: {str(e)}")

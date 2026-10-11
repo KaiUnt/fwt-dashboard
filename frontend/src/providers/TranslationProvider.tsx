@@ -25,7 +25,7 @@ interface TranslationContextType {
 
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
 
-const TRANSLATION_VERSION = '2025-02-12-custom-fields';
+const TRANSLATION_VERSION = '2026-10-11-event-load-errors';
 
 // Prevent multiple simultaneous requests for the same locale
 const translationCache = new Map<string, Promise<Translations>>();

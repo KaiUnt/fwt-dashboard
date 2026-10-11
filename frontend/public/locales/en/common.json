@@ -321,6 +321,9 @@
   "dashboard": {
     "loadingAthletes": "Loading athletes...",
     "eventNotFound": "Event not found",
+    "eventLoadFailed": "Unable to load event",
+    "noAthletesTitle": "No participants available",
+    "noAthletesDescription": "No confirmed or waitlisted athletes are currently available for this event in LiveHeats.",
     "eventLoadError": "The event could not be loaded.",
     "backToEventSelection": "Back to event selection",
     "athletesCount": "{count} Athletes",

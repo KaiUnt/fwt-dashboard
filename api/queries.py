@@ -2,6 +2,8 @@
 from typing import Dict
 
 class GraphQLQueries:
+    # Keep public athlete queries free of dob: LiveHeats requires authentication
+    # for that field and rejects the entire request with HTTP 401.
     GET_SERIES_RANKINGS = """
     query GetSeriesRankings($id: ID!, $divisionId: ID!) {
         series(id: $id) {
@@ -9,7 +11,6 @@ class GraphQLQueries:
                 athlete {
                     id
                     name
-                    dob
                     nationality
                     image
                 }
@@ -45,6 +46,7 @@ class GraphQLQueries:
     GET_EVENT_ATHLETES = """
     query event($id: ID!) {
         event(id: $id) {
+            id
             name
             date
             status
@@ -57,7 +59,6 @@ class GraphQLQueries:
                         id
                         name
                         nationality
-                        dob
                         image
                     }
                     status

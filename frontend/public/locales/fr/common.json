@@ -321,6 +321,9 @@
   "dashboard": {
     "loadingAthletes": "Chargement des athlètes...",
     "eventNotFound": "Événement non trouvé",
+    "eventLoadFailed": "Impossible de charger l'événement",
+    "noAthletesTitle": "Aucun participant disponible",
+    "noAthletesDescription": "Aucun athlète confirmé ou sur liste d'attente n'est actuellement disponible pour cet événement sur LiveHeats.",
     "eventLoadError": "L'événement n'a pas pu être chargé.",
     "backToEventSelection": "Retour à la sélection d'événement",
     "athletesCount": "{count} athlètes",

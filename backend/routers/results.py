@@ -16,6 +16,7 @@ import os
 import re
 import json
 import logging
+from api.client import LiveheatsAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +164,9 @@ async def get_series_rankings_for_event(
 
     except HTTPException:
         raise
+    except LiveheatsAPIError as e:
+        logger.warning(f"LiveHeats unavailable for event rankings {event_id}: {e}")
+        raise HTTPException(status_code=502, detail="Failed to load event data from LiveHeats") from e
     except Exception as e:
         logger.error(f"Error fetching series rankings for event {event_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch series rankings: {str(e)}")
