@@ -121,9 +121,15 @@ async def export_all_commentator_info(
 ):
     """Export all commentator info for backup purposes"""
     supabase_client = await get_supabase(request)
+    current_user_id = await get_current_user_id(request, user_token)
 
     try:
-        result = await supabase_client.select("commentator_info", "*")
+        result = await supabase_client.select(
+            "commentator_info",
+            "*",
+            {"created_by": current_user_id},
+            user_token=user_token,
+        )
 
         # Add metadata to the export
         export_data = {
@@ -136,8 +142,8 @@ async def export_all_commentator_info(
         return export_data
 
     except Exception as e:
-        logger.error(f"Error exporting commentator info: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to export commentator info: {str(e)}")
+        logger.exception("Error exporting commentator info")
+        raise HTTPException(status_code=500, detail="Failed to export commentator info")
 
 
 @router.get("/{athlete_id}")
@@ -186,22 +192,36 @@ async def create_commentator_info(
 
     try:
         # Check if info already exists
-        existing = await supabase_client.select("commentator_info", "*", {"athlete_id": info.athlete_id})
+        existing = await supabase_client.select(
+            "commentator_info",
+            "*",
+            {"athlete_id": info.athlete_id, "created_by": current_user_id},
+            user_token=user_token,
+        )
 
         if existing:
             raise HTTPException(status_code=409, detail="Commentator info already exists for this athlete")
 
         # Add user info to the data
-        info_data = info.dict()
+        info_data = info.model_dump()
         info_data["created_by"] = current_user_id
 
         # Get user profile for author name
-        user_profile = await supabase_client.select("user_profiles", "full_name", {"id": current_user_id})
+        user_profile = await supabase_client.select(
+            "user_profiles",
+            "full_name",
+            {"id": current_user_id},
+            user_token=user_token,
+        )
         if user_profile:
             info_data["author_name"] = user_profile[0]["full_name"]
 
         # Create new record
-        result = await supabase_client.insert("commentator_info", info_data)
+        result = await supabase_client.insert(
+            "commentator_info",
+            info_data,
+            user_token=user_token,
+        )
 
         return {
             "success": True,
@@ -212,8 +232,8 @@ async def create_commentator_info(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error creating commentator info: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create commentator info: {str(e)}")
+        logger.exception("Error creating commentator info")
+        raise HTTPException(status_code=500, detail="Failed to create commentator info")
 
 
 @router.put("/{athlete_id}")
@@ -238,8 +258,8 @@ async def update_commentator_info(
 
         if not existing:
             # Create new record if it doesn't exist
-            create_data = CommentatorInfoCreate(athlete_id=athlete_id, **info.dict())
-            create_data_dict = create_data.dict()
+            create_data = CommentatorInfoCreate(athlete_id=athlete_id, **info.model_dump())
+            create_data_dict = create_data.model_dump()
             create_data_dict["created_by"] = current_user_id
 
             # Get user profile for author name (using user token)
@@ -250,8 +270,13 @@ async def update_commentator_info(
             result = await supabase_client.insert("commentator_info", create_data_dict, user_token=user_token)
         else:
             # Update existing record (using user token for RLS)
-            update_data = {k: v for k, v in info.dict().items() if v is not None}
-            result = await supabase_client.update("commentator_info", update_data, {"athlete_id": athlete_id}, user_token=user_token)
+            update_data = {k: v for k, v in info.model_dump().items() if v is not None}
+            result = await supabase_client.update(
+                "commentator_info",
+                update_data,
+                {"athlete_id": athlete_id, "created_by": current_user_id},
+                user_token=user_token,
+            )
 
         logger.info(f"Successfully updated commentator info for athlete {athlete_id}")
 
@@ -313,7 +338,11 @@ async def get_all_commentator_info(
     supabase_client = await get_supabase(request)
 
     try:
-        result = await supabase_client.select("commentator_info", "*")
+        result = await supabase_client.select(
+            "commentator_info",
+            "*",
+            user_token=user_token,
+        )
 
         return {
             "success": True,
@@ -413,44 +442,79 @@ async def import_commentator_info(
 
     try:
         # Validate import data structure
-        if "data" not in import_data:
+        records = import_data.get("data")
+        if not isinstance(records, list):
             raise HTTPException(status_code=400, detail="Invalid import data structure")
+        if len(records) > 1000:
+            raise HTTPException(status_code=400, detail="A backup may contain at most 1000 records")
 
         imported_count = 0
         updated_count = 0
         errors = []
 
-        for record in import_data["data"]:
+        user_profile = await supabase_client.select(
+            "user_profiles",
+            "full_name",
+            {"id": current_user_id},
+            user_token=user_token,
+        )
+        author_name = user_profile[0].get("full_name") if user_profile else None
+
+        for record in records:
+            athlete_id = "unknown"
             try:
+                if not isinstance(record, dict):
+                    errors.append("Invalid record format")
+                    continue
                 athlete_id = record.get("athlete_id")
                 if not athlete_id:
                     errors.append("Missing athlete_id in record")
                     continue
 
-                # Check if record already exists
-                existing = await supabase_client.select("commentator_info", "*", {"athlete_id": athlete_id})
+                allowed_data = {
+                    key: value
+                    for key, value in record.items()
+                    if key in CommentatorInfoCreate.model_fields
+                }
+                validated = CommentatorInfoCreate(**allowed_data)
+                validated_data = validated.model_dump(exclude_unset=True)
+
+                # A backup can only update the authenticated user's own record.
+                existing = await supabase_client.select(
+                    "commentator_info",
+                    "*",
+                    {"athlete_id": athlete_id, "created_by": current_user_id},
+                    user_token=user_token,
+                )
 
                 if existing:
-                    # Update existing record
-                    update_data = {k: v for k, v in record.items() if k not in ["id", "created_at", "updated_at"]}
-                    await supabase_client.update("commentator_info", update_data, {"athlete_id": athlete_id})
+                    update_data = {
+                        key: value
+                        for key, value in validated_data.items()
+                        if key != "athlete_id"
+                    }
+                    await supabase_client.update(
+                        "commentator_info",
+                        update_data,
+                        {"athlete_id": athlete_id, "created_by": current_user_id},
+                        user_token=user_token,
+                    )
                     updated_count += 1
                 else:
-                    # Insert new record
-                    insert_data = {k: v for k, v in record.items() if k not in ["id", "created_at", "updated_at"]}
-                    # Add user info to imported data
+                    insert_data = validated_data
                     insert_data["created_by"] = current_user_id
-
-                    # Get user profile for author name
-                    user_profile = await supabase_client.select("user_profiles", "full_name", {"id": current_user_id})
-                    if user_profile:
-                        insert_data["author_name"] = user_profile[0]["full_name"]
-
-                    await supabase_client.insert("commentator_info", insert_data)
+                    if author_name:
+                        insert_data["author_name"] = author_name
+                    await supabase_client.insert(
+                        "commentator_info",
+                        insert_data,
+                        user_token=user_token,
+                    )
                     imported_count += 1
 
-            except Exception as e:
-                errors.append(f"Error processing record for athlete {athlete_id}: {str(e)}")
+            except Exception:
+                logger.exception("Error importing commentator record for athlete %s", athlete_id)
+                errors.append(f"Could not process record for athlete {athlete_id}")
 
         return {
             "success": True,
@@ -463,8 +527,8 @@ async def import_commentator_info(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error importing commentator info: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to import commentator info: {str(e)}")
+        logger.exception("Error importing commentator info")
+        raise HTTPException(status_code=500, detail="Failed to import commentator info")
 
 
 @router.post("/bulk-import")

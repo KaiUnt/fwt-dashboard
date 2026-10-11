@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+      - run: pip-audit -r requirements-production.txt
+      - name: Verify credit hardening migration
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -f tests/sql/credit_hardening_setup.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -f supabase/migrations/20260717_harden_credits_and_event_access.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -f tests/sql/credit_hardening_verify.sql
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm audit --omit=dev
+
+      - working-directory: frontend
+        run: npm ci
+      - working-directory: frontend
+        run: npm run type-check
+      - working-directory: frontend
+        run: npm run build
+      - working-directory: frontend
+        run: npm audit --omit=dev
+      - working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run frontend smoke and authentication compatibility tests
+        working-directory: frontend
+        run: npx playwright test tests/simple.spec.ts tests/auth.spec.ts tests/dependency-compat.spec.ts --project=chromium --workers=1

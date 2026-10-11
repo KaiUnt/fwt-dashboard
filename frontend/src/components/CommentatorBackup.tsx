@@ -84,17 +84,11 @@ export function CommentatorBackup() {
         throw new Error('Invalid backup file format');
       }
 
-      const response = await fetch('/api/commentator-info/import', {
+      const result = await apiFetch<ImportResult>('/api/commentator-info/import', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(backupData),
+        body: backupData,
+        getAccessToken,
       });
-
-      if (!response.ok) throw new Error('Import failed');
-      
-      const result: ImportResult = await response.json();
       setImportResult(result);
       
     } catch (err) {
@@ -247,4 +241,4 @@ export function CommentatorBackup() {
       </div>
     </div>
   );
-} 
+}

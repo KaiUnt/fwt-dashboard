@@ -4,7 +4,6 @@ Credits Router - User credits balance and transactions.
 
 import json
 import logging
-from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -45,42 +44,15 @@ async def get_user_credits(
 ):
     """Get current user's credits balance."""
     supabase_client = await get_supabase(request)
-    current_user_id = await get_current_user_id(request, user_token)
+    await get_current_user_id(request, user_token)
 
     try:
-        result = await supabase_client.select(
-            "user_credits",
-            "credits",
-            {"user_id": current_user_id},
-            user_token=user_token
+        result = await supabase_client.rpc(
+            "get_user_credits",
+            {},
+            user_token=user_token,
         )
-
-        credits_value = 0
-        if not result or len(result) == 0:
-            # Initialize with 5 credits for new users
-            try:
-                await supabase_client.insert(
-                    "user_credits",
-                    [{
-                        "user_id": current_user_id,
-                        "credits": 5,
-                        "created_at": datetime.now().isoformat(),
-                        "updated_at": datetime.now().isoformat()
-                    }],
-                    user_token=user_token
-                )
-                credits_value = 5
-            except Exception:
-                # If insert fails (race/exists), try re-read
-                reread = await supabase_client.select(
-                    "user_credits",
-                    "credits",
-                    {"user_id": current_user_id},
-                    user_token=user_token
-                )
-                credits_value = (reread[0].get("credits", 0) if reread else 0)
-        else:
-            credits_value = result[0].get("credits", 0)
+        credits_value = int(result)
 
         return CreditsBalanceResponse(
             success=True,
@@ -91,8 +63,8 @@ async def get_user_credits(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting user credits: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get credits balance: {str(e)}")
+        logger.exception("Error getting user credits")
+        raise HTTPException(status_code=500, detail="Failed to get credits balance")
 
 
 @router.get("/transactions")

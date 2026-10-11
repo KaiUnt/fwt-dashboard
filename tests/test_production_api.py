@@ -3,6 +3,8 @@
 Simple Production API Test
 Tests the commentator info endpoint directly
 """
+__test__ = False  # Manual network diagnostic; excluded from the hermetic pytest suite.
+
 import asyncio
 import httpx
 import json
@@ -56,4 +58,4 @@ async def main():
     await test_commentator_info_endpoint()
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

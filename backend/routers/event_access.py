@@ -248,192 +248,47 @@ async def purchase_multiple_events(
         raise HTTPException(status_code=503, detail="Supabase not configured")
 
     try:
-        logger.info(f"Multi-event purchase request for user {current_user_id}: {request_data.event_ids}")
-
-        # Get current credits first (direct read with initialization if missing)
-        credits_row = await supabase_client.select(
-            "user_credits",
-            "credits",
-            {"user_id": current_user_id},
-            user_token=user_token
-        )
-        if not credits_row or len(credits_row) == 0:
-            # Initialize with 5 credits for new users
-            try:
-                await supabase_client.insert(
-                    "user_credits",
-                    [{
-                        "user_id": current_user_id,
-                        "credits": 5,
-                        "created_at": datetime.now().isoformat(),
-                        "updated_at": datetime.now().isoformat()
-                    }],
-                    user_token=user_token
-                )
-                current_credits = 5
-            except Exception:
-                reread = await supabase_client.select(
-                    "user_credits",
-                    "credits",
-                    {"user_id": current_user_id},
-                    user_token=user_token
-                )
-                current_credits = (reread[0].get("credits", 0) if reread else 0)
-        else:
-            current_credits = credits_row[0].get("credits", 0)
-
-        event_ids = request_data.event_ids
-        event_names = request_data.event_names or [None] * len(event_ids)
-
-        # Check which events user already has access to
-        events_to_purchase = []
-        already_purchased = []
-
-        # Batch check for existing access - get all user's access at once
-        user_access_result = await supabase_client.select(
-            "user_event_access",
-            "event_id",
-            {"user_id": current_user_id},
-            user_token=user_token
+        logger.info(
+            "Multi-event purchase request for user %s (%d events)",
+            current_user_id,
+            len(request_data.event_ids),
         )
 
-        # Create set of accessible event IDs for fast lookup
-        accessible_events = {item["event_id"] for item in user_access_result}
+        result = await supabase_client.rpc(
+            "purchase_multiple_event_access",
+            {
+                "event_ids_param": request_data.event_ids,
+                "event_names_param": request_data.event_names,
+            },
+            user_token=user_token,
+        )
 
-        # Categorize events
-        for event_id in event_ids:
-            if event_id in accessible_events:
-                already_purchased.append(event_id)
-                logger.info(f"User already has access to event {event_id}")
-            else:
-                events_to_purchase.append(event_id)
+        if not isinstance(result, dict):
+            logger.error("Unexpected multi-event purchase RPC response type: %s", type(result).__name__)
+            raise HTTPException(status_code=502, detail="Invalid response from purchase service")
 
-        # Calculate actual cost (only for events not already purchased)
-        actual_cost = len(events_to_purchase)
-
-        # If all events are already purchased, return success immediately
-        if actual_cost == 0:
-            return MultiEventPurchaseResponse(
-                success=True,
-                message=f"You already have access to all {len(event_ids)} events",
-                credits_remaining=current_credits,
-                purchased_events=event_ids,  # All events are considered "purchased"
-                failed_events=[]
-            )
-
-        # Check if user has enough credits for events that need to be purchased
-        if current_credits < actual_cost:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient credits. Required: {actual_cost}, Available: {current_credits}"
-            )
-
-        purchased_events = []
-        failed_events = []
-        remaining_credits = current_credits
-
-        # Add already purchased events to the purchased list
-        purchased_events.extend(already_purchased)
-
-        # Process only events that need to be purchased (direct operations, no RPC)
-        for event_id in events_to_purchase:
-            # Find the corresponding event name
-            event_index = event_ids.index(event_id)
-            event_name = event_names[event_index] if event_index < len(event_names) else None
-
-            try:
-                # Re-check access defensively for each event
-                existing_access = await supabase_client.select(
-                    "user_event_access",
-                    "id",
-                    {"user_id": current_user_id, "event_id": event_id},
-                    user_token=user_token
-                )
-                if len(existing_access) > 0:
-                    purchased_events.append(event_id)
-                    continue
-
-                # Deduct credit
-                await supabase_client.update(
-                    "user_credits",
-                    {"credits": max(0, remaining_credits - 1), "updated_at": datetime.now().isoformat()},
-                    {"user_id": current_user_id},
-                    user_token=user_token
-                )
-
-                # Grant access
-                await supabase_client.insert(
-                    "user_event_access",
-                    [{
-                        "user_id": current_user_id,
-                        "event_id": event_id,
-                        "event_name": event_name,
-                        "granted_at": datetime.now().isoformat(),
-                        "access_type": "paid"
-                    }],
-                    user_token=user_token
-                )
-
-                # Log transaction (optional audit trail)
-                await supabase_client.insert(
-                    "credit_transactions",
-                    [{
-                        "user_id": current_user_id,
-                        "amount": -1,
-                        "transaction_type": "spend",
-                        "credits_before": remaining_credits,
-                        "credits_after": max(0, remaining_credits - 1),
-                        "description": f"Event access purchase: {event_name or event_id}",
-                        "event_id": event_id,
-                        "created_at": datetime.now().isoformat()
-                    }],
-                    user_token=user_token
-                )
-
-                purchased_events.append(event_id)
-                remaining_credits = max(0, remaining_credits - 1)
-
-            except Exception as e:
-                logger.error(f"Error purchasing event {event_id}: {e}")
-                failed_events.append(event_id)
-
-        # Determine overall success
-        success = len(purchased_events) > 0
-
-        # Create detailed message based on what happened
-        if len(already_purchased) > 0 and len(events_to_purchase) > 0:
-            # Mixed scenario: some already purchased, some newly purchased
-            newly_purchased = len(purchased_events) - len(already_purchased)
-            if newly_purchased == len(events_to_purchase):
-                message = f"Successfully purchased {newly_purchased} new events. You already had access to {len(already_purchased)} events."
-            else:
-                message = f"Purchased {newly_purchased} of {len(events_to_purchase)} new events. You already had access to {len(already_purchased)} events."
-        elif len(already_purchased) > 0:
-            # All events were already purchased (handled earlier, but just in case)
-            message = f"You already have access to all {len(event_ids)} events"
-        elif len(purchased_events) == len(event_ids):
-            # All events newly purchased
-            message = f"Successfully purchased access to {len(purchased_events)} events"
-        elif len(purchased_events) > 0:
-            # Some events purchased, some failed
-            message = f"Purchased {len(purchased_events)} of {len(event_ids)} events"
-        else:
-            # No events purchased
-            message = "Failed to purchase any events"
+        if not result.get("success", False):
+            error_type = result.get("error", "purchase_failed")
+            message = result.get("message", "Purchase failed")
+            if error_type == "insufficient_credits":
+                raise HTTPException(status_code=402, detail=message)
+            if error_type == "invalid_request":
+                raise HTTPException(status_code=400, detail=message)
+            raise HTTPException(status_code=409, detail=message)
 
         return MultiEventPurchaseResponse(
-            success=success,
-            message=message,
-            credits_remaining=remaining_credits,
-            purchased_events=purchased_events,
-            failed_events=failed_events
+            success=True,
+            message=result.get("message", "Event access purchased successfully"),
+            credits_remaining=int(result.get("credits_remaining", 0)),
+            purchased_events=result.get("purchased_events", request_data.event_ids),
+            failed_events=result.get("failed_events", []),
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in multi-event purchase: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to purchase events: {str(e)}")
+        logger.exception("Error in multi-event purchase")
+        raise HTTPException(status_code=500, detail="Failed to purchase events")
 
 
 @router.get("/api/user/events")

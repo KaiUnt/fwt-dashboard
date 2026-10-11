@@ -14,6 +14,7 @@ else:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
@@ -312,6 +313,24 @@ app = FastAPI(
     redoc_url="/redoc" if os.getenv("ENVIRONMENT") == "development" else None
 )
 
+
+@app.exception_handler(HTTPException)
+async def sanitized_http_exception_handler(request: Request, exc: HTTPException):
+    """Keep internal exception details in logs, never in 5xx responses."""
+    if exc.status_code >= 500:
+        logger.error(
+            "HTTP %s on %s: %s",
+            exc.status_code,
+            request.url.path,
+            exc.detail,
+        )
+        exc = HTTPException(
+            status_code=exc.status_code,
+            detail="Internal server error",
+            headers=exc.headers,
+        )
+    return await http_exception_handler(request, exc)
+
 # Add rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -406,7 +425,10 @@ app.state.admin_supabase_client = get_admin_client()
 
 
 if __name__ == "__main__":
-    import os
     port = int(os.getenv("PORT", 8000))
+    enable_reload = (
+        os.getenv("ENVIRONMENT") == "development"
+        and os.getenv("ENABLE_RELOAD") == "true"
+    )
     print(f"Starting FastAPI server on http://localhost:{port}")
-    uvicorn.run("backend_api:app", host="0.0.0.0", port=port, reload=True) 
+    uvicorn.run("backend_api:app", host="0.0.0.0", port=port, reload=enable_reload)

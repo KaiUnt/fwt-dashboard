@@ -71,6 +71,14 @@ export const createClient = () => {
   
   // Runtime validation - this should never fail in production
   if (errors.length > 0) {
+    if (process.env.NODE_ENV !== 'production') {
+      // Keep public pages and local/E2E diagnostics usable without real secrets.
+      // Protected middleware routes still fail closed and redirect to /login.
+      return createBrowserClient<Database>(
+        'http://127.0.0.1:54321',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+      )
+    }
     const errorMessage = `
 🔒 Supabase Configuration Error:
 

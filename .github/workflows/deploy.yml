@@ -5,11 +5,96 @@ on:
     branches: [master]
 
 jobs:
+  quality:
+    name: Quality and security gates
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install backend test dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Test backend
+        run: pytest -q
+
+      - name: Audit backend dependencies
+        run: pip-audit -r requirements-production.txt
+
+      - name: Verify credit hardening migration
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -f tests/sql/credit_hardening_setup.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -f supabase/migrations/20260717_harden_credits_and_event_access.sql
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -f tests/sql/credit_hardening_verify.sql
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Audit root dependencies
+        run: npm audit --omit=dev
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type-check frontend
+        working-directory: frontend
+        run: npm run type-check
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev
+
+      - name: Install Chromium for smoke tests
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run frontend smoke and authentication compatibility tests
+        working-directory: frontend
+        run: npx playwright test tests/simple.spec.ts tests/auth.spec.ts tests/dependency-compat.spec.ts --project=chromium --workers=1
+
   deploy:
     name: Deploy to Server
+    needs: quality
     runs-on: ubuntu-latest
 
     steps:
+      - name: Require production database migration
+        if: ${{ vars.MIGRATION_20260717_APPLIED != 'true' }}
+        run: |
+          echo "::error::Apply Supabase migration 20260717_harden_credits_and_event_access.sql first, then set repository variable MIGRATION_20260717_APPLIED=true."
+          exit 1
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:

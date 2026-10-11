@@ -3,6 +3,8 @@
 Test Authentication Flow
 Tests the authentication flow to see if tokens are being sent correctly
 """
+__test__ = False  # Manual network diagnostic; excluded from the hermetic pytest suite.
+
 import asyncio
 import httpx
 import json
@@ -64,4 +66,4 @@ async def main():
     await test_auth_flow()
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

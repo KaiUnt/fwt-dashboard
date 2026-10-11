@@ -106,8 +106,6 @@ EXPECTED_ENDPOINTS = {
     ("POST", "/api/admin/athletes/sync"),
     ("GET", "/api/admin/athlete/{athlete_id}/series-rankings"),
 
-    # Debug
-    ("GET", "/api/debug/user-role"),
 }
 
 

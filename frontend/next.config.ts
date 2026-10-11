@@ -1,13 +1,10 @@
 import type { NextConfig } from "next";
-import withPWA from "@ducanh2912/next-pwa";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 const nextConfig: NextConfig = {
   // Fix multiple lockfiles warning
   outputFileTracingRoot: require('path').join(__dirname, '..'),
-  // Security: Never ignore ESLint/TypeScript errors in production
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
+  // ESLint runs explicitly in the build script; Next.js 16 no longer runs it.
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -28,6 +25,10 @@ const nextConfig: NextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
           },
           {
             key: 'Strict-Transport-Security',
@@ -97,7 +98,13 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 };
 
-export default withPWA({
+export default async function config(phase: string): Promise<NextConfig> {
+  // PWA generation is build tooling. Development and the production server
+  // load only the base config, so runtime installs do not need next-pwa.
+  if (phase !== PHASE_PRODUCTION_BUILD) return nextConfig;
+
+  const { default: withPWA } = await import("@ducanh2912/next-pwa");
+  return withPWA({
   dest: "public",
   register: false,
   disable: process.env.NODE_ENV === "development",
@@ -119,6 +126,20 @@ export default withPWA({
     navigateFallbackDenylist: [/.*/],
     runtimeCaching: [
       {
+        // Never persist authenticated or user-specific API responses in shared caches.
+        urlPattern: /\/api\/(?:credits|profile|admin|friends|commentator-info|activity|user)(?:\/|$)/,
+        handler: "NetworkOnly",
+      },
+      {
+        urlPattern: /\/api\/events\/(?:purchase-multiple|[^/]+\/(?:purchase|access))(?:\/|$)/,
+        handler: "NetworkOnly",
+      },
+      {
+        // Supabase auth and database responses can contain account-specific data.
+        urlPattern: /^https:\/\/[^/]+\.supabase\.co\/(?:auth|rest)\//,
+        handler: "NetworkOnly",
+      },
+      {
         // Prefer fresh series rankings; allow long network time for heavy queries.
         urlPattern: /\/api\/series\/rankings\//,
         handler: "NetworkFirst",
@@ -128,36 +149,6 @@ export default withPWA({
           expiration: {
             maxEntries: 50,
             maxAgeSeconds: 60 * 60, // 1 hour
-          },
-          cacheableResponse: {
-            statuses: [0, 200],
-          },
-        },
-      },
-      {
-        urlPattern: /^https?.*/, // Cache all external requests
-        handler: "NetworkFirst",
-        options: {
-          cacheName: "https-calls",
-          networkTimeoutSeconds: 10,
-          expiration: {
-            maxEntries: 150,
-            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-          },
-          cacheableResponse: {
-            statuses: [0, 200],
-          },
-        },
-      },
-      {
-        urlPattern: /^http:\/\/localhost:8000\/api\//,
-        handler: "NetworkFirst",
-        options: {
-          cacheName: "api-calls-dev",
-          networkTimeoutSeconds: 10,
-          expiration: {
-            maxEntries: 50,
-            maxAgeSeconds: 1 * 60 * 60, // 1 hour only
           },
           cacheableResponse: {
             statuses: [0, 200],
@@ -205,3 +196,4 @@ export default withPWA({
     ],
   },
 })(nextConfig);
+}

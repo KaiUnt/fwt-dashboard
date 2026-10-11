@@ -33,6 +33,34 @@ interface SeriesVisibility {
   junior_wc: boolean;
 }
 
+interface TooltipPayload {
+  value: number;
+  dataKey: string;
+  color: string;
+  name: string;
+}
+
+function CustomTooltip({ active, payload, label, t }: {
+  active?: boolean;
+  payload?: TooltipPayload[];
+  label?: string | number;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
+        <p className="font-semibold text-gray-900">{t('performance.year', { year: label || 'Unknown' })}</p>
+        {payload.map((entry: TooltipPayload, index: number) => (
+          <p key={index} style={{ color: entry.color }} className="text-sm">
+            <span className="font-medium capitalize">{entry.dataKey}:</span> #{entry.value}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+}
+
 export function PerformanceCurve({
   athleteId,
   athleteName: _athleteName,
@@ -131,34 +159,6 @@ export function PerformanceCurve({
       case 'junior_wc': return <Crown className="h-4 w-4" />;
       default: return <Medal className="h-4 w-4" />;
     }
-  };
-
-  // Custom tooltip for better UX
-  interface TooltipPayload {
-    value: number;
-    dataKey: string;
-    color: string;
-    name: string;
-  }
-
-  const CustomTooltip = ({ active, payload, label }: { 
-    active?: boolean; 
-    payload?: TooltipPayload[]; 
-    label?: string | number; 
-  }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-          <p className="font-semibold text-gray-900">{t('performance.year', { year: label || 'Unknown' })}</p>
-          {payload.map((entry: TooltipPayload, index: number) => (
-            <p key={index} style={{ color: entry.color }} className="text-sm">
-              <span className="font-medium capitalize">{entry.dataKey}:</span> #{entry.value}
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
   };
 
   // Toggle series visibility
@@ -310,7 +310,7 @@ export function PerformanceCurve({
                 tickLine={{ stroke: '#d1d5db' }}
                 label={{ value: t('performance.ranking'), angle: -90, position: 'insideLeft' }}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip t={t} />} />
               <Legend 
                 wrapperStyle={{ paddingTop: '20px' }}
                 iconType="line"

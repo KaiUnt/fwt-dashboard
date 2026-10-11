@@ -75,6 +75,7 @@ venv.bak/
 dmypy.json
 
 # Node.js / Next.js
+/.runtime/
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -181,6 +182,11 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 *.sql 
+!supabase/
+!supabase/migrations/
+!supabase/migrations/*.sql
+!tests/sql/
+!tests/sql/*.sql
 
 
 # Temporary files

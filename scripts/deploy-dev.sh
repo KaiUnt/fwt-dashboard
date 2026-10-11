@@ -12,6 +12,9 @@ PROJECT_DIR="/opt/fwt-dashboard-dev"
 # Navigate to project directory
 cd "$PROJECT_DIR"
 
+echo "Checking Node.js runtime..."
+source "$PROJECT_DIR/scripts/use-node-runtime.sh"
+
 echo "Updating backend dependencies..."
 source venv/bin/activate
 pip install -r requirements.txt
@@ -26,7 +29,7 @@ if [ -d "$PROJECT_DIR/frontend/.next" ]; then
     sudo /usr/bin/chown -R kai:kai "$PROJECT_DIR/frontend/.next"
 fi
 
-npm ci --production=false
+npm ci --include=dev
 
 echo "Building frontend..."
 npm run build

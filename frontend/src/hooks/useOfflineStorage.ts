@@ -15,6 +15,7 @@ import {
 } from '@/utils/offlineStorage';
 import { Athlete, EventInfo, CommentatorInfoWithAuthor } from '@/types/athletes';
 import { SeriesData } from './useSeriesRankings';
+import { useAuth } from '@/providers/AuthProvider';
 
 export interface OfflineEventStatus {
   id: string;
@@ -72,6 +73,8 @@ export function useOfflineStorage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
+  const { user, getOfflineAuthState } = useAuth();
+  const ownerUserId = user?.id ?? getOfflineAuthState().userId ?? null;
 
   // Initialize storage on mount
   useEffect(() => {
@@ -113,13 +116,13 @@ export function useOfflineStorage() {
 
   // Query for offline events
   const { data: offlineEvents = [], refetch: refetchOfflineEvents } = useQuery({
-    queryKey: ['offline-events'],
+    queryKey: ['offline-events', ownerUserId],
     queryFn: async () => {
-      if (!isInitialized) return [];
-      return await offlineStorage.getAllEvents();
+      if (!isInitialized || !ownerUserId) return [];
+      return await offlineStorage.getAllEvents(ownerUserId);
     },
     // Load only after init AND after initial paint/idle
-    enabled: isInitialized && deferLoad,
+    enabled: isInitialized && deferLoad && !!ownerUserId,
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // 5 minutes (metadata changes rarely)
     gcTime: 10 * 60 * 1000,
@@ -127,12 +130,12 @@ export function useOfflineStorage() {
 
   // Query for storage stats
   const { data: storageStats } = useQuery({
-    queryKey: ['offline-storage-stats'],
+    queryKey: ['offline-storage-stats', ownerUserId],
     queryFn: async () => {
-      if (!isInitialized) return null;
-      return await offlineStorage.getStorageStats();
+      if (!isInitialized || !ownerUserId) return null;
+      return await offlineStorage.getStorageStats(ownerUserId);
     },
-    enabled: isInitialized && deferLoad,
+    enabled: isInitialized && deferLoad && !!ownerUserId,
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000,
@@ -149,6 +152,9 @@ export function useOfflineStorage() {
   ): Promise<void> => {
     if (!isInitialized) {
       throw new Error('Offline storage not initialized');
+    }
+    if (!ownerUserId) {
+      throw new Error('A user session is required for offline storage');
     }
 
     setIsSaving(true);
@@ -183,6 +189,7 @@ export function useOfflineStorage() {
 
       const offlineData: OfflineEventData = {
         id: offlineEventId,
+        userId: ownerUserId,
         type: eventIds.length === 1 ? 'single' : 'multi',
         timestamp: now,
         expiresAt,
@@ -200,8 +207,8 @@ export function useOfflineStorage() {
       await refetchOfflineEvents();
 
       // Invalidate storage stats
-      queryClient.invalidateQueries({ queryKey: ['offline-storage-stats'] });
-      queryClient.setQueryData(['offline-event-data', offlineEventId], offlineData);
+      queryClient.invalidateQueries({ queryKey: ['offline-storage-stats', ownerUserId] });
+      queryClient.setQueryData(['offline-event-data', ownerUserId, offlineEventId], offlineData);
 
     } catch (error) {
       console.error('Failed to save event for offline use:', error);
@@ -209,37 +216,37 @@ export function useOfflineStorage() {
     } finally {
       setIsSaving(false);
     }
-  }, [isInitialized, refetchOfflineEvents, queryClient]);
+  }, [isInitialized, ownerUserId, refetchOfflineEvents, queryClient]);
 
   // Get offline event data
   const getOfflineEvent = useCallback(async (eventId: string): Promise<OfflineEventData | null> => {
-    if (!isInitialized) return null;
+    if (!isInitialized || !ownerUserId) return null;
     
     try {
-      return await offlineStorage.getEvent(eventId);
+      return await offlineStorage.getEvent(eventId, ownerUserId);
     } catch (error) {
       console.error('Failed to get offline event:', error);
       return null;
     }
-  }, [isInitialized]);
+  }, [isInitialized, ownerUserId]);
 
   // Delete offline event
   const deleteOfflineEvent = useCallback(async (eventId: string): Promise<void> => {
-    if (!isInitialized) {
+    if (!isInitialized || !ownerUserId) {
       throw new Error('Offline storage not initialized');
     }
 
     setIsDeleting(true);
     
     try {
-      await offlineStorage.deleteEvent(eventId);
+      await offlineStorage.deleteEvent(eventId, ownerUserId);
       
       // Refresh offline events query
       await refetchOfflineEvents();
       
       // Invalidate storage stats
-      queryClient.invalidateQueries({ queryKey: ['offline-storage-stats'] });
-      queryClient.removeQueries({ queryKey: ['offline-event-data', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['offline-storage-stats', ownerUserId] });
+      queryClient.removeQueries({ queryKey: ['offline-event-data', ownerUserId, eventId] });
 
     } catch (error) {
       console.error('Failed to delete offline event:', error);
@@ -247,25 +254,25 @@ export function useOfflineStorage() {
     } finally {
       setIsDeleting(false);
     }
-  }, [isInitialized, refetchOfflineEvents, queryClient]);
+  }, [isInitialized, ownerUserId, refetchOfflineEvents, queryClient]);
 
   // Clear all offline data
   const clearAllOfflineData = useCallback(async (): Promise<void> => {
-    if (!isInitialized) {
+    if (!isInitialized || !ownerUserId) {
       throw new Error('Offline storage not initialized');
     }
 
     setIsDeleting(true);
     
     try {
-      await offlineStorage.clearAllData();
+      await offlineStorage.clearUserData(ownerUserId);
       
       // Refresh offline events query
       await refetchOfflineEvents();
       
       // Invalidate storage stats
-      queryClient.invalidateQueries({ queryKey: ['offline-storage-stats'] });
-      queryClient.removeQueries({ queryKey: ['offline-event-data'] });
+      queryClient.invalidateQueries({ queryKey: ['offline-storage-stats', ownerUserId] });
+      queryClient.removeQueries({ queryKey: ['offline-event-data', ownerUserId] });
 
     } catch (error) {
       console.error('Failed to clear offline data:', error);
@@ -273,7 +280,7 @@ export function useOfflineStorage() {
     } finally {
       setIsDeleting(false);
     }
-  }, [isInitialized, refetchOfflineEvents, queryClient]);
+  }, [isInitialized, ownerUserId, refetchOfflineEvents, queryClient]);
 
   // Get status for specific event(s)
   const getOfflineEventStatus = useCallback((eventIds: string[]): OfflineEventStatus | null => {

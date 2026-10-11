@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js'
 import type { UserProfile } from '@/types/supabase'
 import { useQueryClient } from '@tanstack/react-query'
+import { clearSensitiveOfflineData } from '@/utils/offlineStorage'
 
 // Helper functions for offline auth state caching
 const setOfflineAuthState = (user: User | null) => {
@@ -241,6 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
               queryClient.clear()
             } catch {}
+            void clearSensitiveOfflineData()
           }
           try {
             if (session?.user) {
@@ -328,6 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       queryClient.clear()
     } catch {}
+    await clearSensitiveOfflineData()
   }
 
   const isAdmin = profile?.role === 'admin'

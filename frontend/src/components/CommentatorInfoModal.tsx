@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe, Upload, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { X, Save, User, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Globe, Upload, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { Instagram, Youtube } from './SocialIcons';
 import { CommentatorInfo, Athlete } from '@/types/athletes';
 import { useUpdateCommentatorInfo, useBulkImportCommentatorInfo } from '@/hooks/useCommentatorInfo';
 import { useTranslation } from '@/hooks/useTranslation';

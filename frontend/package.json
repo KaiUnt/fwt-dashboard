@@ -2,14 +2,17 @@
   "name": "fwt-dashboard-frontend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build && node scripts/fix-sw.js",
-    "start": "next start",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix",
-    "type-check": "tsc --noEmit",
-    "build:check": "npm run type-check && npm run lint && npm run build",
+    "build": "npm run lint && next build --webpack && node scripts/fix-sw.js",
+    "start": "node scripts/start-next.cjs",
+    "lint": "eslint src --max-warnings=0",
+    "lint:fix": "eslint src --fix --max-warnings=0",
+    "type-check": "next typegen && tsc --noEmit",
+    "build:check": "npm run type-check && npm run build",
     "clean": "rm -rf .next out node_modules/.cache",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
@@ -20,31 +23,42 @@
     "supabase:stop": "npx supabase stop"
   },
   "dependencies": {
-    "@ducanh2912/next-pwa": "^10.2.9",
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.43.4",
-    "@tanstack/react-query": "^5.82.0",
-    "@types/papaparse": "^5.3.16",
-    "jose": "^5.9.3",
-    "jspdf": "^4.0.0",
-    "lucide-react": "^0.525.0",
-    "next": "^15.5.9",
-    "papaparse": "^5.5.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "recharts": "^3.1.0",
-    "sharp": "^0.34.3"
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.3",
+    "@tanstack/react-query": "^5.104.1",
+    "jose": "^6.2.12",
+    "jspdf": "4.2.1",
+    "lucide-react": "^1.55.0",
+    "next": "16.4.0",
+    "papaparse": "^5.7.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-is": "19.3.0",
+    "recharts": "^3.10.1",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@playwright/test": "^1.55.0",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.5",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@ducanh2912/next-pwa": "10.2.9",
+    "@playwright/test": "^1.64.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24",
+    "@types/papaparse": "^5.5.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.4.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "6.0.3"
+  },
+  "overrides": {
+    "postcss": "8.5.29",
+    "serialize-javascript": "7.1.2",
+    "@ducanh2912/next-pwa": {
+      "fast-glob": "3.3.3",
+      "workbox-core": "7.4.1",
+      "workbox-build": "7.4.1",
+      "workbox-window": "7.4.1",
+      "workbox-webpack-plugin": "7.4.1"
+    }
   }
 }

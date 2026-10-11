@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, Edit, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Instagram, Youtube, Globe } from 'lucide-react';
+import { ChevronDown, ChevronRight, Edit, Home, Users, Award, Heart, AlertTriangle, Lightbulb, FileText, Globe } from 'lucide-react';
+import { Instagram, Youtube } from './SocialIcons';
 import { CommentatorInfo, CommentatorInfoWithAuthor, TabData } from '@/types/athletes';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useFriends } from '@/hooks/useFriends';

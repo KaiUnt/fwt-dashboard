@@ -7,7 +7,7 @@ Extracted from backend_api.py for modularity.
 
 import re
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ============================================
@@ -65,7 +65,8 @@ RESERVED_USERNAMES = [
 class FriendRequestCreate(BaseModel):
     username: str = Field(..., min_length=2, max_length=30)
 
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def validate_username(cls, v):
         # Username validation rules
         if not re.match(r'^[\w .-]+$', v, flags=re.UNICODE):
@@ -142,8 +143,8 @@ class CommentatorInfoCreate(BaseModel):
     social_media: Optional[Dict[str, str]] = Field(None)
     custom_fields: Optional[Dict[str, Any]] = Field(None)
 
-    _validate_social_media = validator('social_media', allow_reuse=True)(validate_social_media)
-    _validate_custom_fields = validator('custom_fields', allow_reuse=True)(validate_custom_fields)
+    _validate_social_media = field_validator('social_media')(validate_social_media)
+    _validate_custom_fields = field_validator('custom_fields')(validate_custom_fields)
 
 
 class CommentatorInfoUpdate(BaseModel):
@@ -158,8 +159,8 @@ class CommentatorInfoUpdate(BaseModel):
     social_media: Optional[Dict[str, str]] = Field(None)
     custom_fields: Optional[Dict[str, Any]] = Field(None)
 
-    _validate_social_media = validator('social_media', allow_reuse=True)(validate_social_media)
-    _validate_custom_fields = validator('custom_fields', allow_reuse=True)(validate_custom_fields)
+    _validate_social_media = field_validator('social_media')(validate_social_media)
+    _validate_custom_fields = field_validator('custom_fields')(validate_custom_fields)
 
 
 class CommentatorInfoWithAuthor(BaseModel):
@@ -212,8 +213,36 @@ class PurchaseEventAccessResponse(BaseModel):
 
 
 class MultiEventPurchaseRequest(BaseModel):
-    event_ids: List[str]
-    event_names: Optional[List[str]] = None
+    event_ids: List[str] = Field(..., min_length=1, max_length=50)
+    event_names: Optional[List[str]] = Field(None, max_length=50)
+
+    @field_validator('event_ids')
+    @classmethod
+    def validate_multi_event_ids(cls, value):
+        normalized = []
+        for event_id in value:
+            event_id = event_id.strip()
+            if not re.fullmatch(r'[a-zA-Z0-9_-]{1,100}', event_id):
+                raise ValueError('Event IDs can only contain letters, numbers, underscores, and hyphens')
+            normalized.append(event_id)
+        if len(normalized) != len(set(normalized)):
+            raise ValueError('Duplicate event IDs are not allowed')
+        return normalized
+
+    @field_validator('event_names')
+    @classmethod
+    def validate_multi_event_names(cls, value):
+        if value is None:
+            return value
+        if any(len(name) > 500 for name in value if name is not None):
+            raise ValueError('Event names must be 500 characters or fewer')
+        return value
+
+    @model_validator(mode='after')
+    def validate_event_name_count(self):
+        if self.event_names is not None and len(self.event_names) != len(self.event_ids):
+            raise ValueError('event_names must contain one entry per event_id')
+        return self
 
 
 class MultiEventPurchaseResponse(BaseModel):
@@ -244,9 +273,10 @@ class CreditsTransactionResponse(BaseModel):
 
 
 class BatchEventAccessRequest(BaseModel):
-    event_ids: List[str] = Field(..., min_items=0, max_items=1000)
+    event_ids: List[str] = Field(..., min_length=0, max_length=1000)
 
-    @validator('event_ids')
+    @field_validator('event_ids')
+    @classmethod
     def validate_event_ids(cls, v):
         for event_id in v:
             if not isinstance(event_id, str) or len(event_id.strip()) == 0:

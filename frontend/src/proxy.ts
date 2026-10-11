@@ -26,7 +26,7 @@ function hasOfflineDataForPath(request: NextRequest, pathname: string): boolean 
   return isDashboardRoute || isEventsRoute;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Security: Get client IP for logging
@@ -76,48 +76,45 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Create Supabase client for middleware
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // Fail closed without throwing on every request. Public routes (including
+    // /login) remain available so a broken deployment can still explain itself.
+    const url = new URL('/login', request.url);
+    url.searchParams.set('redirectTo', pathname);
+    const redirect = NextResponse.redirect(url);
+    redirect.headers.set('Cache-Control', 'no-store');
+    redirect.headers.set('X-Content-Type-Options', 'nosniff');
+    redirect.headers.set('X-Frame-Options', 'DENY');
+    return redirect;
+  }
+
+  // Supabase sends refresh cache headers only with the first cookie write.
+  // Keep them when later cookie writes recreate the response.
+  const authCacheHeaders: Record<string, string> = {};
+
+  // Create Supabase client for the request proxy.
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: Record<string, unknown>) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+        setAll(cookiesToSet, headers) {
+          const previousCookies = response.cookies.getAll()
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: Record<string, unknown>) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          previousCookies.forEach(cookie => response.cookies.set(cookie))
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+          Object.assign(authCacheHeaders, headers)
+          Object.entries(authCacheHeaders).forEach(([name, value]) => response.headers.set(name, value))
         },
       },
     }
@@ -181,7 +178,9 @@ export async function middleware(request: NextRequest) {
   // Set security headers and locale
   response.headers.set('x-locale', activeLocale);
   response.headers.set('X-Robots-Tag', 'noindex, nofollow');
-  response.headers.set('Cache-Control', 'private, no-cache');
+  if (!response.headers.has('Cache-Control')) {
+    response.headers.set('Cache-Control', 'private, no-cache');
+  }
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-XSS-Protection', '1; mode=block');

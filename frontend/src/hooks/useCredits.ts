@@ -65,8 +65,12 @@ export function useCredits() {
       
       // If offline, save purchase for later sync
       if (isOffline) {
+        if (!user?.id) {
+          throw new Error('Zum Offline-Kauf ist eine angemeldete Sitzung erforderlich')
+        }
         const offlinePurchase: OfflinePurchaseData = {
           id: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          userId: user.id,
           timestamp: new Date().toISOString(),
           eventIds: eventIdArray,
           eventNames: eventNameArray,
@@ -86,7 +90,10 @@ export function useCredits() {
         await offlinePurchaseStorage.savePurchase(offlinePurchase)
         
         // Optimistically update credits cache
-        queryClient.setQueryData(['credits', 'balance'], { credits: currentCredits - eventIdArray.length })
+        queryClient.setQueryData(
+          ['credits', 'balance', user.id],
+          { credits: currentCredits - eventIdArray.length }
+        )
         
         return {
           success: true,
@@ -109,7 +116,7 @@ export function useCredits() {
       const requestBody = isMultiEvent 
         ? {
             event_ids: eventIdArray,
-            event_names: eventNameArray
+            event_names: eventNameArray.length > 0 ? eventNameArray : undefined
           }
         : {
             event_id: eventIdArray[0],
@@ -137,7 +144,7 @@ export function useCredits() {
     } catch (err) {
       throw err
     }
-  }, [isOffline, balanceQuery.data?.credits, getAccessToken, queryClient])
+  }, [isOffline, balanceQuery.data?.credits, getAccessToken, queryClient, user?.id])
 
   const checkEventAccess = useCallback(async (eventId: string) => {
     try {
@@ -161,7 +168,8 @@ export function useCredits() {
   // Sync offline purchases when coming back online
   const syncOfflinePurchases = useCallback(async () => {
     try {
-      const pendingPurchases = await offlinePurchaseStorage.getPendingPurchases()
+      if (!user?.id) return
+      const pendingPurchases = await offlinePurchaseStorage.getPendingPurchases(user.id)
       
       if (pendingPurchases.length === 0) return
       
@@ -199,7 +207,7 @@ export function useCredits() {
     } catch (error) {
       console.error('Error syncing offline purchases:', error)
     }
-  }, [purchaseEventAccess, queryClient])
+  }, [purchaseEventAccess, queryClient, user?.id])
 
   // Only enable queries on mount once
   useEffect(() => {
@@ -210,10 +218,10 @@ export function useCredits() {
 
   // Sync offline purchases when coming back online
   useEffect(() => {
-    if (!isOffline && initialized) {
+    if (!isOffline && initialized && user?.id) {
       syncOfflinePurchases()
     }
-  }, [isOffline, initialized, syncOfflinePurchases])
+  }, [isOffline, initialized, syncOfflinePurchases, user?.id])
 
   return {
     credits: balanceQuery.data?.credits ?? 0,

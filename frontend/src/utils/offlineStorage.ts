@@ -1,6 +1,7 @@
 // IndexedDB wrapper for offline event storage
 export interface OfflineEventData {
   id: string;
+  userId: string;
   type: 'single' | 'multi';
   timestamp: string;
   expiresAt: string;
@@ -56,6 +57,7 @@ export interface OfflineEventData {
 
 export interface OfflinePurchaseData {
   id: string;
+  userId: string;
   timestamp: string;
   eventIds: string[];
   eventNames?: string[];
@@ -76,7 +78,7 @@ export interface OfflineStorageStats {
 
 class OfflineStorage {
   private dbName = 'fwt-offline-events';
-  private version = 1;
+  private version = 2;
   private storeName = 'events';
   private db: IDBDatabase | null = null;
 
@@ -87,8 +89,10 @@ class OfflineStorage {
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         this.db = request.result;
+        this.db.onversionchange = () => this.db?.close();
         resolve();
       };
+      request.onblocked = () => reject(new Error('Offline storage upgrade is blocked by another tab'));
       
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
@@ -98,6 +102,12 @@ class OfflineStorage {
           const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
           store.createIndex('timestamp', 'timestamp', { unique: false });
           store.createIndex('expiresAt', 'expiresAt', { unique: false });
+          store.createIndex('userId', 'userId', { unique: false });
+        } else {
+          const store = (event.target as IDBOpenDBRequest).transaction!.objectStore(this.storeName);
+          if (!store.indexNames.contains('userId')) {
+            store.createIndex('userId', 'userId', { unique: false });
+          }
         }
       };
     });
@@ -116,7 +126,7 @@ class OfflineStorage {
     });
   }
 
-  async getEvent(eventId: string): Promise<OfflineEventData | null> {
+  async getEvent(eventId: string, userId: string): Promise<OfflineEventData | null> {
     if (!this.db) await this.init();
     
     return new Promise((resolve, reject) => {
@@ -126,7 +136,7 @@ class OfflineStorage {
       const request = store.get(eventId);
       request.onsuccess = () => {
         const result = request.result;
-        if (result && new Date(result.expiresAt) > new Date()) {
+        if (result && result.userId === userId && new Date(result.expiresAt) > new Date()) {
           resolve(result);
         } else {
           resolve(null);
@@ -136,14 +146,14 @@ class OfflineStorage {
     });
   }
 
-  async getAllEvents(): Promise<OfflineEventData[]> {
+  async getAllEvents(userId: string): Promise<OfflineEventData[]> {
     if (!this.db) await this.init();
     
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
       
-      const request = store.getAll();
+      const request = store.index('userId').getAll(userId);
       request.onsuccess = () => {
         const now = new Date();
         const validEvents = request.result.filter(
@@ -155,16 +165,25 @@ class OfflineStorage {
     });
   }
 
-  async deleteEvent(eventId: string): Promise<void> {
+  async deleteEvent(eventId: string, userId: string): Promise<void> {
     if (!this.db) await this.init();
     
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
       
-      const request = store.delete(eventId);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      const getRequest = store.get(eventId);
+      getRequest.onsuccess = () => {
+        const event = getRequest.result as OfflineEventData | undefined;
+        if (!event || event.userId !== userId) {
+          resolve();
+          return;
+        }
+        const deleteRequest = store.delete(eventId);
+        deleteRequest.onsuccess = () => resolve();
+        deleteRequest.onerror = () => reject(deleteRequest.error);
+      };
+      getRequest.onerror = () => reject(getRequest.error);
     });
   }
 
@@ -197,8 +216,8 @@ class OfflineStorage {
     });
   }
 
-  async getStorageStats(): Promise<OfflineStorageStats> {
-    const events = await this.getAllEvents();
+  async getStorageStats(userId: string): Promise<OfflineStorageStats> {
+    const events = await this.getAllEvents(userId);
     
     if (events.length === 0) {
       return {
@@ -232,6 +251,25 @@ class OfflineStorage {
       request.onerror = () => reject(request.error);
     });
   }
+
+  async clearUserData(userId: string): Promise<void> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.storeName], 'readwrite');
+      const request = transaction.objectStore(this.storeName).index('userId').openCursor(userId);
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (cursor) {
+          cursor.delete();
+          cursor.continue();
+        }
+      };
+      request.onerror = () => reject(request.error);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
 }
 
 // Singleton instance
@@ -239,7 +277,7 @@ export const offlineStorage = new OfflineStorage();
 
 class OfflinePurchaseStorage {
   private dbName = 'FWTOfflinePurchases';
-  private version = 1;
+  private version = 2;
   private storeName = 'purchases';
 
   private async openDB(): Promise<IDBDatabase> {
@@ -247,7 +285,11 @@ class OfflinePurchaseStorage {
       const request = indexedDB.open(this.dbName, this.version);
       
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        request.result.onversionchange = () => request.result.close();
+        resolve(request.result);
+      };
+      request.onblocked = () => reject(new Error('Offline purchase storage upgrade is blocked by another tab'));
       
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
@@ -255,6 +297,12 @@ class OfflinePurchaseStorage {
           const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
           store.createIndex('status', 'status', { unique: false });
           store.createIndex('timestamp', 'timestamp', { unique: false });
+          store.createIndex('userId', 'userId', { unique: false });
+        } else {
+          const store = (event.target as IDBOpenDBRequest).transaction!.objectStore(this.storeName);
+          if (!store.indexNames.contains('userId')) {
+            store.createIndex('userId', 'userId', { unique: false });
+          }
         }
       };
     });
@@ -264,18 +312,24 @@ class OfflinePurchaseStorage {
     const db = await this.openDB();
     const transaction = db.transaction([this.storeName], 'readwrite');
     const store = transaction.objectStore(this.storeName);
-    await store.put(purchase);
+    return new Promise((resolve, reject) => {
+      const request = store.put(purchase);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   }
 
-  async getPendingPurchases(): Promise<OfflinePurchaseData[]> {
+  async getPendingPurchases(userId: string): Promise<OfflinePurchaseData[]> {
     const db = await this.openDB();
     const transaction = db.transaction([this.storeName], 'readonly');
     const store = transaction.objectStore(this.storeName);
-    const index = store.index('status');
+    const index = store.index('userId');
     
     return new Promise((resolve, reject) => {
-      const request = index.getAll('pending');
-      request.onsuccess = () => resolve(request.result);
+      const request = index.getAll(userId);
+      request.onsuccess = () => resolve(
+        (request.result as OfflinePurchaseData[]).filter(purchase => purchase.status === 'pending')
+      );
       request.onerror = () => reject(request.error);
     });
   }
@@ -311,7 +365,11 @@ class OfflinePurchaseStorage {
     const db = await this.openDB();
     const transaction = db.transaction([this.storeName], 'readwrite');
     const store = transaction.objectStore(this.storeName);
-    await store.delete(id);
+    return new Promise((resolve, reject) => {
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async getAllPurchases(): Promise<OfflinePurchaseData[]> {
@@ -325,9 +383,53 @@ class OfflinePurchaseStorage {
       request.onerror = () => reject(request.error);
     });
   }
+
+  async clearAllData(): Promise<void> {
+    const db = await this.openDB();
+    const transaction = db.transaction([this.storeName], 'readwrite');
+    const store = transaction.objectStore(this.storeName);
+
+    return new Promise((resolve, reject) => {
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
 }
 
 export const offlinePurchaseStorage = new OfflinePurchaseStorage();
+
+let clearSensitiveDataPromise: Promise<void> | null = null;
+
+export async function clearSensitiveOfflineData(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (clearSensitiveDataPromise) return clearSensitiveDataPromise;
+
+  clearSensitiveDataPromise = (async () => {
+    await Promise.allSettled([
+      offlineStorage.clearAllData(),
+      offlinePurchaseStorage.clearAllData(),
+    ]);
+
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+      const key = localStorage.key(index);
+      if (key === 'commentator-info-sync-queue' || key?.startsWith('commentator-info-cache')) {
+        localStorage.removeItem(key);
+      }
+    }
+
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+    }
+  })();
+
+  try {
+    await clearSensitiveDataPromise;
+  } finally {
+    clearSensitiveDataPromise = null;
+  }
+}
 
 // Helper functions
 export function createEventId(eventIds: string[]): string {
@@ -386,4 +488,4 @@ export function formatTimestamp(timestamp: string): string {
     hour: '2-digit',
     minute: '2-digit'
   });
-} 
+}
